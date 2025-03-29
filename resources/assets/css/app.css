@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+
+@source "./..";
+
+.toggle-dot {
+    transition: transform 0.2s ease;
+}
+
+input[type="checkbox"]:checked + label .toggle-dot {
+    transform: translateX(100%);
+}
+
+input[type="checkbox"]:checked + label .block {
+    background-color: #4CAF50; /* Couleur du toggle activé */
+}

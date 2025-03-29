@@ -1,0 +1,49 @@
+{
+    "name": "pollora/meiliscout",
+    "description": "Intégration de Meilisearch dans WordPress avec une approche modulaire et expressive.",
+    "type": "wordpress-plugin",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "AmphiBee",
+            "email": "contact@amphibee.fr"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "ext-json": "*",
+        "meilisearch/meilisearch-php": "^v1.12.0",
+        "symfony/polyfill-mbstring": "^1.31"
+    },
+    "autoload": {
+        "psr-4": {
+            "Pollora\\MeiliScout\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Pollora\\MeiliScout\\Tests\\": "tests/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Pollora\\MeiliScout\\MeiliScout::boot"
+        ]
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true,
+            "pestphp/pest-plugin": true
+        }
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-latest"
+        ,
+        "pestphp/pest": "^3.7"
+    }
+}

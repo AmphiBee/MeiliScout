@@ -1,0 +1,7 @@
+.internal
+node_modules
+vendor
+.idea
+.env
+dist/
+build/
