@@ -14,13 +14,20 @@ $classes = ['wp-block-query-meilisearch'];
 if ($enable_url_params) {
     $classes[] = 'has-urlparams';
 }
+
+$alpine_data = [
+    'queryId' => $query_id,
+    'enableUrlParams' => $enable_url_params,
+    'query' => $query,
+    'template' => $template
+];
+
+$json = json_encode($alpine_data);
 ?>
+
 <div
-    class="<?php echo esc_attr(implode(' ', $classes)) ?>"
-    data-query-id="<?php echo esc_attr($query_id) ?>"
-    data-enable-url-params="<?php echo $enable_url_params ? 'true' : 'false' ?>"
-    data-query='<?php echo esc_attr(json_encode($query)) ?>'
-    data-template="<?php echo esc_attr(json_encode($template, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)); ?>"
+    class="<?php echo esc_attr(implode(' ', $classes)); ?>"
+    x-meiliscout-data="QueryLoop(<?php echo esc_attr($json); ?>)"
 >
-    <?php echo $content ?>
+    <div x-meiliscout-html="posts"></div>
 </div>

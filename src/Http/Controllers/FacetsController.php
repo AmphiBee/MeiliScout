@@ -50,7 +50,8 @@ class FacetsController
         $queryArgs = $request->get_json_params()['query'] ?? [];
         $filters = $request->get_json_params()['filters'] ?? [];
 
-        $template = json_decode($request->get_json_params()['template'], true) ?? '';
+
+        $template = $request->get_json_params()['template'] ?? '';
 
         // Convert Query Loop parameters to WP_Query parameters
         $queryArgs = $this->convertQueryParams($queryArgs);

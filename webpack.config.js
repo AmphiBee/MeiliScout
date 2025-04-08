@@ -10,7 +10,7 @@ module.exports = {
         'query-loop/index': path.resolve(__dirname, 'resources/assets/js/gutenberg/blocks/query-loop/index.js'),
         'main': path.resolve(__dirname, 'resources/assets/main.js'),
         'front-facets': [
-            path.resolve(__dirname, 'resources/assets/js/front/facets/index.js'),
+            path.resolve(__dirname, 'resources/assets/js/frontend/index.js'),
             path.resolve(__dirname, 'resources/assets/css/front-facets.css')
         ],
     },
