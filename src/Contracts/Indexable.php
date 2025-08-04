@@ -7,31 +7,32 @@ namespace Pollora\MeiliScout\Contracts;
 interface Indexable
 {
     /**
-     * Retourne le nom de l'index Meilisearch
+     * Returns the Meilisearch index name.
      */
     public function getIndexName(): string;
+
     /**
-     * Retourne le nom de la clé primaire de la donnée indexée par Meilisearch
+     * Returns the primary key name for data indexed by Meilisearch.
      */
     public function getPrimaryKey(): string;
 
     /**
-     * Retourne la configuration de l'index
+     * Returns the index configuration.
      */
     public function getIndexSettings(): array;
 
     /**
-     * Récupère les éléments à indexer
+     * Retrieves the items to index.
      */
     public function getItems(): iterable;
 
     /**
-     * Formate un élément pour l'indexation
+     * Formats an item for indexing.
      */
     public function formatForIndexing(mixed $item): array;
 
     /**
-     * Formate un élément pour la recherche
+     * Formats an item for search.
      */
     public function formatForSearch(array $hit): mixed;
 }

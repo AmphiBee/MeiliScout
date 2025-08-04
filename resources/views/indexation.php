@@ -4,7 +4,7 @@ $indexationData = [
     'logs' => $last_log ?? [],
     'restUrl' => rest_url('meiliscout/v1/indexation-status'),
     'restNonce' => wp_create_nonce('wp_rest'),
-    'adminPostUrl' => admin_url('admin-post.php')
+    'adminPostUrl' => admin_url('admin-post.php'),
 ];
 ?>
 

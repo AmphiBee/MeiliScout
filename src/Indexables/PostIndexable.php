@@ -6,8 +6,8 @@ namespace Pollora\MeiliScout\Indexables;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
-use Pollora\MeiliScout\Domain\Search\Enums\TaxonomyFields;
 use WP_Post;
+use WP_Term;
 
 use function get_object_taxonomies;
 use function get_permalink;
@@ -39,27 +39,23 @@ class PostIndexable implements Indexable
             'post_status',
         ];
 
-        // Ajouter les meta keys filtrables
         foreach ($filterableMetaKeys as $metaKey) {
             $filterableAttributes[] = "metas.{$metaKey}";
         }
 
-        // Récupérer toutes les taxonomies associées aux types de posts indexés
-        foreach ($postTypes as $postType) {
-            $taxonomies = get_object_taxonomies($postType);
-            foreach ($taxonomies as $taxonomy) {
-                foreach (TaxonomyFields::values() as $field) {
-                    $filterableAttributes[] = "taxonomies.{$taxonomy}.{$field}";
-                }
-            }
-        }
+        // Filterable fields from terms (facets)
+        $filterableAttributes[] = 'terms.term_id';
+        $filterableAttributes[] = 'terms.slug';
+        $filterableAttributes[] = 'terms.name';
+        $filterableAttributes[] = 'terms.taxonomy';
+        $filterableAttributes[] = 'terms.term_taxonomy_id';
 
         return [
             'filterableAttributes' => array_unique($filterableAttributes),
-            'sortableAttributes' => [
+            'sortableAttributes' => array_unique([
                 'post_date',
-                ...array_map(fn ($key) => "metas.{$key}", $filterableMetaKeys),
-            ],
+                ...array_map(fn($key) => "metas.{$key}", $filterableMetaKeys),
+            ]),
         ];
     }
 
@@ -69,7 +65,6 @@ class PostIndexable implements Indexable
         $this->metaKeys = $this->gatherMetaKeys($postTypes);
 
         foreach ($postTypes as $postType) {
-
             $posts = get_posts([
                 'post_type' => $postType,
                 'posts_per_page' => -1,
@@ -86,20 +81,21 @@ class PostIndexable implements Indexable
     {
         global $wpdb;
 
-        $metaKeys = [];
-        if (! empty($postTypes)) {
-            $postTypesStr = "'".implode("','", array_map('esc_sql', $postTypes))."'";
-            $query = "
-                SELECT DISTINCT meta_key
-                FROM {$wpdb->postmeta} pm
-                JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-                WHERE p.post_type IN ({$postTypesStr})
-                AND meta_key NOT LIKE '\_%'
-            ";
-            $metaKeys = $wpdb->get_col($query);
+        if (empty($postTypes)) {
+            return [];
         }
 
-        return $metaKeys;
+        $escapedTypes = array_map(fn($type) => esc_sql((string) $type), $postTypes);
+        $postTypesStr = "'" . implode("','", $escapedTypes) . "'";
+
+        $query = "
+            SELECT DISTINCT meta_key
+            FROM {$wpdb->postmeta} pm
+            JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+            WHERE p.post_type IN ({$postTypesStr})
+        ";
+
+        return $wpdb->get_col($query);
     }
 
     public function formatForIndexing(mixed $item): array
@@ -108,12 +104,10 @@ class PostIndexable implements Indexable
             throw new \InvalidArgumentException('Item must be instance of WP_Post');
         }
 
-        // Récupérer et ajouter le reste des propriétés
         $document = get_object_vars($item);
 
-        // Ajouter les champs supplémentaires
         $document['url'] = get_permalink($item);
-        $document['taxonomies'] = $this->getTermsData($item);
+        $document['terms'] = $this->getFlattenedTerms($item);
         $document['metas'] = $this->getMetaData($item);
 
         return $document;
@@ -124,13 +118,27 @@ class PostIndexable implements Indexable
         return new WP_Post((object) $hit);
     }
 
-    private function getTermsData(WP_Post $post): array
+    private function getFlattenedTerms(WP_Post $post): array
     {
         $terms = [];
         $taxonomies = get_object_taxonomies($post->post_type);
 
         foreach ($taxonomies as $taxonomy) {
-            $terms[$taxonomy] = wp_get_post_terms($post->ID, $taxonomy);
+            $rawTerms = wp_get_post_terms($post->ID, $taxonomy);
+            foreach ($rawTerms as $term) {
+                if (! $term instanceof WP_Term) {
+                    continue;
+                }
+
+                $terms[] = [
+                    'term_id' => (int) $term->term_id,
+                    'name' => $term->name,
+                    'slug' => $term->slug,
+                    'taxonomy' => $term->taxonomy,
+                    'term_taxonomy_id' => (int) $term->term_taxonomy_id,
+                    'parent' => (int) $term->parent,
+                ];
+            }
         }
 
         return $terms;
@@ -141,7 +149,15 @@ class PostIndexable implements Indexable
         $meta = [];
         foreach ($this->metaKeys as $key) {
             $value = get_post_meta($post->ID, $key, true);
-            if ($value !== '') {
+
+            if ($value === '' || $value === null) {
+                continue;
+            }
+
+            // Automatic casting of numeric values
+            if (is_numeric($value)) {
+                $meta[$key] = $value + 0;
+            } else {
                 $meta[$key] = $value;
             }
         }

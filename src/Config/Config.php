@@ -10,8 +10,8 @@ class Config
     /**
      * Retrieves a configuration value from environment variables, constants, or database.
      *
-     * @param string $key     The configuration key to retrieve
-     * @param mixed  $default The default value to return if the key is not found
+     * @param  string  $key  The configuration key to retrieve
+     * @param  mixed  $default  The default value to return if the key is not found
      * @return mixed The configuration value or default if not found
      */
     public static function get(string $key, $default = null)
@@ -31,7 +31,7 @@ class Config
     /**
      * Checks if a configuration value is read-only (defined in environment or constants).
      *
-     * @param string $key The configuration key to check
+     * @param  string  $key  The configuration key to check
      * @return bool True if the configuration is read-only, false otherwise
      */
     public static function isReadOnly(string $key): bool
@@ -42,13 +42,14 @@ class Config
     /**
      * Retrieves a configuration value from the WordPress database.
      *
-     * @param string $key     The configuration key to retrieve
-     * @param mixed  $default The default value to return if the key is not found
+     * @param  string  $key  The configuration key to retrieve
+     * @param  mixed  $default  The default value to return if the key is not found
      * @return mixed The configuration value from database or default if not found
      */
     protected static function getFromDatabase(string $key, $default = null)
     {
         $value = Settings::get($key, $default);
+
         return $value !== false ? $value : $default;
     }
 }

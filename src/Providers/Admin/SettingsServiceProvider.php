@@ -71,6 +71,7 @@ class SettingsServiceProvider extends ServiceProvider
         // Security nonce verification
         if (! isset($_POST['meiliscout_settings_nonce']) || ! wp_verify_nonce($_POST['meiliscout_settings_nonce'], 'meiliscout_settings_save')) {
             error_log('Nonce verification failed');
+
             return;
         }
 

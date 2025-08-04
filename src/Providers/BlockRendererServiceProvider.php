@@ -7,8 +7,6 @@ namespace Pollora\MeiliScout\Providers;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
 use Pollora\MeiliScout\Foundation\Webpack;
 
-use function wp_set_script_translations;
-
 /**
  * Service provider for managing and enqueueing plugin assets.
  */
@@ -34,7 +32,7 @@ class BlockRendererServiceProvider extends ServiceProvider
      */
     public function register()
     {
-       // add_filter('render_block', [$this, 'injectTemplateAttributes'], 10, 2);
+        add_filter('render_block', [$this, 'injectTemplateAttributes'], 10, 2);
     }
 
     public function injectTemplateAttributes($block_content, $block): string
@@ -62,7 +60,7 @@ class BlockRendererServiceProvider extends ServiceProvider
 
         return str_replace(
             ' data-query=',
-            $query_id_attr . ' data-template=' . esc_attr($encoded) . ' data-query=',
+            $query_id_attr.' data-template='.esc_attr($encoded).' data-query=',
             $block_content
         );
     }

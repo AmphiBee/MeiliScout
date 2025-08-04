@@ -16,11 +16,16 @@ enum TaxonomyFields: string
      */
     public static function values(): array
     {
-        return array_map(fn(self $field) => $field->value, self::cases());
+        return array_map(fn (self $field) => $field->value, self::cases());
     }
 
+    /**
+     * Gets the default taxonomy field.
+     *
+     * This is the `term_id` field by default.
+     */
     public static function getDefault(): self
     {
         return self::TERM_ID;
     }
-} 
+}

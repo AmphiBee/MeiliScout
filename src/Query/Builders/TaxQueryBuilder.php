@@ -8,13 +8,29 @@ use Pollora\MeiliScout\Domain\Search\Enums\ComparisonOperator;
 use Pollora\MeiliScout\Domain\Search\Enums\TaxonomyFields;
 use Pollora\MeiliScout\Domain\Search\Validators\EnumValidator;
 
+/**
+ * Builder for taxonomy query filters.
+ * 
+ * Handles the conversion of WordPress tax_query parameters to MeiliSearch filter syntax.
+ */
 class TaxQueryBuilder extends AbstractFilterBuilder
 {
+    /**
+     * {@inheritdoc}
+     */
     protected function getQueryKey(): string
     {
         return 'tax_query';
     }
 
+    /**
+     * {@inheritdoc}
+     * 
+     * Builds a filter expression for a taxonomy query clause.
+     * 
+     * @param array $query The taxonomy query clause
+     * @return string The MeiliSearch filter expression
+     */
     protected function buildSingleFilter(array $query): string
     {
         if (empty($query['taxonomy'])) {
@@ -22,6 +38,7 @@ class TaxQueryBuilder extends AbstractFilterBuilder
         }
 
         $taxonomy = $query['taxonomy'];
+
         $field = EnumValidator::getValidValueOrDefault(
             TaxonomyFields::class,
             $query['field'] ?? TaxonomyFields::getDefault()->value,
@@ -35,23 +52,19 @@ class TaxQueryBuilder extends AbstractFilterBuilder
             ComparisonOperator::getTaxonomyDefault()
         );
 
-        // Vérifie si l'opérateur est autorisé pour les tax queries
         if (!in_array($operator, ComparisonOperator::getTaxonomyOperators(), true)) {
             return '';
         }
 
-        // Mapping des opérateurs
-        $operator = $operator === ComparisonOperator::AND ? ComparisonOperator::EQUALS : $operator;
+        $fieldKey = "terms.{$field}";
+        $taxonomyKey = "terms.taxonomy";
 
-        // Définition de la clé en fonction du champ
-        $key = "taxonomies.{$taxonomy}.{$field}";
-
-        // Gestion des opérateurs EXISTS et NOT EXISTS (pas besoin de valeurs)
+        // Handle EXISTS and NOT EXISTS cases
         if (in_array($operator, [ComparisonOperator::EXISTS, ComparisonOperator::NOT_EXISTS], true)) {
-            return "$key {$operator->value}";
+            return "{$taxonomyKey} {$operator->value} '{$taxonomy}'";
         }
 
-        // Vérification de l'existence de 'terms' avant traitement
+        // Handle cases requiring values
         if (!array_key_exists('terms', $query)) {
             return '';
         }
@@ -60,6 +73,16 @@ class TaxQueryBuilder extends AbstractFilterBuilder
             ? $this->formatArrayValues($query['terms'])
             : $this->formatValue($query['terms']);
 
-        return !empty($terms) ? "$key {$operator->value} [$terms]" : '';
+        if (empty($terms)) {
+            return '';
+        }
+
+        // Special case for NOT IN / != : use an enclosing NOT clause
+        if (in_array($operator, [ComparisonOperator::NOT_IN, ComparisonOperator::NOT_EQUALS], true)) {
+            return "NOT ({$taxonomyKey} = '{$taxonomy}' AND {$fieldKey} IN [{$terms}])";
+        }
+
+        // Default case: simple filter
+        return "({$taxonomyKey} = '{$taxonomy}' AND {$fieldKey} {$operator->value} [{$terms}])";
     }
 }

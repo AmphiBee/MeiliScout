@@ -47,7 +47,7 @@ class ContentSelectionServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        if (!ClientFactory::isConfigured()) {
+        if (! ClientFactory::isConfigured()) {
             return;
         }
 
@@ -92,7 +92,7 @@ class ContentSelectionServiceProvider extends ServiceProvider
             'saved_meta_keys' => Settings::get('indexed_meta_keys', []),
             'non_indexable_meta_keys' => Settings::get('non_indexable_meta_keys', []),
             'post_types' => get_post_types(['public' => true], 'objects'),
-            'taxonomies' => get_taxonomies(['public' => true], 'objects'),
+            'taxonomies' => get_taxonomies([], 'objects'),
             'structure_changes' => $structureChanges,
         ]);
     }

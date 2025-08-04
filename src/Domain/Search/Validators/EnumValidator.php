@@ -9,43 +9,42 @@ use BackedEnum;
 class EnumValidator
 {
     /**
-     * Vérifie si une valeur existe dans une énumération
+     * Checks if a value exists in an enumeration
      *
      * @template T of BackedEnum
-     * @param class-string<T> $enumClass
-     * @param string|int $value
-     * @return bool
+     *
+     * @param  class-string<T>  $enumClass
      */
     public static function isValid(string $enumClass, string|int $value): bool
     {
-        if (!is_subclass_of($enumClass, BackedEnum::class)) {
+        if (! is_subclass_of($enumClass, BackedEnum::class)) {
             throw new \InvalidArgumentException(sprintf(
-                'La classe %s doit être une énumération BackedEnum',
+                'The class %s must be a BackedEnum enumeration',
                 $enumClass
             ));
         }
 
-        return !is_null($enumClass::tryFrom($value));
+        return ! is_null($enumClass::tryFrom($value));
     }
 
     /**
-     * Obtient une valeur valide de l'énumération ou une valeur par défaut
+     * Gets a valid value from the enumeration or a default value
      *
      * @template T of BackedEnum
-     * @param class-string<T> $enumClass
-     * @param string|int $value
-     * @param T $default
+     *
+     * @param  class-string<T>  $enumClass
+     * @param  T  $default
      * @return T
      */
     public static function getValidValueOrDefault(string $enumClass, string|int $value, BackedEnum $default): BackedEnum
     {
-        if (!is_subclass_of($enumClass, BackedEnum::class)) {
+        if (! is_subclass_of($enumClass, BackedEnum::class)) {
             throw new \InvalidArgumentException(sprintf(
-                'La classe %s doit être une énumération BackedEnum',
+                'The class %s must be a BackedEnum enumeration',
                 $enumClass
             ));
         }
 
         return $enumClass::tryFrom($value) ?? $default;
     }
-} 
+}

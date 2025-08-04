@@ -26,27 +26,32 @@ class BlockServiceProvider extends ServiceProvider
     public function register()
     {
         add_action('init', [$this, 'registerBlocks']);
-        add_filter('render_block_core/query', [$this, 'generateInnerBlockTemplate'], 10, 2);
+        add_filter('render_block', [$this, 'generateInnerBlockTemplate'], 10, 3);
     }
 
-    public function generateInnerBlockTemplate($block_content, $block): string
+    public function generateInnerBlockTemplate($block_content, $block, $parsed_block): string
     {
-        // Vérifier si c'est notre variation de bloc
-        if (empty($block['attrs']['namespace']) || $block['attrs']['namespace'] !== 'meiliscout/query-loop-search') {
+        // Vérifier si c'est notre bloc wrapper
+        if ($block['blockName'] !== 'meiliscout/query-loop-search') {
             return $block_content;
         }
 
-        // Trouver le bloc post-template
-        if (! empty($block['innerBlocks'])) {
-            $post_template_block = self::findPostTemplateBlock($block['innerBlocks']);
-            if ($post_template_block) {
-                $template_string = serialize_block($post_template_block);
-                $encoded = rawurlencode($template_string);
-            }
+        // Trouver le bloc core/query pour récupérer la query
+        $query_block = self::findQueryBlock($block['innerBlocks']);
+        if (!$query_block) {
+            return $block_content;
         }
 
-        $query_data = $block['attrs']['query'];
+        // Récupérer la query du bloc core/query
+        $query_data = $query_block['attrs']['query'] ?? [];
         $query_data['use_meilisearch'] = true;
+
+        // Trouver le bloc post-template
+        $post_template_block = self::findPostTemplateBlock($query_block['innerBlocks']);
+        if ($post_template_block) {
+            $template_string = serialize_block($post_template_block);
+            $encoded = rawurlencode($template_string);
+        }
 
         // Ajouter la classe is-meilisearch
         $block_content = str_replace(
@@ -74,6 +79,24 @@ class BlockServiceProvider extends ServiceProvider
             '$1'.$data_attributes,
             $block_content
         );
+    }
+
+    public static function findQueryBlock($blocks)
+    {
+        foreach ($blocks as $block) {
+            if ($block['blockName'] === 'core/query') {
+                return $block;
+            }
+
+            if (! empty($block['innerBlocks'])) {
+                $found = self::findQueryBlock($block['innerBlocks']);
+                if ($found) {
+                    return $found;
+                }
+            }
+        }
+
+        return null;
     }
 
     public static function findPostTemplateBlock($blocks)

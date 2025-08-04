@@ -6,6 +6,17 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder;
 
 use Pollora\MeiliScout\Query\MeiliQueryBuilder;
 
+beforeEach(function () {
+    // Reset options before each test
+    $GLOBALS['wp_options'] = [];
+    
+    // Configure indexed meta keys for tests
+    update_option('meiliscout/indexed_meta_keys', [
+        'price', 'description', 'event_date', 'email', 'rating', 'category_id',
+        'color', 'size', 'title'
+    ]);
+});
+
 test('single meta query is correctly formatted', function () {
     $query = new MockWPQuery([
         'meta_query' => [
@@ -13,7 +24,7 @@ test('single meta query is correctly formatted', function () {
                 'key' => 'price',
                 'value' => '10',
                 'compare' => '=',
-                'type' => 'NUMERIC'
+                'type' => 'NUMERIC',
             ],
         ],
     ]);
@@ -21,7 +32,7 @@ test('single meta query is correctly formatted', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.price = 10)');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.price = 10)');
 });
 
 test('meta query with shorthand parameters is correctly formatted', function () {
@@ -29,13 +40,13 @@ test('meta query with shorthand parameters is correctly formatted', function () 
         'meta_key' => 'price',
         'meta_value' => '10',
         'meta_compare' => '>',
-        'meta_type' => 'NUMERIC'
+        'meta_type' => 'NUMERIC',
     ]);
 
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.price > 10)');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.price > 10)');
 });
 
 test('multiple meta queries are combined with AND by default', function () {
@@ -45,12 +56,12 @@ test('multiple meta queries are combined with AND by default', function () {
                 'key' => 'price',
                 'value' => '10',
                 'compare' => '>',
-                'type' => 'NUMERIC'
+                'type' => 'NUMERIC',
             ],
             [
                 'key' => 'color',
                 'value' => 'red',
-                'compare' => '='
+                'compare' => '=',
             ],
         ],
     ]);
@@ -58,7 +69,7 @@ test('multiple meta queries are combined with AND by default', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.price > 10 AND meta.color = \'red\')');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.price > 10 AND metas.color = \'red\')');
 });
 
 test('meta queries respect the relation parameter', function () {
@@ -69,12 +80,12 @@ test('meta queries respect the relation parameter', function () {
                 'key' => 'price',
                 'value' => '10',
                 'compare' => '>',
-                'type' => 'NUMERIC'
+                'type' => 'NUMERIC',
             ],
             [
                 'key' => 'color',
                 'value' => 'red',
-                'compare' => '='
+                'compare' => '=',
             ],
         ],
     ]);
@@ -82,7 +93,7 @@ test('meta queries respect the relation parameter', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.price > 10 OR meta.color = \'red\')');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.price > 10 OR metas.color = \'red\')');
 });
 
 test('nested meta queries are correctly formatted', function () {
@@ -93,19 +104,19 @@ test('nested meta queries are correctly formatted', function () {
                 'key' => 'price',
                 'value' => ['10', '20'],
                 'compare' => 'BETWEEN',
-                'type' => 'NUMERIC'
+                'type' => 'NUMERIC',
             ],
             [
                 'relation' => 'AND',
                 [
                     'key' => 'color',
                     'value' => ['red', 'blue'],
-                    'compare' => 'IN'
+                    'compare' => 'IN',
                 ],
                 [
                     'key' => 'size',
                     'value' => 'M',
-                    'compare' => '='
+                    'compare' => '=',
                 ],
             ],
         ],
@@ -115,9 +126,9 @@ test('nested meta queries are correctly formatted', function () {
     $params = $builder->build($query);
 
     expect($params['filter'])->toBe(
-        'post_type = \'post\' AND post_status = \'publish\' AND ' .
-        '(meta.price BETWEEN [10, 20] OR ' .
-        '(meta.color IN [\'red\', \'blue\'] AND meta.size = \'M\'))'
+        'post_type = \'post\' AND post_status = \'publish\' AND '.
+        '(metas.price BETWEEN [10, 20] OR '.
+        '(metas.color IN [\'red\', \'blue\'] AND metas.size = \'M\'))'
     );
 });
 
@@ -126,7 +137,7 @@ test('meta query with EXISTS operator is correctly formatted', function () {
         'meta_query' => [
             [
                 'key' => 'rating',
-                'compare' => 'EXISTS'
+                'compare' => 'EXISTS',
             ],
         ],
     ]);
@@ -134,7 +145,7 @@ test('meta query with EXISTS operator is correctly formatted', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.rating EXISTS)');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.rating EXISTS)');
 });
 
 test('meta query with NOT EXISTS operator is correctly formatted', function () {
@@ -142,7 +153,7 @@ test('meta query with NOT EXISTS operator is correctly formatted', function () {
         'meta_query' => [
             [
                 'key' => 'rating',
-                'compare' => 'NOT EXISTS'
+                'compare' => 'NOT EXISTS',
             ],
         ],
     ]);
@@ -150,7 +161,7 @@ test('meta query with NOT EXISTS operator is correctly formatted', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.rating NOT EXISTS)');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.rating NOT EXISTS)');
 });
 
 test('meta query with LIKE operator is correctly formatted', function () {
@@ -159,7 +170,7 @@ test('meta query with LIKE operator is correctly formatted', function () {
             [
                 'key' => 'title',
                 'value' => 'test',
-                'compare' => 'LIKE'
+                'compare' => 'LIKE',
             ],
         ],
     ]);
@@ -167,7 +178,7 @@ test('meta query with LIKE operator is correctly formatted', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.title LIKE \'test\')');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.title LIKE \'test\')');
 });
 
 test('meta query with date type is correctly formatted', function () {
@@ -177,7 +188,7 @@ test('meta query with date type is correctly formatted', function () {
                 'key' => 'event_date',
                 'value' => ['2023-01-01', '2023-12-31'],
                 'compare' => 'BETWEEN',
-                'type' => 'DATE'
+                'type' => 'DATE',
             ],
         ],
     ]);
@@ -185,7 +196,7 @@ test('meta query with date type is correctly formatted', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.event_date BETWEEN [\'2023-01-01\', \'2023-12-31\'])');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.event_date BETWEEN [\'2023-01-01\', \'2023-12-31\'])');
 });
 
 test('meta query with REGEXP operator is correctly formatted', function () {
@@ -194,7 +205,7 @@ test('meta query with REGEXP operator is correctly formatted', function () {
             [
                 'key' => 'email',
                 'value' => '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-                'compare' => 'REGEXP'
+                'compare' => 'REGEXP',
             ],
         ],
     ]);
@@ -202,7 +213,7 @@ test('meta query with REGEXP operator is correctly formatted', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.email REGEXP \'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$\')');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.email REGEXP \'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$\')');
 });
 
 test('meta query with special characters is correctly escaped', function () {
@@ -211,7 +222,7 @@ test('meta query with special characters is correctly escaped', function () {
             [
                 'key' => 'description',
                 'value' => "O'Reilly's Book",
-                'compare' => '='
+                'compare' => '=',
             ],
         ],
     ]);
@@ -219,7 +230,7 @@ test('meta query with special characters is correctly escaped', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.description = \'O\\\'Reilly\\\'s Book\')');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.description = \'O\\\'Reilly\\\'s Book\')');
 });
 
 test('meta query with numeric array values is correctly formatted', function () {
@@ -229,7 +240,7 @@ test('meta query with numeric array values is correctly formatted', function () 
                 'key' => 'price',
                 'value' => [10, 20, 30],
                 'compare' => 'IN',
-                'type' => 'NUMERIC'
+                'type' => 'NUMERIC',
             ],
         ],
     ]);
@@ -237,5 +248,5 @@ test('meta query with numeric array values is correctly formatted', function () 
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (meta.price IN [10, 20, 30])');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.price IN [10, 20, 30])');
 });

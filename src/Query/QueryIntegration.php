@@ -10,23 +10,53 @@ use Pollora\MeiliScout\Domain\Search\Enums\TaxonomyFields;
 use Pollora\MeiliScout\Services\ClientFactory;
 use WP_Query;
 
+/**
+ * WordPress query integration with MeiliSearch.
+ * 
+ * Intercepts WP_Query requests and redirects them to MeiliSearch when appropriate.
+ */
 class QueryIntegration
 {
+    /**
+     * MeiliSearch client instance.
+     *
+     * @var Client|null
+     */
     private ?Client $client;
+
+    /**
+     * MeiliSearch query builder.
+     *
+     * @var MeiliQueryBuilder
+     */
     private MeiliQueryBuilder $builder;
 
+    /**
+     * Constructor.
+     * 
+     * Initializes the MeiliSearch client and sets up the WordPress filter hook.
+     *
+     * @param MeiliQueryBuilder $builder The query builder instance
+     */
     public function __construct(MeiliQueryBuilder $builder)
     {
         $this->client = ClientFactory::getClient();
 
-        if (!$this->client) {
+        if (! $this->client) {
             return;
         }
 
         $this->builder = $builder;
-        add_filter('posts_pre_query', [$this, 'interceptQuery'], 10, 2);
+        add_filter('posts_pre_query', [$this, 'interceptQuery'], PHP_INT_MAX, 2);
     }
 
+    /**
+     * Intercepts WordPress queries and processes them with MeiliSearch.
+     *
+     * @param array|null $posts The posts array (usually null at this point)
+     * @param WP_Query $query The WordPress query object
+     * @return array|null The posts array or null to let WordPress handle the query
+     */
     public function interceptQuery($posts, WP_Query $query): ?array
     {
         if (! isset($query->query_vars['use_meilisearch']) || ! $query->query_vars['use_meilisearch']) {
@@ -35,28 +65,20 @@ class QueryIntegration
 
         $searchParams = $this->buildSearchParams($query);
 
-        // Si des clés méta non indexables sont trouvées, on repasse en mode WP_Query classique
+        // If non-indexable meta keys are found, fall back to classic WP_Query mode
         if ($this->builder->hasNonIndexableMetaKeys()) {
             $query->query_vars['use_meilisearch'] = false;
             return $posts;
         }
 
-        // Récupérer les taxonomies indexées
-        $postTypes = Settings::get('indexed_post_types', []);
-        $facetAttributes = [];
-
-        // Pour chaque type de post indexé
-        foreach ($postTypes as $postType) {
-            $taxonomies = get_object_taxonomies($postType);
-            foreach ($taxonomies as $taxonomy) {
-                foreach (TaxonomyFields::values() as $field) {
-                    $facetAttributes[] = "taxonomies.{$taxonomy}.{$field}";
-                }
-            }
-        }
-
-        // Ajouter les paramètres pour les facettes
-        $searchParams['facets'] = array_unique($facetAttributes);
+        // Add parameters for facets
+        $searchParams['facets'] = [
+            'terms.term_id',
+            'terms.term_taxonomy_id',
+            'terms.taxonomy',
+            'terms.name',
+            'terms.slug',
+        ];
 
         $results = $this->client->index('posts')->search('', $searchParams);
 
@@ -64,19 +86,19 @@ class QueryIntegration
         $query->max_num_pages = ceil($results->getHitsCount() / $results->getLimit());
         $query->posts = $this->convertToWpPosts($results->getHits());
 
-        // Récupérer et formater la distribution des facettes
+        // Retrieve and format facet distribution
         $facetDistribution = $results->getFacetDistribution() ?? [];
         $formattedFacets = [];
 
-        // Parcourir les facettes et les reformater pour correspondre à la structure attendue
+        // Iterate through facets and reformat them to match expected structure
         foreach ($facetDistribution as $facetKey => $values) {
-            // Extraire la taxonomie et le champ depuis la clé (ex: "taxonomies.category.term_id")
+            // Extract taxonomy and field from key (e.g.: "taxonomies.category.term_id")
             $parts = explode('.', $facetKey);
             if (count($parts) === 3 && $parts[0] === 'taxonomies') {
                 $taxonomy = $parts[1];
                 $field = $parts[2];
 
-                if (!isset($formattedFacets[$taxonomy])) {
+                if (! isset($formattedFacets[$taxonomy])) {
                     $formattedFacets[$taxonomy] = [];
                 }
 
@@ -90,11 +112,23 @@ class QueryIntegration
         return $query->posts;
     }
 
+    /**
+     * Builds search parameters from a WordPress query.
+     *
+     * @param WP_Query $query The WordPress query object
+     * @return array The search parameters for MeiliSearch
+     */
     public function buildSearchParams(WP_Query $query): array
     {
         return $this->builder->build(new WPQueryAdapter($query));
     }
 
+    /**
+     * Converts MeiliSearch hits to WordPress post objects.
+     *
+     * @param array $hits The search result hits from MeiliSearch
+     * @return array Array of WP_Post objects
+     */
     private function convertToWpPosts(array $hits): array
     {
         return array_map(function ($hit) {

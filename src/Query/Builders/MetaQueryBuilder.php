@@ -4,45 +4,60 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Query\Builders;
 
+use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Domain\Search\Enums\ComparisonOperator;
 use Pollora\MeiliScout\Domain\Search\Enums\MetaType;
 use Pollora\MeiliScout\Domain\Search\Validators\EnumValidator;
-use Pollora\MeiliScout\Config\Settings;
 
-use function get_option;
-use function update_option;
-
+/**
+ * Builder for meta query filters.
+ * 
+ * Handles the conversion of WordPress meta_query parameters to MeiliSearch filter syntax.
+ */
 class MetaQueryBuilder extends AbstractFilterBuilder
 {
+    /**
+     * List of meta keys that were found to be non-indexable during query building.
+     *
+     * @var array
+     */
     private array $nonIndexableMetaKeys = [];
 
+    /**
+     * {@inheritdoc}
+     */
     protected function getQueryKey(): string
     {
         return 'meta_query';
     }
 
+    /**
+     * {@inheritdoc}
+     * 
+     * Builds a filter expression for a meta query clause.
+     */
     protected function buildSingleFilter(array $query): string
     {
-        // Gestion des requêtes simples (meta_key, meta_value)
+        // Handle simple queries (meta_key, meta_value)
         if (isset($query['meta_key'])) {
             $query['key'] = $query['meta_key'];
             $query['value'] = $query['meta_value'] ?? $query['meta_value_num'] ?? null;
             $query['compare'] = $query['meta_compare'] ?? '=';
         }
 
-        // Vérification des paramètres requis
+        // Check required parameters
         if (empty($query['key'])) {
             return '';
         }
 
-        // Vérifier si la clé méta est indexable
-        if (!$this->isMetaKeyIndexable($query['key'])) {
+        // Check if the meta key is indexable
+        if (! $this->isMetaKeyIndexable($query['key'])) {
             return '';
         }
 
         $key = "metas.{$query['key']}";
 
-        // Gestion des opérateurs EXISTS et NOT EXISTS
+        // Handle EXISTS and NOT EXISTS operators
         /** @var ComparisonOperator $operator */
         $operator = EnumValidator::getValidValueOrDefault(
             ComparisonOperator::class,
@@ -50,22 +65,22 @@ class MetaQueryBuilder extends AbstractFilterBuilder
             ComparisonOperator::getDefault()
         );
 
-        // Vérifie si l'opérateur est autorisé pour les meta queries
+        // Check if the operator is allowed for meta queries
         if (! in_array($operator, ComparisonOperator::getMetaOperators(), true)) {
             return '';
         }
 
-        // Gestion des opérateurs EXISTS et NOT EXISTS
+        // Handle EXISTS and NOT EXISTS operators
         if (in_array($operator, [ComparisonOperator::EXISTS, ComparisonOperator::NOT_EXISTS], true)) {
             return "$key {$operator->value}";
         }
 
-        // Vérification de la présence d'une valeur pour les autres opérateurs
+        // Check for value presence for other operators
         if (! isset($query['value']) && ! in_array($operator, [ComparisonOperator::EXISTS, ComparisonOperator::NOT_EXISTS], true)) {
             return '';
         }
 
-        // Formatage de la valeur en fonction du type
+        // Format value based on type
         $value = $this->formatMetaValue($query['value'], $query['type'] ?? MetaType::getDefault()->value);
 
         return match ($operator) {
@@ -86,15 +101,25 @@ class MetaQueryBuilder extends AbstractFilterBuilder
                 ? "$key {$operator->value} [{$this->formatArrayValues($query['value'])}]"
                 : '',
 
-            ComparisonOperator::BETWEEN,
+            ComparisonOperator::BETWEEN => is_array($query['value']) && count($query['value']) === 2
+                ? "($key >= {$this->formatMetaValue($query['value'][0], $query['type'] ?? MetaType::getDefault()->value)} AND $key <= {$this->formatMetaValue($query['value'][1], $query['type'] ?? MetaType::getDefault()->value)})"
+                : '',
+
             ComparisonOperator::NOT_BETWEEN => is_array($query['value']) && count($query['value']) === 2
-                ? "$key {$operator->value} [{$this->formatMetaValue($query['value'][0], $query['type'] ?? MetaType::getDefault()->value)}, {$this->formatMetaValue($query['value'][1], $query['type'] ?? MetaType::getDefault()->value)}]"
+                ? "($key < {$this->formatMetaValue($query['value'][0], $query['type'] ?? MetaType::getDefault()->value)} OR $key > {$this->formatMetaValue($query['value'][1], $query['type'] ?? MetaType::getDefault()->value)})"
                 : '',
 
             default => '',
         };
     }
 
+    /**
+     * Formats a meta value based on its type.
+     *
+     * @param mixed $value The value to format
+     * @param string $type The meta type
+     * @return string The formatted value
+     */
     private function formatMetaValue(mixed $value, string $type): string
     {
         /** @var MetaType $metaType */
@@ -121,30 +146,47 @@ class MetaQueryBuilder extends AbstractFilterBuilder
 
     }
 
+    /**
+     * Checks if a meta key is indexable.
+     *
+     * @param string $key The meta key to check
+     * @return bool True if the meta key is indexable, false otherwise
+     */
     private function isMetaKeyIndexable(string $key): bool
     {
         $indexableMetaKeys = Settings::get('indexed_meta_keys', []);
 
-        if (!in_array($key, $indexableMetaKeys, true)) {
+        if (! in_array($key, $indexableMetaKeys, true)) {
             $this->nonIndexableMetaKeys[] = $key;
             $this->updateNonIndexableMetaKeys();
+
             return false;
         }
 
         return true;
     }
 
+    /**
+     * Updates the list of non-indexable meta keys in the settings.
+     *
+     * @return void
+     */
     private function updateNonIndexableMetaKeys(): void
     {
-        if (!empty($this->nonIndexableMetaKeys)) {
+        if (! empty($this->nonIndexableMetaKeys)) {
             $existingKeys = Settings::get('non_indexable_meta_keys', []);
             $updatedKeys = array_unique(array_merge($existingKeys, $this->nonIndexableMetaKeys));
             Settings::save('non_indexable_meta_keys', $updatedKeys);
         }
     }
 
+    /**
+     * Checks if the query contains meta keys that are not indexed.
+     *
+     * @return bool True if there are non-indexable meta keys, false otherwise
+     */
     public function hasNonIndexableMetaKeys(): bool
     {
-        return !empty($this->nonIndexableMetaKeys);
+        return ! empty($this->nonIndexableMetaKeys);
     }
 }

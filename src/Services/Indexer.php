@@ -6,12 +6,14 @@ namespace Pollora\MeiliScout\Services;
 
 use Meilisearch\Client;
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
+use Pollora\MeiliScout\Services\PostSingleIndexer;
+use Pollora\MeiliScout\Services\TaxonomySingleIndexer;
 
 use function apply_filters;
 use function current_time;
-use function esc_sql;
 use function get_object_taxonomies;
 use function get_object_vars;
 use function get_permalink;
@@ -32,33 +34,35 @@ class Indexer
 {
     /**
      * Meilisearch client instance.
-     *
-     * @var Client
      */
     private Client $client;
 
     /**
      * Log of indexing operations.
-     *
-     * @var array
      */
     private array $indexingLog = [];
 
     /**
      * List of post meta keys to index.
-     *
-     * @var array
      */
     private array $postMetaKeys = [];
 
     /**
      * List of term meta keys to index.
-     *
-     * @var array
      */
     private array $termMetaKeys = [];
 
     private array $indexables;
+
+    /**
+     * Post single indexer instance for individual post operations.
+     */
+    private PostSingleIndexer $postSingleIndexer;
+
+    /**
+     * Taxonomy single indexer instance for individual taxonomy operations.
+     */
+    private TaxonomySingleIndexer $taxonomySingleIndexer;
 
     /**
      * Creates a new Indexer instance.
@@ -67,36 +71,37 @@ class Indexer
     {
         $this->client = ClientFactory::getClient();
         $this->indexables = [
-            new PostIndexable(),
-            new TaxonomyIndexable()
+            new PostIndexable,
+            new TaxonomyIndexable,
         ];
+        $this->postSingleIndexer = new PostSingleIndexer();
+        $this->taxonomySingleIndexer = new TaxonomySingleIndexer();
     }
 
     /**
      * Indexes content in Meilisearch.
      *
-     * @param bool $clearIndices Whether to clear existing indices before indexing
-     * @return void
+     * @param  bool  $clearIndices  Whether to clear existing indices before indexing
      */
     public function index(bool $clearIndices = false): void
     {
         $this->initializeLog();
 
         try {
-            // Sauvegarder la structure d'indexation actuelle
+            // Save the current indexing structure
             $this->saveIndexingStructure();
 
             foreach ($this->indexables as $indexable) {
                 $indexName = $indexable->getIndexName();
-                $this->log('info', sprintf('Début de l\'indexation pour %s', $indexName));
+                $this->log('info', sprintf('Starting indexation for %s', $indexName));
 
-                // Configuration de l'index
+                // Index configuration
                 if ($clearIndices) {
                     $this->client->deleteIndex($indexName);
                 }
 
-                // Création de l'index avec la clé primaire
-                if ($clearIndices || !$this->client->getIndex($indexName)->exists()) {
+                // Create index with primary key
+                if ($clearIndices || ! $this->indexExists($indexName)) {
                     $this->client->createIndex($indexName, [
                         'primaryKey' => $indexable->getPrimaryKey(),
                     ]);
@@ -105,34 +110,38 @@ class Indexer
                 $index = $this->client->index($indexName);
                 $index->updateSettings($indexable->getIndexSettings());
 
-                // Indexation des documents
+                // Document indexing
                 $documents = [];
                 $totalIndexed = 0;
                 $batchSize = 100;
 
+                // Use single indexers for consistency and shared logic
+                $items = [];
                 foreach ($indexable->getItems() as $item) {
-                    $documents[] = $indexable->formatForIndexing($item);
-
-                    if (count($documents) >= $batchSize) {
-                        $index->addDocuments($documents);
-                        $totalIndexed += count($documents);
-                        $this->log('info', sprintf('Lot de %d éléments indexés', count($documents)));
-                        $documents = [];
+                    $items[] = $item;
+                    
+                    if (count($items) >= $batchSize) {
+                        $batchStats = $this->indexItemsBatch($indexable, $items);
+                        $totalIndexed += $batchStats['indexed'];
+                        $this->log('info', sprintf('Batch of %d items processed (%d indexed, %d skipped)', 
+                            count($items), $batchStats['indexed'], $batchStats['skipped']));
+                        $items = [];
                     }
                 }
 
-                if (!empty($documents)) {
-                    $index->addDocuments($documents);
-                    $totalIndexed += count($documents);
-                    $this->log('info', sprintf('Dernier lot de %d éléments indexés', count($documents)));
+                if (! empty($items)) {
+                    $batchStats = $this->indexItemsBatch($indexable, $items);
+                    $totalIndexed += $batchStats['indexed'];
+                    $this->log('info', sprintf('Last batch of %d items processed (%d indexed, %d skipped)', 
+                        count($items), $batchStats['indexed'], $batchStats['skipped']));
                 }
 
-                $this->log('success', sprintf('Total de %d éléments indexés pour %s', $totalIndexed, $indexName));
+                $this->log('success', sprintf('Total of %d items indexed for %s', $totalIndexed, $indexName));
             }
 
-            $this->log('success', 'Indexation terminée avec succès');
+            $this->log('success', 'Indexing completed successfully');
         } catch (\Exception $e) {
-            $this->log('error', 'Erreur lors de l\'indexation : ' . $e->getMessage());
+            $this->log('error', 'Error during indexing: '.$e->getMessage());
             throw $e;
         }
 
@@ -140,7 +149,7 @@ class Indexer
     }
 
     /**
-     * Sauvegarde la structure d'indexation actuelle.
+     * Saves the current indexing structure.
      */
     private function saveIndexingStructure(): void
     {
@@ -155,7 +164,7 @@ class Indexer
     }
 
     /**
-     * Vérifie si la structure d'indexation a changé.
+     * Checks if the indexing structure has changed.
      *
      * @return array{has_changed: bool, changes: array}
      */
@@ -177,10 +186,10 @@ class Indexer
         $changes = [];
         $hasChanged = false;
 
-        // Vérifier les changements dans les post types
+        // Check for changes in post types
         $addedPostTypes = array_diff($currentStructure['post_types'], $lastStructure['post_types']);
         $removedPostTypes = array_diff($lastStructure['post_types'], $currentStructure['post_types']);
-        if (!empty($addedPostTypes) || !empty($removedPostTypes)) {
+        if (! empty($addedPostTypes) || ! empty($removedPostTypes)) {
             $hasChanged = true;
             $changes['post_types'] = [
                 'added' => array_values($addedPostTypes),
@@ -188,10 +197,10 @@ class Indexer
             ];
         }
 
-        // Vérifier les changements dans les taxonomies
+        // Check for changes in taxonomies
         $addedTaxonomies = array_diff($currentStructure['taxonomies'], $lastStructure['taxonomies']);
         $removedTaxonomies = array_diff($lastStructure['taxonomies'], $currentStructure['taxonomies']);
-        if (!empty($addedTaxonomies) || !empty($removedTaxonomies)) {
+        if (! empty($addedTaxonomies) || ! empty($removedTaxonomies)) {
             $hasChanged = true;
             $changes['taxonomies'] = [
                 'added' => array_values($addedTaxonomies),
@@ -199,10 +208,10 @@ class Indexer
             ];
         }
 
-        // Vérifier les changements dans les meta keys
+        // Check for changes in meta keys
         $addedMetaKeys = array_diff($currentStructure['meta_keys'], $lastStructure['meta_keys']);
         $removedMetaKeys = array_diff($lastStructure['meta_keys'], $currentStructure['meta_keys']);
-        if (!empty($addedMetaKeys) || !empty($removedMetaKeys)) {
+        if (! empty($addedMetaKeys) || ! empty($removedMetaKeys)) {
             $hasChanged = true;
             $changes['meta_keys'] = [
                 'added' => array_values($addedMetaKeys),
@@ -222,48 +231,97 @@ class Indexer
         $this->initializeLog();
 
         try {
-            $this->log('info', 'Début de la purge des indices');
+            $this->log('info', 'Starting indices purge');
 
-            // Purge de l'index des posts
+            // Purge posts index
             $postsIndex = $this->client->index('posts');
             $postsIndex->delete();
-            $this->log('success', 'Index "posts" supprimé');
+            $this->log('success', 'Index "posts" deleted');
 
-            // Purge de l'index des taxonomies
+            // Purge taxonomies index
             $taxonomiesIndex = $this->client->index('taxonomies');
             $taxonomiesIndex->delete();
-            $this->log('success', 'Index "taxonomies" supprimé');
+            $this->log('success', 'Index "taxonomies" deleted');
 
-            $this->log('success', 'Purge terminée avec succès');
+            $this->log('success', 'Purge completed successfully');
         } catch (\Exception $e) {
-            $this->log('error', 'Erreur lors de la purge : ' . $e->getMessage());
+            $this->log('error', 'Error during purge: '.$e->getMessage());
             throw $e;
         }
 
         $this->saveLog();
     }
 
+    /**
+     * Indexes a batch of items using the appropriate single indexer.
+     *
+     * This method delegates to the specific single indexer based on the indexable type,
+     * ensuring consistency between bulk and single-item indexing operations.
+     *
+     * @param Indexable $indexable The indexable instance
+     * @param array $items Array of items to index
+     * @return array{indexed: int, skipped: int, errors: int} Statistics about the batch operation
+     */
+    private function indexItemsBatch(Indexable $indexable, array $items): array
+    {
+        if ($indexable instanceof PostIndexable) {
+            return $this->postSingleIndexer->indexPosts($items);
+        }
+        
+        if ($indexable instanceof TaxonomyIndexable) {
+            return $this->taxonomySingleIndexer->indexTerms($items);
+        }
+
+        // Fallback to old method for unknown indexable types
+        $statistics = ['indexed' => 0, 'skipped' => 0, 'errors' => 0];
+        $documents = [];
+        
+        foreach ($items as $item) {
+            try {
+                $documents[] = $indexable->formatForIndexing($item);
+                $statistics['indexed']++;
+            } catch (\Exception $e) {
+                $statistics['errors']++;
+                $this->log('error', 'Error formatting an item: ' . $e->getMessage());
+            }
+        }
+
+        if (!empty($documents)) {
+            try {
+                $index = $this->client->index($indexable->getIndexName());
+                $index->addDocuments($documents);
+            } catch (\Exception $e) {
+                $this->log('error', 'Error during batch indexing: ' . $e->getMessage());
+                $statistics['errors'] += $statistics['indexed'];
+                $statistics['indexed'] = 0;
+            }
+        }
+
+        return $statistics;
+    }
+
     private function gatherMetaKeys(array $postTypes, array $taxonomies): void
     {
         global $wpdb;
 
-        // Récupération des clés de métadonnées pour les posts
-        if (!empty($postTypes)) {
-            $postTypesStr = "'" . implode("','", array_map('esc_sql', $postTypes)) . "'";
+        // Retrieve metadata keys for posts
+        if (! empty($postTypes)) {
+            $escapedTypes = array_map(fn($type) => esc_sql((string) $type), $postTypes);
+            $postTypesStr = "'".implode("','", $escapedTypes)."'";
             $query = "
                 SELECT DISTINCT meta_key
                 FROM {$wpdb->postmeta} pm
                 JOIN {$wpdb->posts} p ON p.ID = pm.post_id
                 WHERE p.post_type IN ({$postTypesStr})
-                AND meta_key NOT LIKE '\_%'
             ";
             $this->postMetaKeys = $wpdb->get_col($query);
-            $this->log('info', sprintf('Récupération de %d clés de métadonnées pour les posts', count($this->postMetaKeys)));
+            $this->log('info', sprintf('Retrieved %d metadata keys for posts', count($this->postMetaKeys)));
         }
 
-        // Récupération des clés de métadonnées pour les termes
-        if (!empty($taxonomies)) {
-            $taxonomiesStr = "'" . implode("','", array_map('esc_sql', $taxonomies)) . "'";
+        // Retrieve metadata keys for terms
+        if (! empty($taxonomies)) {
+            $escapedTaxonomies = array_map(fn($taxonomy) => esc_sql((string) $taxonomy), $taxonomies);
+            $taxonomiesStr = "'".implode("','", $escapedTaxonomies)."'";
             $query = "
                 SELECT DISTINCT meta_key
                 FROM {$wpdb->termmeta} tm
@@ -272,15 +330,15 @@ class Indexer
                 AND meta_key NOT LIKE '\_%'
             ";
             $this->termMetaKeys = $wpdb->get_col($query);
-            $this->log('info', sprintf('Récupération de %d clés de métadonnées pour les termes', count($this->termMetaKeys)));
+            $this->log('info', sprintf('Retrieved %d metadata keys for terms', count($this->termMetaKeys)));
         }
     }
 
     private function configureIndices(bool $clearIndices): void
     {
-        $this->log('info', 'Configuration des indices');
+        $this->log('info', 'Configuring indices');
 
-        // Configuration de l'index des posts
+        // Posts index configuration
         if ($clearIndices) {
             $this->client->deleteIndex('posts');
             $this->client->createIndex('posts');
@@ -288,13 +346,13 @@ class Indexer
 
         $postsIndex = $this->client->index('posts');
 
-        // Préparation des attributs pour les posts
+        // Prepare attributes for posts
         $searchableAttributes = [
             'post_title',
             'post_content',
             'post_excerpt',
             'taxonomies.name',
-            'taxonomies.slug'
+            'taxonomies.slug',
         ];
 
         $filterableAttributes = [
@@ -302,33 +360,33 @@ class Indexer
             'taxonomies.taxonomy',
             'taxonomies.term_id',
             'taxonomies.name',
-            'taxonomies.slug'
+            'taxonomies.slug',
         ];
 
-        // Ajout des métadonnées aux attributs
+        // Add metadata to attributes
         foreach ($this->postMetaKeys as $metaKey) {
-            $searchableAttributes[] = 'meta.' . $metaKey;
+            $searchableAttributes[] = 'meta.'.$metaKey;
         }
 
         // Ajout des métadonnées filtrables via le filtre WordPress
         $filterableMetaKeys = apply_filters('meiliscout/post/metas/filterables', [], $this->postMetaKeys);
         foreach ($filterableMetaKeys as $metaKey) {
             if (in_array($metaKey, $this->postMetaKeys)) {
-                $filterableAttributes[] = 'meta.' . $metaKey;
+                $filterableAttributes[] = 'meta.'.$metaKey;
             }
         }
 
-        // Configuration des paramètres de recherche pour les posts
+        // Configure search parameters for posts
         $postsIndex->updateSettings([
             'searchableAttributes' => $searchableAttributes,
             'filterableAttributes' => $filterableAttributes,
             'sortableAttributes' => [
                 'post_date',
-                ...array_map(fn($key) => 'meta.' . $key, $filterableMetaKeys)
-            ]
+                ...array_map(fn ($key) => 'meta.'.$key, $filterableMetaKeys),
+            ],
         ]);
 
-        // Configuration similaire pour les taxonomies
+        // Similar configuration for taxonomies
         if ($clearIndices) {
             $this->client->deleteIndex('taxonomies');
             $this->client->createIndex('taxonomies');
@@ -336,56 +394,56 @@ class Indexer
 
         $taxonomiesIndex = $this->client->index('taxonomies');
 
-        // Préparation des attributs pour les taxonomies
+        // Prepare attributes for taxonomies
         $searchableAttributes = [
             'name',
-            'description'
+            'description',
         ];
 
         $filterableAttributes = [
-            'taxonomy'
+            'taxonomy',
         ];
 
-        // Ajout des métadonnées aux attributs
+        // Add metadata to attributes
         foreach ($this->termMetaKeys as $metaKey) {
-            $searchableAttributes[] = 'meta.' . $metaKey;
+            $searchableAttributes[] = 'meta.'.$metaKey;
         }
 
         // Ajout des métadonnées filtrables via le filtre WordPress
         $filterableMetaKeys = apply_filters('meiliscout/term/metas/filterables', [], $this->termMetaKeys);
         foreach ($filterableMetaKeys as $metaKey) {
             if (in_array($metaKey, $this->termMetaKeys)) {
-                $filterableAttributes[] = 'meta.' . $metaKey;
+                $filterableAttributes[] = 'meta.'.$metaKey;
             }
         }
 
         $taxonomiesIndex->updateSettings([
             'searchableAttributes' => $searchableAttributes,
-            'filterableAttributes' => $filterableAttributes
+            'filterableAttributes' => $filterableAttributes,
         ]);
     }
 
     private function indexPosts(array $postTypes): void
     {
-        $this->log('info', 'Début de l\'indexation des posts');
+        $this->log('info', 'Starting posts indexing');
 
         $postsIndex = $this->client->index('posts');
         $documents = [];
         $totalIndexed = 0;
         $batchSize = 100;
 
-        // Compter d'abord le nombre total de posts à indexer
+        // First count total number of posts to index
         $totalPosts = 0;
         foreach ($postTypes as $postType) {
             $count = wp_count_posts($postType);
             $totalPosts += $count->publish;
         }
 
-        // Décider si on utilise le batch ou non
+        // Decide whether to use batch mode
         $useBatch = $totalPosts > $batchSize;
 
         if ($useBatch) {
-            $this->log('info', sprintf('Mode batch activé pour %d posts', $totalPosts));
+            $this->log('info', sprintf('Batch mode enabled for %d posts', $totalPosts));
         }
 
         foreach ($postTypes as $postType) {
@@ -401,10 +459,10 @@ class Indexer
                 $documents[] = $this->formatPostForIndexing($post);
 
                 // Si le mode batch est activé et qu'on atteint la taille du batch
-                if (!$useBatch || ($useBatch && count($documents) >= $batchSize)) {
+                if (! $useBatch || ($useBatch && count($documents) >= $batchSize)) {
                     $postsIndex->addDocuments($documents);
                     $totalIndexed += count($documents);
-                    $this->log('info', sprintf('Lot de %d posts indexés', count($documents)));
+                    $this->log('info', sprintf('Batch of %d posts indexed', count($documents)));
                     $documents = [];
                 }
             }
@@ -413,38 +471,38 @@ class Indexer
         }
 
         // Indexer les documents restants
-        if (!empty($documents)) {
+        if (! empty($documents)) {
             $postsIndex->addDocuments($documents);
             $totalIndexed += count($documents);
-            $this->log('info', sprintf('%s%d posts indexés',
-                $useBatch ? 'Dernier lot de ' : '',
+            $this->log('info', sprintf('%s%d posts indexed',
+                $useBatch ? 'Last batch of ' : '',
                 count($documents)
             ));
         }
 
-        $this->log('success', sprintf('Total de %d posts indexés', $totalIndexed));
+        $this->log('success', sprintf('Total of %d posts indexed', $totalIndexed));
     }
 
     private function formatPostForIndexing(\WP_Post $post): array
     {
-        // Récupère dynamiquement toutes les propriétés de l'objet WP_Post
+        // Dynamically retrieve all WP_Post object properties
         $document = get_object_vars($post);
 
-        // Ajoute les champs supplémentaires
+        // Add additional fields
         $document['url'] = get_permalink($post);
         $document['taxonomies'] = [];
         $document['meta'] = [];
 
-        // Récupération des termes de taxonomies
+        // Retrieve taxonomy terms
         $taxonomies = get_object_taxonomies($post->post_type);
         foreach ($taxonomies as $taxonomy) {
             $terms = wp_get_post_terms($post->ID, $taxonomy);
             foreach ($terms as $term) {
                 $document['taxonomies'][] = [
                     'taxonomy' => $taxonomy,
-                    'identifier' => (int) $term->term_id, // Remplace term_id
+                    'identifier' => (int) $term->term_id, // Replace term_id
                     'name' => wp_strip_all_tags($term->name),
-                    'slug' => $term->slug
+                    'slug' => $term->slug,
                 ];
             }
         }
@@ -454,24 +512,24 @@ class Indexer
 
     private function indexTaxonomies(array $taxonomies): void
     {
-        $this->log('info', 'Début de l\'indexation des taxonomies');
+        $this->log('info', 'Starting taxonomies indexing');
 
         $taxonomiesIndex = $this->client->index('taxonomies');
         $documents = [];
         $totalIndexed = 0;
         $batchSize = 100;
 
-        // Compter d'abord le nombre total de termes à indexer
+        // First count total number of terms to index
         $totalTerms = 0;
         foreach ($taxonomies as $taxonomy) {
             $totalTerms += wp_count_terms(['taxonomy' => $taxonomy]);
         }
 
-        // Décider si on utilise le batch ou non
+        // Decide whether to use batch mode
         $useBatch = $totalTerms > $batchSize;
 
         if ($useBatch) {
-            $this->log('info', sprintf('Mode batch activé pour %d termes', $totalTerms));
+            $this->log('info', sprintf('Batch mode enabled for %d terms', $totalTerms));
         }
 
         foreach ($taxonomies as $taxonomy) {
@@ -484,34 +542,34 @@ class Indexer
                 $documents[] = $this->formatTaxonomyForIndexing($term);
 
                 // Si le mode batch est activé et qu'on atteint la taille du batch
-                if (!$useBatch || ($useBatch && count($documents) >= $batchSize)) {
+                if (! $useBatch || ($useBatch && count($documents) >= $batchSize)) {
                     $taxonomiesIndex->addDocuments($documents);
                     $totalIndexed += count($documents);
-                    $this->log('info', sprintf('Lot de %d termes indexés', count($documents)));
+                    $this->log('info', sprintf('Batch of %d terms indexed', count($documents)));
                     $documents = [];
                 }
             }
         }
 
         // Indexer les documents restants
-        if (!empty($documents)) {
+        if (! empty($documents)) {
             $taxonomiesIndex->addDocuments($documents);
             $totalIndexed += count($documents);
-            $this->log('info', sprintf('%s%d termes indexés',
-                $useBatch ? 'Dernier lot de ' : '',
+            $this->log('info', sprintf('%s%d terms indexed',
+                $useBatch ? 'Last batch of ' : '',
                 count($documents)
             ));
         }
 
-        $this->log('success', sprintf('Total de %d termes indexés', $totalIndexed));
+        $this->log('success', sprintf('Total of %d terms indexed', $totalIndexed));
     }
 
     private function formatTaxonomyForIndexing(\WP_Term $term): array
     {
-        // Récupère dynamiquement toutes les propriétés de l'objet WP_Term
+        // Dynamically retrieve all WP_Term object properties
         $document = get_object_vars($term);
 
-        // Ajoute les champs supplémentaires
+        // Add additional fields
         $document['url'] = get_term_link($term);
         $document['meta'] = [];
 
@@ -519,13 +577,13 @@ class Indexer
     }
 
     /**
-     * Normalise les clés contenant 'id' dans un tableau.
+     * Normalizes keys containing 'id' in an array.
      */
     private function normalizeIdKeys(array $data): array
     {
         $result = [];
         $idMapping = [
-            'ID' => 'id', // Garde uniquement l'id principal pour Meilisearch
+            'ID' => 'id', // Keep only main id for Meilisearch
             'post_id' => 'post_identifier',
             'term_id' => 'term_identifier',
             'guid' => 'rawUrl',
@@ -546,8 +604,8 @@ class Indexer
     }
 
     /**
-     * Restaure les clés ID originales dans un tableau.
-     * À utiliser lors de la récupération des résultats.
+     * Restores original ID keys in an array.
+     * To use when retrieving results.
      */
     public function restoreIdKeys(array $data): array
     {
@@ -579,7 +637,7 @@ class Indexer
         $this->indexingLog = [
             'start_time' => current_time('mysql'),
             'status' => 'pending',
-            'entries' => []
+            'entries' => [],
         ];
 
         update_option('meiliscout/last_indexing_log', $this->indexingLog);
@@ -590,7 +648,7 @@ class Indexer
         $this->indexingLog['entries'][] = [
             'type' => $type,
             'message' => $message,
-            'time' => current_time('mysql')
+            'time' => current_time('mysql'),
         ];
         $this->saveLog();
     }
@@ -599,12 +657,33 @@ class Indexer
     {
         $this->indexingLog['end_time'] = current_time('mysql');
 
-        // Ne mettre le statut completed que lors de la fin réelle de l'indexation
+        // Only set status to completed at the actual end of indexing
         if ($this->indexingLog['entries'][count($this->indexingLog['entries']) - 1]['type'] === 'success'
-            && strpos($this->indexingLog['entries'][count($this->indexingLog['entries']) - 1]['message'], 'terminée') !== false) {
+            && strpos($this->indexingLog['entries'][count($this->indexingLog['entries']) - 1]['message'], 'completed') !== false) {
             $this->indexingLog['status'] = 'completed';
         }
 
         update_option('meiliscout/last_indexing_log', $this->indexingLog);
+    }
+
+    /**
+     * Checks if an index exists in Meilisearch.
+     *
+     * @param string $indexName The index name
+     * @return bool True if the index exists, false otherwise
+     */
+    private function indexExists(string $indexName): bool
+    {
+        try {
+            $indexes = $this->client->getIndexes();
+            foreach ($indexes['results'] as $index) {
+                if ($index['uid'] === $indexName) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Exception) {
+            return false;
+        }
     }
 }

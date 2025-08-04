@@ -54,10 +54,10 @@ class TaxonomyIndexable implements Indexable
             throw new \InvalidArgumentException('Item must be instance of WP_Term');
         }
 
-        // Récupérer et ajouter le reste des propriétés
+        // Retrieve and add the rest of the properties
         $document = get_object_vars($item);
 
-        // Ajouter les champs supplémentaires
+        // Add additional fields
         $document['url'] = get_term_link($item);
         $document['metas'] = $this->getMetaData($item);
 
@@ -75,11 +75,35 @@ class TaxonomyIndexable implements Indexable
         foreach ($this->metaKeys as $key) {
             $value = get_term_meta($term->term_id, $key, true);
             if ($value !== '') {
-                $meta[$key] = $value;
+                // Transform keys that start with underscore for Meilisearch
+                $indexKey = $this->normalizeMetaKey($key);
+                // Automatic casting of numeric values
+                if (is_numeric($value)) {
+                    $meta[$key] = $value + 0; // implicit cast to int or float
+                } else {
+                    $meta[$key] = $value;
+                }
             }
         }
 
         return $meta;
+    }
+
+    /**
+     * Normalizes a meta key for Meilisearch indexing.
+     * Transforms keys starting with underscore to avoid conflicts.
+     *
+     * @param string $key The original meta key
+     * @return string The normalized key for Meilisearch
+     */
+    private function normalizeMetaKey(string $key): string
+    {
+        // If the key starts with underscore, transform it
+        if (str_starts_with($key, '_')) {
+            return 'underscore_' . substr($key, 1);
+        }
+
+        return $key;
     }
 
     private function gatherMetaKeys(array $taxonomies): void
@@ -87,13 +111,13 @@ class TaxonomyIndexable implements Indexable
         global $wpdb;
 
         if (! empty($taxonomies)) {
-            $taxonomiesStr = "'".implode("','", array_map('esc_sql', $taxonomies))."'";
+            $escapedTaxonomies = array_map(fn($taxonomy) => esc_sql((string) $taxonomy), $taxonomies);
+            $taxonomiesStr = "'".implode("','", $escapedTaxonomies)."'";
             $query = "
                 SELECT DISTINCT meta_key
                 FROM {$wpdb->termmeta} tm
                 JOIN {$wpdb->term_taxonomy} tt ON tt.term_id = tm.term_id
                 WHERE tt.taxonomy IN ({$taxonomiesStr})
-                AND meta_key NOT LIKE '\_%'
             ";
             $this->metaKeys = $wpdb->get_col($query);
         }

@@ -2,7 +2,7 @@
 use function Pollora\MeiliScout\clean_recursive;
 
 $query_id = sanitize_text_field($attributes['queryId'] ?? '');
-$enable_url_params = !empty($attributes['enableUrlParams']);
+$enable_url_params = ! empty($attributes['enableUrlParams']);
 $query = $attributes['query'] ?? [];
 $template = clean_recursive($block->parsed_block['innerBlocks'] ?? []);
 
@@ -19,7 +19,7 @@ $alpine_data = [
     'queryId' => $query_id,
     'enableUrlParams' => $enable_url_params,
     'query' => $query,
-    'template' => $template
+    'template' => $template,
 ];
 
 $json = json_encode($alpine_data);

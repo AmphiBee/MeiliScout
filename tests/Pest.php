@@ -39,11 +39,35 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-if (!function_exists('get_option')) {
-    function get_option($option, $default = false) {
+// Mock WordPress options storage for tests
+$GLOBALS['wp_options'] = [];
+
+if (! function_exists('get_option')) {
+    function get_option($option, $default = false)
+    {
+        if (isset($GLOBALS['wp_options'][$option])) {
+            return $GLOBALS['wp_options'][$option];
+        }
+        
         return match ($option) {
             'posts_per_page' => 10,
             default => $default
         };
+    }
+}
+
+if (! function_exists('update_option')) {
+    function update_option($option, $value, $autoload = null)
+    {
+        $GLOBALS['wp_options'][$option] = $value;
+        return true;
+    }
+}
+
+if (! function_exists('delete_option')) {
+    function delete_option($option)
+    {
+        unset($GLOBALS['wp_options'][$option]);
+        return true;
     }
 }

@@ -4,12 +4,12 @@ export class RangeFacet extends BaseFacet {
     render(values, currentFilters) {
         if (!this.contentElement) return;
 
-        // Trouver les valeurs min et max
+        // Find min and max values
         const numbers = Object.keys(values).map(Number);
         const min = Math.min(...numbers);
         const max = Math.max(...numbers);
 
-        // Récupérer les valeurs actuelles
+        // Get current values
         const currentValue = this.getCurrentValue(currentFilters) || {};
         const currentMin = currentValue.min || min;
         const currentMax = currentValue.max || max;

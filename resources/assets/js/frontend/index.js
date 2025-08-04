@@ -21,6 +21,18 @@ if (!window.Alpine) {
 // Initialize MeiliscoutStore
 initMeiliscoutStore();
 
+// Expose components globally for archive container detection
+window.QueryLoop = QueryLoop;
+window.MeiliscoutComponents = {
+    QueryLoop,
+    BaseFacet,
+    ButtonFacet,
+    CheckboxFacet,
+    RadioFacet,
+    RangeFacet,
+    SelectFacet
+};
+
 // Register components with Alpine.js
 document.addEventListener('alpine:init', () => {
     Alpine.data('QueryLoop', QueryLoop);

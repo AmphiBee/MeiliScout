@@ -62,7 +62,7 @@
         <div x-show="activeTab === 'content'">
             <div class="mb-4">
                 <h2 class="text-lg font-semibold mb-2">Types de Contenu</h2>
-                <?php foreach ($post_types as $post_type): ?>
+                <?php foreach ($post_types as $post_type) { ?>
                     <div class="flex items-center mb-2">
                         <input type="checkbox" name="post_types[]" value="<?php echo esc_attr($post_type->name); ?>" id="post_type_<?php echo esc_attr($post_type->name); ?>" class="hidden!" x-model="postTypes">
                         <label :id="$id('pt_toggle_label_<?php echo esc_attr($post_type->name); ?>')" class="flex items-center cursor-pointer">
@@ -72,12 +72,12 @@
                             <span class="font-medium text-gray-800 select-none"><?php echo esc_html($post_type->label); ?></span>
                         </label>
                     </div>
-                <?php endforeach; ?>
+                <?php } ?>
             </div>
 
             <div class="mb-4">
                 <h2 class="text-lg font-semibold mb-2">Taxonomies</h2>
-                <?php foreach ($taxonomies as $taxonomy): ?>
+                <?php foreach ($taxonomies as $taxonomy) { ?>
                     <div class="flex items-center mb-2">
                         <input type="checkbox" name="taxonomies[]" value="<?php echo esc_attr($taxonomy->name); ?>" id="taxonomy_<?php echo esc_attr($taxonomy->name); ?>" class="hidden!" x-model="taxonomies">
                         <label :id="$id('toggle-taxonomy_<?php echo esc_attr($taxonomy->name); ?>')" class="flex items-center cursor-pointer">
@@ -87,7 +87,7 @@
                             <span class="font-medium text-gray-800 select-none"><?php echo esc_html($taxonomy->label); ?></span>
                         </label>
                     </div>
-                <?php endforeach; ?>
+                <?php } ?>
             </div>
         </div>
 

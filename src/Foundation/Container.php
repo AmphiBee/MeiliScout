@@ -39,8 +39,16 @@ class Container implements ContainerInterface
      */
     protected array $initializedSingletons = [];
 
+    /**
+     * Stores all service instances (both singletons and regular bindings).
+     *
+     * @var array<string, mixed>
+     */
     private array $instances = [];
 
+    /**
+     * Creates a new Container instance and registers all bindings.
+     */
     public function __construct()
     {
         $this->register();
@@ -96,26 +104,27 @@ class Container implements ContainerInterface
         return array_key_exists($id, $this->definitions) || array_key_exists($id, $this->singletons) || array_key_exists($id, $this->instances);
     }
 
+    /**
+     * Registers core service bindings and initializes container instances.
+     */
     private function register(): void
     {
         add_action('admin_notices', function () {
             if (ClientFactory::isConfigured()) {
                 return;
             }
-            $message = "Impossible de se connecter à Meilisearch. Vérifiez que l'hôte et la clé API sont corrects.";
+            $message = "Unable to connect to Meilisearch. Please verify that the host and API key are correct.";
             get_template_part('components/alert', ['message' => $message, 'type' => 'error']);
 
         });
 
-        // Enregistrer le client Meilisearch
+        // Register Meilisearch client
         $this->instances[Client::class] = ClientFactory::getClient();
 
-        // Enregistrer le MeiliQueryBuilder
-        $this->instances[MeiliQueryBuilder::class] = new MeiliQueryBuilder(
-            $this->instances[Client::class]
-        );
+        // Register MeiliQueryBuilder
+        $this->instances[MeiliQueryBuilder::class] = new MeiliQueryBuilder();
 
-        // Enregistrer le QueryIntegration avec sa dépendance
+        // Register QueryIntegration with its dependency
         $this->instances[QueryIntegration::class] = new QueryIntegration(
             $this->instances[MeiliQueryBuilder::class]
         );

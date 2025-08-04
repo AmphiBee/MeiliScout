@@ -14,8 +14,8 @@ enum ComparisonOperator: string
     case LESS_THAN_OR_EQUALS = '<=';
     case IN = 'IN';
     case NOT_IN = 'NOT IN';
-    case BETWEEN = 'BETWEEN';
-    case NOT_BETWEEN = 'NOT BETWEEN';
+    case BETWEEN = 'BETWEEN'; // Transformed into >= AND <=
+    case NOT_BETWEEN = 'NOT BETWEEN'; // Transformed into < OR >
     case EXISTS = 'EXISTS';
     case NOT_EXISTS = 'NOT EXISTS';
     case LIKE = 'LIKE';
@@ -84,4 +84,4 @@ enum ComparisonOperator: string
     {
         return self::IN;
     }
-} 
+}

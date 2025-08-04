@@ -7,22 +7,35 @@ namespace Pollora\MeiliScout\Query\Builders;
 use Pollora\MeiliScout\Domain\Search\Enums\ComparisonOperator;
 use Pollora\MeiliScout\Domain\Search\Validators\EnumValidator;
 
+/**
+ * Builder for date-related query filters.
+ * 
+ * Handles the conversion of WordPress date_query parameters to MeiliSearch filter syntax.
+ */
 class DateQueryBuilder extends AbstractFilterBuilder
 {
+    /**
+     * {@inheritdoc}
+     */
     protected function getQueryKey(): string
     {
         return 'date_query';
     }
 
+    /**
+     * {@inheritdoc}
+     * 
+     * Builds a filter expression for a date query clause.
+     */
     protected function buildSingleFilter(array $query): string
     {
-        if (empty($query['column']) || !isset($query['value'])) {
+        if (empty($query['column']) || ! isset($query['value'])) {
             return '';
         }
 
         $key = "date.{$query['column']}";
         $value = is_array($query['value']) ? $this->formatArrayValues($query['value']) : $this->formatValue($query['value']);
-        
+
         /** @var ComparisonOperator $operator */
         $operator = EnumValidator::getValidValueOrDefault(
             ComparisonOperator::class,
@@ -30,8 +43,8 @@ class DateQueryBuilder extends AbstractFilterBuilder
             ComparisonOperator::getDefault()
         );
 
-        // Vérifie si l'opérateur est autorisé pour les date queries
-        if (!in_array($operator, ComparisonOperator::getDateOperators(), true)) {
+        // Check if the operator is allowed for date queries
+        if (! in_array($operator, ComparisonOperator::getDateOperators(), true)) {
             return '';
         }
 
@@ -42,15 +55,18 @@ class DateQueryBuilder extends AbstractFilterBuilder
             ComparisonOperator::GREATER_THAN_OR_EQUALS,
             ComparisonOperator::LESS_THAN,
             ComparisonOperator::LESS_THAN_OR_EQUALS => "$key {$operator->value} $value",
-            
+
             ComparisonOperator::IN,
             ComparisonOperator::NOT_IN => is_array($query['value']) ? "$key {$operator->value} [$value]" : '',
-            
-            ComparisonOperator::BETWEEN,
-            ComparisonOperator::NOT_BETWEEN => is_array($query['value']) && count($query['value']) === 2
-                ? "$key {$operator->value} [{$query['value'][0]}, {$query['value'][1]}]"
+
+            ComparisonOperator::BETWEEN => is_array($query['value']) && count($query['value']) === 2
+                ? "($key >= {$this->formatValue($query['value'][0])} AND $key <= {$this->formatValue($query['value'][1])})"
                 : '',
-            
+                
+            ComparisonOperator::NOT_BETWEEN => is_array($query['value']) && count($query['value']) === 2
+                ? "($key < {$this->formatValue($query['value'][0])} OR $key > {$this->formatValue($query['value'][1])})"
+                : '',
+
             default => '',
         };
     }

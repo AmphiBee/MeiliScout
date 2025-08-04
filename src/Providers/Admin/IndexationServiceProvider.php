@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Providers\Admin;
 
-use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\Indexer;
@@ -23,7 +22,7 @@ class IndexationServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        if (!ClientFactory::isConfigured()) {
+        if (! ClientFactory::isConfigured()) {
             return;
         }
         add_action('admin_menu', [$this, 'addIndexationMenu']);
@@ -44,7 +43,7 @@ class IndexationServiceProvider extends ServiceProvider
             'callback' => [$this, 'getIndexationStatus'],
             'permission_callback' => function () {
                 return current_user_can('manage_options');
-            }
+            },
         ]);
     }
 
@@ -56,6 +55,7 @@ class IndexationServiceProvider extends ServiceProvider
     public function getIndexationStatus()
     {
         $log = get_option('meiliscout/last_indexing_log', []);
+
         return rest_ensure_response($log);
     }
 
@@ -66,28 +66,28 @@ class IndexationServiceProvider extends ServiceProvider
      */
     public function handleIndexation()
     {
-        if (!isset($_POST['meiliscout_indexation_nonce']) ||
-            !wp_verify_nonce($_POST['meiliscout_indexation_nonce'], 'meiliscout_indexation_action')) {
+        if (! isset($_POST['meiliscout_indexation_nonce']) ||
+            ! wp_verify_nonce($_POST['meiliscout_indexation_nonce'], 'meiliscout_indexation_action')) {
             return;
         }
 
-        if (!current_user_can('manage_options')) {
+        if (! current_user_can('manage_options')) {
             return;
         }
 
         // Initialize log with waiting message
-        $indexer = new Indexer();
+        $indexer = new Indexer;
         $indexer->initializeLog();
         $indexer->log('info', 'Indexation will start soon...');
 
         // Schedule indexation event
-        if (!wp_next_scheduled('meiliscout_process_indexation')) {
+        if (! wp_next_scheduled('meiliscout_process_indexation')) {
             wp_schedule_single_event(time() + 10, 'meiliscout_process_indexation', [
                 [
                     'clear_indices' => isset($_POST['clear_indices']),
                     'index_posts' => isset($_POST['index_posts']),
-                    'index_taxonomies' => isset($_POST['index_taxonomies'])
-                ]
+                    'index_taxonomies' => isset($_POST['index_taxonomies']),
+                ],
             ]);
         }
 
@@ -98,12 +98,12 @@ class IndexationServiceProvider extends ServiceProvider
     /**
      * Processes the actual indexation.
      *
-     * @param array $options Indexation options
+     * @param  array  $options  Indexation options
      * @return void
      */
     public function processIndexation($options)
     {
-        $indexer = new Indexer();
+        $indexer = new Indexer;
         $indexer->index($options['clear_indices']);
     }
 
@@ -115,7 +115,7 @@ class IndexationServiceProvider extends ServiceProvider
     public function renderIndexationPage()
     {
         get_template_part('indexation', [
-            'last_log' => get_option('meiliscout/last_indexing_log', [])
+            'last_log' => get_option('meiliscout/last_indexing_log', []),
         ]);
     }
 

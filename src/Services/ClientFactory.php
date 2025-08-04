@@ -35,13 +35,11 @@ class ClientFactory
                 return null;
             }
 
-
             if (empty($key)) {
                 self::logError('Meilisearch API key is missing.');
 
                 return null;
             }
-
 
             try {
                 $client = new Client($host, $key);

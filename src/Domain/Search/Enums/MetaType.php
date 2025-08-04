@@ -20,4 +20,4 @@ enum MetaType: string
     {
         return self::CHAR;
     }
-} 
+}

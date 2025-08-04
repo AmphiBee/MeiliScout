@@ -16,13 +16,14 @@ class OrderBuilder implements QueryBuilderInterface
      *
      * @param  QueryInterface  $query  The WordPress query
      * @param  array  $searchParams  The Meilisearch search parameters
+     * @return void
      */
     public function build(QueryInterface $query, array &$searchParams): void
     {
         $orderby = $query->get('orderby', 'post_date');
         $order = strtolower($query->get('order', 'desc'));
 
-        // Gestion des cas spéciaux
+        // Handle special cases
         if ($orderby === 'date') {
             $orderby = 'post_date';
         } elseif ($orderby === 'ID') {

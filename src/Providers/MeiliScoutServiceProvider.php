@@ -2,9 +2,9 @@
 
 namespace Pollora\MeiliScout\Providers;
 
-use Pollora\MeiliScout\Foundation\ServiceProvider;
-use Pollora\MeiliScout\Foundation\Container;
 use Pollora\MeiliScout\Config\Config;
+use Pollora\MeiliScout\Foundation\Container;
+use Pollora\MeiliScout\Foundation\ServiceProvider;
 
 /**
  * Main service provider for the MeiliScout plugin.
@@ -14,10 +14,11 @@ class MeiliScoutServiceProvider extends ServiceProvider
     /**
      * Creates a new MeiliScoutServiceProvider instance.
      *
-     * @param Container $container The dependency injection container
+     * @param  Container|null  $container  The dependency injection container
      */
-    public function __construct(protected Container $container)
+    public function __construct(?Container $container = null) 
     {
+        parent::__construct($container);
     }
 
     /**
@@ -31,7 +32,9 @@ class MeiliScoutServiceProvider extends ServiceProvider
         $this->loadConfig();
 
         // Register bindings
-        //$this->container->bind(SomeService::class, fn() => new SomeService());
+        if ($this->container !== null) {
+            // $this->container->bind(SomeService::class, fn() => new SomeService());
+        }
     }
 
     /**

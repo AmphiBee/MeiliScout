@@ -4,8 +4,12 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder;
 
 use Pollora\MeiliScout\Contracts\QueryInterface;
 
-class WP_Query {
-    public function get($key, $default = null) { return null; }
+class WP_Query
+{
+    public function get($key, $default = null)
+    {
+        return null;
+    }
 }
 
 class MockWPQuery implements QueryInterface
@@ -22,7 +26,7 @@ class MockWPQuery implements QueryInterface
         ], $query_vars);
     }
 
-    public function get($key, $default = null)
+    public function get(string $key, $default = null)
     {
         return $this->query_vars[$key] ?? $default;
     }

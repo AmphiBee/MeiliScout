@@ -6,15 +6,16 @@ namespace Pollora\MeiliScout\Foundation;
 
 use Pollora\MeiliScout\Providers\Admin\ContentSelectionServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\IndexationServiceProvider;
+use Pollora\MeiliScout\Providers\Admin\SettingsServiceProvider;
 use Pollora\MeiliScout\Providers\ApiServiceProvider;
 use Pollora\MeiliScout\Providers\AssetsServiceProvider;
 use Pollora\MeiliScout\Providers\BlockRendererServiceProvider;
+use Pollora\MeiliScout\Providers\BlockServiceProvider;
 use Pollora\MeiliScout\Providers\CommandServiceProvider;
 use Pollora\MeiliScout\Providers\MeiliScoutServiceProvider;
 use Pollora\MeiliScout\Providers\QueryServiceProvider;
-use Pollora\MeiliScout\Providers\Admin\SettingsServiceProvider;
-use Pollora\MeiliScout\Providers\BlockServiceProvider;
 use Pollora\MeiliScout\Providers\RestApiServiceProvider;
+use Pollora\MeiliScout\Providers\SingleIndexingServiceProvider;
 
 /**
  * Main application class responsible for bootstrapping the MeiliScout plugin.
@@ -38,12 +39,11 @@ class Application
         IndexationServiceProvider::class,
         CommandServiceProvider::class,
         QueryServiceProvider::class,
+        SingleIndexingServiceProvider::class,
     ];
 
     /**
      * The dependency injection container instance.
-     *
-     * @var Container
      */
     protected Container $container;
 
@@ -69,8 +69,6 @@ class Application
 
     /**
      * Returns the application's dependency injection container.
-     *
-     * @return Container
      */
     public function getContainer(): Container
     {

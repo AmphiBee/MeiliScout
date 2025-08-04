@@ -1,0 +1,62 @@
+# Extensions WordPress
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - src
+    excludePaths:
+        - src/helpers.php
+    
+    # Configuration pour WordPress
+    bootstrapFiles:
+        - tests/bootstrap.php
+    
+    # Ignorer les erreurs spécifiques au projet
+    ignoreErrors:
+        # Erreurs liées à WP_CLI (utilisé seulement en contexte CLI)
+        - '#Call to static method .* on an unknown class WP_CLI#'
+        - '#Class WP_CLI not found#'
+        
+        # Erreurs liées aux constantes WordPress
+        - '#Constant MEILISCOUT_.* not found#'
+        
+        # Erreurs liées aux types array génériques (corrigées)
+        # Les erreurs de types array génériques ont été corrigées
+        
+        # Erreurs liées aux méthodes WordPress non utilisées
+        - '#Method .* is unused#'
+        
+        # Erreurs liées aux fonctions WordPress globales
+        - '#Function .* not found#'
+        - '#Call to an undefined function .*#'
+        - '#Used function wp_register_block_types_from_metadata_collection not found#'
+        
+        # Erreurs liées aux variables superglobales
+        - '#Variable \$_GET is never written, only read#'
+        - '#Variable \$_POST is never written, only read#'
+        - '#Variable \$_REQUEST is never written, only read#'
+        - '#Variable \$_SERVER is never written, only read#'
+        
+        # Erreurs liées aux types mixtes (temporaire)
+        - '#Cannot access offset .* on mixed#'
+        - '#Cannot call method .* on mixed#'
+        - '#Parameter .* expects .*, mixed given#'
+        
+        # Erreurs spécifiques PHPStan
+        # - '#Call to function is_subclass_of\(\) with .* will always evaluate to true#'
+        # - '#Constructor of class .* has an unused parameter#'
+        # - '#Parameter .* of function implode expects array<string>, array<array\|string> given#'
+        # - '#Call to an undefined method .*::set\(\)#'
+        # - '#Call to an undefined method .*::exists\(\)#'
+        # - '#Offset .* on array.* in isset\(\) does not exist#'
+        # - '#Result of && is always false#'
+        # - '#Left side of && is always true#'
+        # - '#Property WP_Query::\$max_num_pages \(int\) does not accept float#'
+        # - '#Expression on left side of \?\? is not nullable#'
+        - '#Access to an undefined property WP_Query::\$facet_.*#'
+        # - '#Call to function .* with .* will always evaluate to false#'
+    
+    # Erreurs spécifiques à ignorer temporairement
+    reportUnmatchedIgnoredErrors: false

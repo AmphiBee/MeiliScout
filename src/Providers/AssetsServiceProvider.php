@@ -11,7 +11,6 @@ use Pollora\MeiliScout\Http\Controllers\FacetsController;
 use function add_action;
 use function add_filter;
 use function esc_attr;
-use function has_block;
 use function is_admin;
 use function rest_url;
 use function serialize_block;
@@ -35,7 +34,7 @@ class AssetsServiceProvider extends ServiceProvider
      */
     public function __construct()
     {
-        $this->webpack = new Webpack();
+        $this->webpack = new Webpack;
     }
 
     /**
@@ -131,8 +130,6 @@ class AssetsServiceProvider extends ServiceProvider
         return null;
     }
 
-
-
     /**
      * Vérifie si nous sommes sur une page d'administration MeiliScout.
      */
@@ -180,7 +177,7 @@ class AssetsServiceProvider extends ServiceProvider
      */
     public function enqueueFrontendAssets(): void
     {
-        $this->webpack->enqueueAssets('front-facets', 'front-facets');
+        $this->webpack->enqueueAssets('frontend', 'front-facets');
 
         // Add nonce for REST API
         wp_localize_script('meiliscout-front-facets', 'meiliscoutSettings', [

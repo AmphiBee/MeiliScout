@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Providers;
 
-use Pollora\MeiliScout\Foundation\ServiceProvider;
 use Pollora\MeiliScout\Foundation\Container;
+use Pollora\MeiliScout\Foundation\ServiceProvider;
 use Pollora\MeiliScout\Query\QueryIntegration;
 
 /**
@@ -16,20 +16,25 @@ class QueryServiceProvider extends ServiceProvider
     /**
      * Creates a new QueryServiceProvider instance.
      *
-     * @param Container $container The dependency injection container
+     * @param  Container|null  $container  The dependency injection container
      */
-    public function __construct(protected Container $container)
+    public function __construct(?Container $container = null) 
     {
+        parent::__construct($container);
     }
 
     /**
      * Registers the query integration service.
-     *
-     * @return void
      */
     public function register(): void
     {
-        $this->container->singleton(QueryIntegration::class);
-        $this->container->get(QueryIntegration::class);
+        if ($this->container !== null) {
+            $this->container->singleton(QueryIntegration::class);
+            $this->container->get(QueryIntegration::class);
+        } else {
+            // Fallback: create QueryIntegration directly
+            $queryBuilder = new \Pollora\MeiliScout\Query\MeiliQueryBuilder();
+            new QueryIntegration($queryBuilder);
+        }
     }
 }

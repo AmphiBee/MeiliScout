@@ -159,10 +159,10 @@ test('deeply nested taxonomy queries with special characters are correctly escap
     $params = $builder->build($query);
 
     expect($params['filter'])->toBe(
-        'post_type = \'post\' AND post_status = \'publish\' AND ' .
-        '(taxonomies.category.slug IN [\'Breaking \\\'News\\\'\'] AND ' .
-        '(taxonomies.post_tag.slug IN [\'Editor\\\'s Pick\', \'Today\\\'s \\\'Special\\\'\'] OR ' .
-        '(taxonomies.genre.slug IN [\'Tech & \\\'Innovation\\\'\'] AND ' .
+        'post_type = \'post\' AND post_status = \'publish\' AND '.
+        '(taxonomies.category.slug IN [\'Breaking \\\'News\\\'\'] AND '.
+        '(taxonomies.post_tag.slug IN [\'Editor\\\'s Pick\', \'Today\\\'s \\\'Special\\\'\'] OR '.
+        '(taxonomies.genre.slug IN [\'Tech & \\\'Innovation\\\'\'] AND '.
         'taxonomies.region.slug IN [\'North \\\'America\\\'\', \'South \\\'America\\\'\'])))'
     );
 });

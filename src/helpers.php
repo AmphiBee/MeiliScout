@@ -9,9 +9,9 @@ use Pollora\MeiliScout\Utils\Template;
 /**
  * Loads and displays a template part with data.
  *
- * @param string $slug    The slug name for the template
- * @param array  $datas   Optional. Data to pass to the template
- * @param bool   $display Optional. Whether to display or return the template output
+ * @param  string  $slug  The slug name for the template
+ * @param  array  $datas  Optional. Data to pass to the template
+ * @param  bool  $display  Optional. Whether to display or return the template output
  * @return string|void Template output if $display is false, void otherwise
  */
 function get_template_part($slug, $datas = [], $display = true)
@@ -54,7 +54,7 @@ function clean_recursive(array $array): array
             is_bool($value) => true,
             is_int($value), is_float($value) => true,
             is_string($value) => trim($value) !== '',
-            is_array($value) => !empty($value),
+            is_array($value) => ! empty($value),
             is_object($value) => true, // tu peux adapter selon ton besoin
             default => false,
         };

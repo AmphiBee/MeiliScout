@@ -1,5 +1,5 @@
 <?php
-if (!isset($message) || empty($message)) {
+if (! isset($message) || empty($message)) {
     return;
 }
 

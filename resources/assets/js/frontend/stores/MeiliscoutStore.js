@@ -236,6 +236,10 @@ export const initMeiliscoutStore = () => {
                 const queryParams = new URLSearchParams(window.location.search);
                 const currentPage = queryParams.get('paged') || 1;
                 
+                // Use standard facets endpoint
+                const endpoint = '/wp-json/meiliscout/v1/facets';
+                
+                // Gutenberg context - use existing format
                 const requestBody = {
                     query: {
                         ...queryData.query,
@@ -258,7 +262,7 @@ export const initMeiliscoutStore = () => {
                 
                 debug(`API request for ${queryId}:`, requestBody);
                 
-                const response = await fetch('/wp-json/meiliscout/v1/facets', {
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -390,13 +394,13 @@ export const initMeiliscoutStore = () => {
             
             const queryData = this.queries[queryId];
             
-            // Vérifier si la facetDistribution existe pour cet attribut
+            // Check if facetDistribution exists for this attribute
             if (!queryData.facetDistribution || !queryData.facetDistribution[attribute]) {
                 debug(`No facetDistribution for ${attribute} in query ${queryId}`);
                 return false;
             }
             
-            // Récupérer le nombre de résultats pour cette valeur
+            // Get the number of results for this value
             const count = queryData.facetDistribution[attribute][value] || 0;
             const hasResults = count > 0;
             
@@ -411,6 +415,7 @@ export const initMeiliscoutStore = () => {
             debug(`getCurrentFilterValue for ${queryId}.${attribute}:`, value);
             return value;
         },
+        
         
         // Dump store state to console for debugging
         dumpState() {
