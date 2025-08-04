@@ -1,5 +1,5 @@
 {
-    "name": "pollora/meiliscout",
+    "name": "amphibee/meiliscout",
     "description": "Intégration de Meilisearch dans WordPress avec une approche modulaire et expressive.",
     "type": "wordpress-plugin",
     "license": "MIT",
