@@ -18,11 +18,11 @@ use function is_wp_error;
 
 /**
  * Service for managing single taxonomy term indexing operations in Meilisearch.
- * 
+ *
  * This service handles real-time indexing of individual WordPress taxonomy terms
  * when they are created, updated, or deleted. It extends the abstract
  * single indexer to provide taxonomy-specific functionality.
- * 
+ *
  * @package Pollora\MeiliScout\Services
  * @since 1.0.0
  */
@@ -59,7 +59,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
     protected function shouldIndex(mixed $item): bool
     {
         $term = $this->normalizeTerm($item);
-        
+
         if (!$term instanceof WP_Term) {
             return false;
         }
@@ -99,13 +99,13 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
      *
      * @param int|WP_Term $term The term ID or WP_Term object to index
      * @return bool True if the term was successfully indexed, false otherwise
-     * 
+     *
      * @throws Exception If there's an error during the indexing process
      */
     public function indexTerm(int|WP_Term $term): bool
     {
         $termObject = $this->normalizeTerm($term);
-        
+
         if (!$termObject instanceof WP_Term) {
             $this->logOperation('error', "Term with ID {$term} not found");
             return false;
@@ -232,7 +232,6 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
             // Get the indexable and preload all data in bulk
             /** @var \Pollora\MeiliScout\Indexables\TaxonomyIndexable $indexable */
             $indexable = $this->indexable;
-            $indexable->preloadBatchData($termsToIndex);
 
             // Format all documents
             $documents = [];
@@ -245,15 +244,16 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
                 }
             }
 
-            // Clear preloaded data to free memory
-            $indexable->clearBatchData();
-
             // Send all documents in a single API call
             if (! empty($documents)) {
                 $index = $this->client->index($indexable->getIndexName());
                 $index->addDocuments($documents);
                 $statistics['indexed'] = count($documents);
             }
+
+            // Aggressive memory cleanup after each batch
+            unset($documents, $termsToIndex);
+            gc_collect_cycles();
 
         } catch (Exception $e) {
             $statistics['errors'] += count($termsToIndex) - $statistics['indexed'];

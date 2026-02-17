@@ -75,22 +75,32 @@ class PostIndexable implements Indexable
         return [
             'filterableAttributes' => array_unique($filterableAttributes),
             'sortableAttributes' => array_unique([
-                'post_title',
                 'post_date',
                 ...array_map(fn($key) => "metas.{$key}", $filterableMetaKeys),
             ]),
         ];
     }
 
-    public function getItems(): iterable
+    public function getItems(?int $offset = null, ?int $limit = null): iterable
     {
         $postTypes = Settings::get('indexed_post_types', []);
-        $this->metaKeys = $this->gatherMetaKeys($postTypes);
+        // Use configured meta keys instead of gathering from database for better performance
+        $this->metaKeys = Settings::get('indexed_meta_keys', []);
 
-        $postsPerPage = Settings::get('indexing.posts_per_page', 200);
+        $postsPerPage = Settings::get('indexing.posts_per_page', 10000);
+
+        // Track total items yielded for offset/limit support
+        $totalYielded = 0;
+        $startOffset = $offset ?? 0;
+        $maxItems = $limit ?? PHP_INT_MAX;
 
         foreach ($postTypes as $postType) {
             $page = 1;
+
+            // Calculate starting page if offset is provided
+            if ($offset !== null) {
+                $page = (int) floor($offset / $postsPerPage) + 1;
+            }
 
             do {
                 $posts = get_posts([
@@ -101,15 +111,38 @@ class PostIndexable implements Indexable
                     'orderby' => 'ID',
                     'order' => 'ASC',
                     'suppress_filters' => true,
+                    'update_post_meta_cache' => false,
+                    'update_post_term_cache' => false,
+                    'no_found_rows' => true,
+                    'cache_results' => false,
                 ]);
 
                 foreach ($posts as $post) {
+                    $currentGlobalOffset = ($page - 1) * $postsPerPage + array_search($post, $posts, true);
+
+                    if ($offset !== null && $currentGlobalOffset < $offset) {
+                        continue;
+                    }
+
+                    if ($totalYielded >= $maxItems) {
+                        return;
+                    }
+
                     yield $post;
+                    $totalYielded++;
                 }
 
                 $page++;
 
-                wp_cache_flush();
+                if ($totalYielded >= $maxItems) {
+                    return;
+                }
+
+                // Flush cache periodically to prevent memory leaks
+                if ($page % 10 === 0) {
+                    wp_cache_flush();
+                    gc_collect_cycles();
+                }
 
             } while (count($posts) === $postsPerPage);
         }
@@ -153,9 +186,9 @@ class PostIndexable implements Indexable
         $postIds = array_map(fn($post) => $post->ID, $posts);
         $postTypes = array_unique(array_map(fn($post) => $post->post_type, $posts));
 
-        // Ensure meta keys are gathered
+        // Ensure meta keys are set from settings
         if (empty($this->metaKeys)) {
-            $this->metaKeys = $this->gatherMetaKeys($postTypes);
+            $this->metaKeys = Settings::get('indexed_meta_keys', []);
         }
 
         // Preload meta cache using WordPress core function
@@ -245,7 +278,8 @@ class PostIndexable implements Indexable
                 if ($value === '' || $value === null) {
                     continue;
                 }
-                $meta[$key] = is_numeric($value) ? $value + 0 : $value;
+                // Skip INF, -INF, and NAN values as they cannot be JSON encoded
+                $meta[$key] = (is_numeric($value) && is_finite((float)$value)) ? $value + 0 : $value;
             }
         } else {
             foreach ($this->metaKeys as $key) {
@@ -258,7 +292,8 @@ class PostIndexable implements Indexable
                     continue;
                 }
 
-                $meta[$key] = is_numeric($value) ? $value + 0 : $value;
+                // Skip INF, -INF, and NAN values as they cannot be JSON encoded
+                $meta[$key] = (is_numeric($value) && is_finite((float)$value)) ? $value + 0 : $value;
             }
         }
 
@@ -366,7 +401,8 @@ class PostIndexable implements Indexable
             }
 
             // Automatic casting of numeric values
-            if (is_numeric($value)) {
+            // Skip INF, -INF, and NAN values as they cannot be JSON encoded
+            if (is_numeric($value) && is_finite((float)$value)) {
                 $meta[$key] = $value + 0;
             } else {
                 $meta[$key] = $value;

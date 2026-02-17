@@ -284,9 +284,8 @@ class IndexingLogger
      */
     private function getLogDirectory(): string
     {
-        $uploadDir = wp_upload_dir();
-
-        return $uploadDir['basedir'] . '/meiliscout/logs';
+        // Use /tmp instead of uploads directory to avoid S3 issues
+        return sys_get_temp_dir() . '/meiliscout-logs';
     }
 
     /**

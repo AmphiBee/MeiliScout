@@ -53,7 +53,7 @@ class Indexer
      * Batch size for bulk indexing operations.
      * Larger batches are more efficient for Meilisearch.
      */
-    private int $bulkBatchSize = 500;
+    private int $bulkBatchSize = 10000;
 
     /**
      * Cache for index existence checks.
@@ -166,6 +166,140 @@ class Indexer
             $this->logger->complete('completed');
         } catch (\Exception $e) {
             $this->log('error', 'Error during indexing: ' . $e->getMessage(), true);
+            $this->logger->complete('error');
+            throw $e;
+        }
+    }
+
+    /**
+     * Gets the total count of items to be indexed.
+     *
+     * @return int Total number of items
+     */
+    public function getTotalCount(): int
+    {
+        global $wpdb;
+        $total = 0;
+
+        // Count posts directly from database without loading them
+        $postTypes = Settings::get('indexed_post_types', []);
+        if (!empty($postTypes)) {
+            $placeholders = implode(',', array_fill(0, count($postTypes), '%s'));
+            $query = $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->posts}
+                 WHERE post_type IN ($placeholders)
+                 AND post_status NOT IN ('trash', 'auto-draft')",
+                ...$postTypes
+            );
+            $total += (int) $wpdb->get_var($query);
+        }
+
+        // Count taxonomies directly from database
+        $taxonomies = Settings::get('indexed_taxonomies', []);
+        if (!empty($taxonomies)) {
+            $placeholders = implode(',', array_fill(0, count($taxonomies), '%s'));
+            $query = $wpdb->prepare(
+                "SELECT COUNT(DISTINCT t.term_id)
+                 FROM {$wpdb->terms} t
+                 INNER JOIN {$wpdb->term_taxonomy} tt ON t.term_id = tt.term_id
+                 WHERE tt.taxonomy IN ($placeholders)",
+                ...$taxonomies
+            );
+            $total += (int) $wpdb->get_var($query);
+        }
+
+        return $total;
+    }
+
+    /**
+     * Indexes a specific chunk of content.
+     *
+     * @param  int  $offset  Starting offset
+     * @param  int  $limit  Number of items to index
+     * @param  bool  $clearIndices  Whether to clear existing indices before indexing
+     */
+    public function indexChunk(int $offset, int $limit, bool $clearIndices = false): void
+    {
+        $this->initializeLog();
+
+        try {
+            // Save the current indexing structure only on first chunk
+            if ($offset === 0) {
+                $this->saveIndexingStructure();
+            }
+
+            foreach ($this->indexables as $indexable) {
+                $indexName = $indexable->getIndexName();
+                $this->log('info', sprintf('Starting chunk indexation for %s (offset: %d, limit: %d)', $indexName, $offset, $limit));
+
+                // Index configuration
+                if ($clearIndices) {
+                    $this->client->deleteIndex($indexName);
+                    unset($this->indexExistsCache[$indexName]);
+                }
+
+                // Create index with primary key
+                if ($clearIndices || ! $this->indexExists($indexName)) {
+                    $this->client->createIndex($indexName, [
+                        'primaryKey' => $indexable->getPrimaryKey(),
+                    ]);
+                    $this->indexExistsCache[$indexName] = true;
+                }
+
+                $index = $this->client->index($indexName);
+                $index->updateSettings($indexable->getIndexSettings());
+
+                // Document indexing with offset/limit
+                $totalIndexed = 0;
+                $batchSize = $this->bulkBatchSize;
+                $itemsProcessed = 0;
+
+                $items = [];
+                foreach ($indexable->getItems($offset, $limit) as $item) {
+                    $items[] = $item;
+                    $itemsProcessed++;
+
+                    if (count($items) >= $batchSize) {
+                        $batchStats = $this->indexItemsBatch($indexable, $items);
+                        $totalIndexed += $batchStats['indexed'];
+                        $this->log('info', sprintf(
+                            'Batch of %d items processed (%d indexed, %d skipped) - Progress: %d/%d',
+                            count($items),
+                            $batchStats['indexed'],
+                            $batchStats['skipped'],
+                            $itemsProcessed,
+                            $limit
+                        ));
+                        $items = [];
+
+                        // Aggressive memory cleanup after each batch
+                        wp_cache_flush();
+                        gc_collect_cycles();
+                    }
+                }
+
+                if (! empty($items)) {
+                    $batchStats = $this->indexItemsBatch($indexable, $items);
+                    $totalIndexed += $batchStats['indexed'];
+                    $this->log('info', sprintf(
+                        'Last batch of %d items processed (%d indexed, %d skipped)',
+                        count($items),
+                        $batchStats['indexed'],
+                        $batchStats['skipped']
+                    ));
+
+                    // Aggressive memory cleanup after last batch
+                    wp_cache_flush();
+                    gc_collect_cycles();
+                }
+
+                $this->log('success', sprintf('Chunk total: %d items indexed for %s', $totalIndexed, $indexName));
+            }
+
+            $this->log('success', 'Chunk indexing completed successfully', true);
+            $this->logger->complete('completed');
+        } catch (\Exception $e) {
+            $this->log('error', 'Error during chunk indexing: ' . $e->getMessage(), true);
             $this->logger->complete('error');
             throw $e;
         }
@@ -290,7 +424,7 @@ class Indexer
         if ($indexable instanceof PostIndexable) {
             return $this->postSingleIndexer->indexPosts($items);
         }
-        
+
         if ($indexable instanceof TaxonomyIndexable) {
             return $this->taxonomySingleIndexer->indexTerms($items);
         }
@@ -298,7 +432,7 @@ class Indexer
         // Fallback to old method for unknown indexable types
         $statistics = ['indexed' => 0, 'skipped' => 0, 'errors' => 0];
         $documents = [];
-        
+
         foreach ($items as $item) {
             try {
                 $documents[] = $indexable->formatForIndexing($item);
@@ -725,9 +859,13 @@ class Indexer
 
         try {
             $indexes = $this->client->getIndexes();
-            foreach ($indexes['results'] as $index) {
-                // Cache all found indexes
-                $this->indexExistsCache[$index['uid']] = true;
+
+            // Handle case where results might be null
+            if (isset($indexes['results']) && is_array($indexes['results'])) {
+                foreach ($indexes['results'] as $index) {
+                    // Cache all found indexes
+                    $this->indexExistsCache[$index['uid']] = true;
+                }
             }
 
             // Cache result for requested index

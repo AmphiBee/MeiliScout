@@ -17,11 +17,11 @@ use function in_array;
 
 /**
  * Service for managing single post indexing operations in Meilisearch.
- * 
+ *
  * This service handles real-time indexing of individual WordPress posts
  * when they are created, updated, or deleted. It extends the abstract
  * single indexer to provide post-specific functionality.
- * 
+ *
  * @package Pollora\MeiliScout\Services
  * @since 1.0.0
  */
@@ -59,7 +59,7 @@ class PostSingleIndexer extends AbstractSingleIndexer
     protected function shouldIndex(mixed $item): bool
     {
         $post = $this->normalizePost($item);
-        
+
         if (!$post instanceof WP_Post) {
             return false;
         }
@@ -105,13 +105,13 @@ class PostSingleIndexer extends AbstractSingleIndexer
      *
      * @param int|WP_Post $post The post ID or WP_Post object to index
      * @return bool True if the post was successfully processed, false otherwise
-     * 
+     *
      * @throws Exception If there's an error during the indexing process
      */
     public function indexPost(int|WP_Post $post): bool
     {
         $postObject = $this->normalizePost($post);
-        
+
         if (!$postObject instanceof WP_Post) {
             $this->logOperation('error', "Post with ID {$post} not found");
             return false;
@@ -123,7 +123,7 @@ class PostSingleIndexer extends AbstractSingleIndexer
                 $this->logOperation('info', "Post type '{$postObject->post_type}' is not configured for indexing");
                 return true; // Not an error
             }
-            
+
             if (!$this->shouldIndexPostStatus($postObject->post_status)) {
                 // Remove from index if it exists there
                 return $this->removePost($postObject->ID);
@@ -314,7 +314,6 @@ class PostSingleIndexer extends AbstractSingleIndexer
             // Get the indexable and preload all data in bulk
             /** @var \Pollora\MeiliScout\Indexables\PostIndexable $indexable */
             $indexable = $this->indexable;
-            $indexable->preloadBatchData($postsToIndex);
 
             // Format all documents
             $documents = [];
@@ -327,15 +326,16 @@ class PostSingleIndexer extends AbstractSingleIndexer
                 }
             }
 
-            // Clear preloaded data to free memory
-            $indexable->clearBatchData();
-
             // Send all documents in a single API call
             if (! empty($documents)) {
                 $index = $this->client->index($indexable->getIndexName());
                 $index->addDocuments($documents);
                 $statistics['indexed'] = count($documents);
             }
+
+            // Aggressive memory cleanup after each batch
+            unset($documents, $normalizedPosts, $postsToIndex);
+            gc_collect_cycles();
 
         } catch (Exception $e) {
             $statistics['errors'] += count($postsToIndex) - $statistics['indexed'];

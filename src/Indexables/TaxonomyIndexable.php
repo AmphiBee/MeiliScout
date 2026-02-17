@@ -49,19 +49,32 @@ class TaxonomyIndexable implements Indexable
         ];
     }
 
-    public function getItems(): iterable
+    public function getItems(?int $offset = null, ?int $limit = null): iterable
     {
         $taxonomies = Settings::get('indexed_taxonomies', []);
-        $this->gatherMetaKeys($taxonomies);
+        // Use configured meta keys instead of gathering from database for better performance
+        $this->metaKeys = Settings::get('indexed_meta_keys', []);
+
+        $totalYielded = 0;
+        $currentOffset = 0;
+        $maxItems = $limit ?? PHP_INT_MAX;
 
         foreach ($taxonomies as $taxonomy) {
             $terms = get_terms([
                 'taxonomy' => $taxonomy,
                 'hide_empty' => false,
+                'offset' => $offset ?? 0,
+                'number' => $limit ?? 0, // 0 means no limit in get_terms
             ]);
 
             foreach ($terms as $term) {
+                // Stop if we've reached the limit
+                if ($totalYielded >= $maxItems) {
+                    return;
+                }
+
                 yield $term;
+                $totalYielded++;
             }
         }
     }
@@ -102,7 +115,8 @@ class TaxonomyIndexable implements Indexable
                 // Transform keys that start with underscore for Meilisearch
                 $indexKey = $this->normalizeMetaKey($key);
                 // Automatic casting of numeric values
-                if (is_numeric($value)) {
+                // Skip INF, -INF, and NAN values as they cannot be JSON encoded
+                if (is_numeric($value) && is_finite((float)$value)) {
                     $meta[$key] = $value + 0; // implicit cast to int or float
                 } else {
                     $meta[$key] = $value;
@@ -164,9 +178,9 @@ class TaxonomyIndexable implements Indexable
         $termIds = array_map(fn($term) => $term->term_id, $terms);
         $taxonomies = array_unique(array_map(fn($term) => $term->taxonomy, $terms));
 
-        // Ensure meta keys are gathered
+        // Ensure meta keys are set from settings
         if (empty($this->metaKeys)) {
-            $this->gatherMetaKeys($taxonomies);
+            $this->metaKeys = Settings::get('indexed_meta_keys', []);
         }
 
         // Preload meta cache using WordPress core function
@@ -200,7 +214,8 @@ class TaxonomyIndexable implements Indexable
                     continue;
                 }
                 $indexKey = $this->normalizeMetaKey($key);
-                $meta[$key] = is_numeric($value) ? $value + 0 : $value;
+                // Skip INF, -INF, and NAN values as they cannot be JSON encoded
+                $meta[$key] = (is_numeric($value) && is_finite((float)$value)) ? $value + 0 : $value;
             }
         } else {
             foreach ($this->metaKeys as $key) {
@@ -213,7 +228,8 @@ class TaxonomyIndexable implements Indexable
                     continue;
                 }
 
-                $meta[$key] = is_numeric($value) ? $value + 0 : $value;
+                // Skip INF, -INF, and NAN values as they cannot be JSON encoded
+                $meta[$key] = (is_numeric($value) && is_finite((float)$value)) ? $value + 0 : $value;
             }
         }
 

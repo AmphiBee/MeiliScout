@@ -18,7 +18,10 @@ class CommandServiceProvider extends ServiceProvider
     public function register(): void
     {
         if (defined('WP_CLI') && WP_CLI) {
-            \WP_CLI::add_command('meiliscout index', new IndexCommand);
+            $indexCommand = new IndexCommand;
+            \WP_CLI::add_command('meiliscout index', [$indexCommand, '__invoke']);
+            \WP_CLI::add_command('meiliscout index-chunked', [$indexCommand, 'index_chunked']);
+            \WP_CLI::add_command('meiliscout index-chunk', [$indexCommand, 'index_chunk']);
         }
     }
 }
