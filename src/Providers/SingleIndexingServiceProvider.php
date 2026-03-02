@@ -117,6 +117,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handlePostSave(int $postId, \WP_Post $post, bool $update): void
     {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
         // Skip if this is an autosave, revision, or auto-draft
         if ($this->shouldSkipPostOperation($postId, $post)) {
             return;
@@ -140,6 +144,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handlePostDelete(int $postId): void
     {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
         try {
             $this->postIndexer->removePost($postId);
         } catch (\Exception $e) {
@@ -161,6 +169,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handlePostStatusChange(string $newStatus, string $oldStatus, \WP_Post $post): void
     {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
         // Skip if this is an autosave, revision, or auto-draft
         if ($this->shouldSkipPostOperation($post->ID, $post)) {
             return;
@@ -189,6 +201,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handlePostMetaUpdate(int|array $metaId, int $postId, string $metaKey, mixed $metaValue): void
     {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
         $post = get_post($postId);
 
         if (!$post instanceof \WP_Post || $this->shouldSkipPostOperation($postId, $post)) {
@@ -217,6 +233,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handleTermSave(int $termId, int $ttId, string $taxonomy): void
     {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
         try {
             $result = $this->taxonomyIndexer->indexTerm($termId);
 
@@ -244,6 +264,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handleTermDelete(int $termId, int $ttId, string $taxonomy, \WP_Term $deletedTerm): void
     {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
         try {
             // Remove the term from the index
             $this->taxonomyIndexer->removeTerm($termId);
@@ -270,6 +294,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handleTermMetaUpdate(int|array $metaId, int $termId, string $metaKey, mixed $metaValue): void
     {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
         $term = get_term($termId);
 
         if (!$term instanceof \WP_Term || is_wp_error($term)) {
@@ -283,6 +311,19 @@ class SingleIndexingServiceProvider extends ServiceProvider
             // Log error but don't break the meta update process
             error_log("MeiliScout: Failed to re-index term {$termId} after meta update: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Determines if all indexing should be skipped globally.
+     *
+     * Allows external code to disable indexing in specific contexts
+     * (e.g., during imports) via the 'meiliscout/skip_indexing' filter.
+     *
+     * @return bool True if indexing should be skipped, false otherwise
+     */
+    private function shouldSkipIndexing(): bool
+    {
+        return (bool) apply_filters('meiliscout/skip_indexing', false);
     }
 
     /**
@@ -309,11 +350,6 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         // Skip auto-drafts
         if ($post->post_status === 'auto-draft') {
-            return true;
-        }
-
-        // Skip if we're doing a bulk operation
-        if (defined('WP_IMPORTING') && WP_IMPORTING) {
             return true;
         }
 

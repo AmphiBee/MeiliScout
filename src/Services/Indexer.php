@@ -81,11 +81,11 @@ class Indexer
     public function __construct()
     {
         $this->client = ClientFactory::getClient();
-        $this->indexables = [
+        $this->indexables = apply_filters('meiliscout/indexables', [
             new PostIndexable,
             new TaxonomyIndexable,
-        ];
-        $this->postSingleIndexer = new PostSingleIndexer();
+        ]);
+        $this->postSingleIndexer = apply_filters('meiliscout/post_single_indexer', new PostSingleIndexer());
         $this->taxonomySingleIndexer = new TaxonomySingleIndexer();
         $this->logger = IndexingLogger::getInstance();
     }
