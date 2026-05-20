@@ -401,12 +401,12 @@ class Indexer
             $this->log('success', 'Index "taxonomies" deleted');
 
             $this->log('success', 'Purge completed successfully');
+            $this->logger->complete('completed');
         } catch (\Exception $e) {
             $this->log('error', 'Error during purge: '.$e->getMessage());
+            $this->logger->complete('error');
             throw $e;
         }
-
-        $this->saveLog();
     }
 
     /**
