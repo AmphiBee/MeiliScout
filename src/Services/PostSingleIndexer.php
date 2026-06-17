@@ -314,6 +314,7 @@ class PostSingleIndexer extends AbstractSingleIndexer
             // Get the indexable
             /** @var \Pollora\MeiliScout\Indexables\PostIndexable $indexable */
             $indexable = $this->indexable;
+            $indexable->preloadBatchData($postsToIndex);
 
             // Format all documents
             $documents = [];
