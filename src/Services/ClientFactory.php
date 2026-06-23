@@ -20,6 +20,11 @@ class ClientFactory
     private static ?Client $instance = null;
 
     /**
+     * The Meilisearch search client instance.
+     */
+    private static ?Client $searchInstance = null;
+
+    /**
      * Gets the Meilisearch client instance.
      * Creates it if it doesn't exist.
      */
@@ -61,9 +66,51 @@ class ClientFactory
         return self::$instance;
     }
 
+    public static function getSearchClient(): ?Client
+    {
+        if (self::$searchInstance === null) {
+            $host = Config::get('meili_host');
+            $key = Config::get('meili_search_key');
+
+            if (! self::isValidHost($host)) {
+                self::logError("Invalid Meilisearch host: {$host}");
+
+                return null;
+            }
+
+            if (empty($key)) {
+                self::logError('Meilisearch API search key is missing.');
+
+                return null;
+            }
+
+            try {
+                $client = new Client($host, $key);
+                if (! self::isAvailable($client)) {
+                    self::logError('API key does not have required permissions.');
+
+                    return null;
+                }
+
+                self::$searchInstance = $client;
+            } catch (\Throwable $e) {
+                self::logError('Failed to connect to Meilisearch: '.$e->getMessage());
+
+                return null;
+            }
+        }
+
+        return self::$searchInstance;
+    }
+
     public static function isConfigured(): bool
     {
         return ! (is_null(self::getClient()) && Config::get('meili_host') && Config::get('meili_key'));
+    }
+
+    public static function isSearchConfigured(): bool
+    {
+        return self::getSearchClient() !== null;
     }
 
     /**
