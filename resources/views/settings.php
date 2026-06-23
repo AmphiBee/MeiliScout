@@ -24,6 +24,12 @@ use Pollora\MeiliScout\Config\Config;
             <p class="mt-1 text-xs text-gray-500">Entrez la clé d'API pour accéder à votre instance MeiliSearch. Si aucune clé n'est définie, laissez ce champ vide.</p>
         </div>
 
+        <div class="mb-4">
+            <label for="meili_search_key" class="block text-sm font-medium text-gray-700">MeiliSearch Search Key</label>
+            <input type="text" name="meili_search_key" id="meili_search_key" value="<?php echo esc_attr($search_key); ?>" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required <?php echo Config::isReadOnly('MEILI_SEARCH_KEY') ? 'readonly' : ''; ?>>
+            <p class="mt-1 text-xs text-gray-500">Entrez la clé d'API pour accéder à votre instance MeiliSearch. Si aucune clé n'est définie, laissez ce champ vide.</p>
+        </div>
+
         <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">Enregistrer les réglages</button>
     </form>
 </div>
