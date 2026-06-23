@@ -58,6 +58,7 @@ class SettingsServiceProvider extends ServiceProvider
         get_template_part('settings', [
             'host' => Config::get('meili_host'),
             'key' => Config::get('meili_key'),
+            'search_key' => Config::get('meili_search_key'),
         ]);
     }
 
@@ -80,10 +81,12 @@ class SettingsServiceProvider extends ServiceProvider
             // Get and sanitize form data
             $meili_host = sanitize_text_field($_POST['meili_host']);
             $meili_key = sanitize_text_field($_POST['meili_key']);
+            $meili_search_key = sanitize_text_field($_POST['meili_search_key']);
 
             // Save options to database
             Settings::save('meili_host', $meili_host);
             Settings::save('meili_key', $meili_key);
+            Settings::save('meili_search_key', $meili_search_key);
         } else {
             error_log('User does not have permission to manage options');
         }

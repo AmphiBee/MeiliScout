@@ -110,12 +110,19 @@ class Container implements ContainerInterface
     private function register(): void
     {
         add_action('admin_notices', function () {
-            if (ClientFactory::isConfigured()) {
-                return;
-            }
-            $message = "Unable to connect to Meilisearch. Please verify that the host and API key are correct.";
-            get_template_part('components/alert', ['message' => $message, 'type' => 'error']);
+            $errors = [];
 
+            if (! ClientFactory::isConfigured()) {
+                $errors[] = __('Unable to connect to Meilisearch. Please verify that the host and API key are correct.', 'meiliscout');
+            }
+
+            if (! ClientFactory::isSearchConfigured()) {
+                $errors[] = __('Unable to connect to Meilisearch. Please verify that the host and API search key are correct.', 'meiliscout');
+            }
+
+            foreach ($errors as $message) {
+                get_template_part('components/alert', ['message' => $message, 'type' => 'error']);
+            }
         });
 
         // Register Meilisearch client
