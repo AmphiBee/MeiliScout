@@ -15,6 +15,22 @@ use Psr\Log\LoggerInterface;
 class ClientFactory
 {
     /**
+     * Cache key prefix for the reachability probe.
+     */
+    private const PROBE_CACHE_PREFIX = 'meiliscout_probe_';
+
+    /**
+     * How long a successful probe is trusted, in seconds.
+     */
+    private const PROBE_TTL_REACHABLE = 300;
+
+    /**
+     * How long a failed probe is trusted, in seconds. Shorter than the success
+     * window so a Meilisearch instance that comes back is picked up quickly.
+     */
+    private const PROBE_TTL_UNREACHABLE = 30;
+
+    /**
      * The Meilisearch client instance.
      */
     private static ?Client $instance = null;
@@ -25,40 +41,94 @@ class ClientFactory
      */
     public static function getClient(): ?Client
     {
-        if (self::$instance === null) {
-            $host = Config::get('meili_host');
-            $key = Config::get('meili_key');
+        if (self::$instance !== null) {
+            return self::$instance;
+        }
 
-            if (! self::isValidHost($host)) {
-                self::logError("Invalid Meilisearch host: {$host}");
+        $host = Config::get('meili_host');
+        $key = Config::get('meili_key');
 
-                return null;
-            }
+        if (empty($key)) {
+            self::logError('Meilisearch API key is missing.');
 
-            if (empty($key)) {
-                self::logError('Meilisearch API key is missing.');
+            return null;
+        }
 
-                return null;
-            }
+        if (! self::isReachable($host, $key)) {
+            return null;
+        }
 
-            try {
-                $client = new Client($host, $key);
+        try {
+            self::$instance = new Client($host, $key);
+        } catch (\Throwable $e) {
+            self::logError('Failed to connect to Meilisearch: '.$e->getMessage());
 
-                if (! self::isAvailable($client)) {
-                    self::logError('API key does not have required permissions.');
-
-                    return null;
-                }
-
-                self::$instance = $client;
-            } catch (\Throwable $e) {
-                self::logError('Failed to connect to Meilisearch: '.$e->getMessage());
-
-                return null;
-            }
+            return null;
         }
 
         return self::$instance;
+    }
+
+    /**
+     * Verifies that the host resolves and that Meilisearch answers, caching the
+     * verdict for a short window.
+     *
+     * Both checks are expensive and neither used to be cached: isValidHost()
+     * does a synchronous DNS lookup and isAvailable() an HTTP round trip. Since
+     * the container builds the client eagerly, every single request paid for
+     * both — including requests that never search anything, such as a GraphQL
+     * query on a decoupled front end.
+     */
+    private static function isReachable(?string $host, string $key): bool
+    {
+        $cacheKey = self::PROBE_CACHE_PREFIX.md5((string) $host.'|'.$key);
+        $cached = function_exists('get_transient') ? get_transient($cacheKey) : false;
+
+        if ($cached === 'reachable') {
+            return true;
+        }
+
+        if ($cached === 'unreachable') {
+            return false;
+        }
+
+        $reachable = self::probe($host, $key);
+
+        if (function_exists('set_transient')) {
+            set_transient(
+                $cacheKey,
+                $reachable ? 'reachable' : 'unreachable',
+                $reachable ? self::PROBE_TTL_REACHABLE : self::PROBE_TTL_UNREACHABLE
+            );
+        }
+
+        return $reachable;
+    }
+
+    /**
+     * Runs the actual host and availability checks.
+     */
+    private static function probe(?string $host, string $key): bool
+    {
+        if (! self::isValidHost($host)) {
+            self::logError("Invalid Meilisearch host: {$host}");
+
+            return false;
+        }
+
+        try {
+            if (! self::isAvailable(new Client($host, $key))) {
+                self::logError('API key does not have required permissions.');
+
+                return false;
+            }
+        } catch (\Throwable $e) {
+            self::logError('Failed to connect to Meilisearch: '.$e->getMessage());
+
+            return false;
+        }
+
+        return true;
     }
 
     public static function isConfigured(): bool
