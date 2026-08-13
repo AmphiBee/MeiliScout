@@ -415,8 +415,6 @@ class Indexer
             $this->log('error', 'Error during purge: '.$e->getMessage());
             throw $e;
         }
-
-        $this->saveLog();
     }
 
     /**
