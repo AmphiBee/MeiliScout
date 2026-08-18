@@ -79,6 +79,11 @@ class PostIndexable implements Indexable
                 'post_date',
                 ...array_map(fn($key) => "metas.{$key}", $filterableMetaKeys),
             ]),
+            'displayedAttributes' => apply_filters(
+                'meiliscout/post/displayed_attributes',
+                ['*'],
+                $filterableMetaKeys
+            ),
         ];
     }
 

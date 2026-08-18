@@ -151,6 +151,7 @@ The plugin provides several filters for customization:
 - `meiliscout/bulk_batch_size`: Control batch size for bulk indexing (default: 500)
 - `meiliscout/log_directory`: Customize log directory path
 - `meiliscout/async_indexing_delay`: Delay before async queue processing (default: 300s)
+- `meiliscout/post/displayed_attributes`: Restrict fields Meilisearch may return (default: `['*']`)
 
 ## Environment Variables
 
