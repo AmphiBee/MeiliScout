@@ -60,6 +60,21 @@ Control async queue processor registration.
 add_filter('meiliscout/register_async_queue_processor', '__return_false');
 ```
 
+### meiliscout/post/displayed_attributes
+Restrict which fields Meilisearch may return. Defaults to `['*']`.
+
+```php
+// Keep the columns QueryIntegration needs to rebuild WP_Post, or listings break.
+add_filter('meiliscout/post/displayed_attributes', function (array $attributes, array $metaKeys) {
+    return [
+        'ID', 'post_title', 'post_name', 'post_excerpt', 'post_status', 'post_type',
+        'post_date', 'post_modified', 'post_parent', 'menu_order', 'comment_count',
+        'url', 'terms',
+        ...array_map(fn ($key) => "metas.{$key}", $metaKeys),
+    ];
+}, 10, 2);
+```
+
 ## Environment Variables
 
 | Variable | Description |
