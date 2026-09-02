@@ -34,7 +34,7 @@ class PostSingleIndexer extends AbstractSingleIndexer
      */
     protected function createIndexable(): Indexable
     {
-        return new PostIndexable();
+        return $this->resolveIndexable(new PostIndexable());
     }
 
     /**

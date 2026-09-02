@@ -8,6 +8,7 @@ use Exception;
 use Meilisearch\Client;
 use Pollora\MeiliScout\Contracts\Indexable;
 
+use function apply_filters;
 use function current_time;
 use function error_log;
 use function update_option;
@@ -205,6 +206,19 @@ abstract class AbstractSingleIndexer
             $this->logOperation('error', "Failed to remove item {$itemId}: " . $e->getMessage());
             return false;
         }
+    }
+
+    // Only Indexer reads this filter: without it, real-time indexing overwrites
+    // the substituted indexable's settings on every save.
+    protected function resolveIndexable(Indexable $default): Indexable
+    {
+        foreach (apply_filters('meiliscout/indexables', [$default]) as $indexable) {
+            if ($indexable instanceof $default) {
+                return $indexable;
+            }
+        }
+
+        return $default;
     }
 
     /**

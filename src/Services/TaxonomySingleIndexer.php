@@ -35,7 +35,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
      */
     protected function createIndexable(): Indexable
     {
-        return new TaxonomyIndexable();
+        return $this->resolveIndexable(new TaxonomyIndexable());
     }
 
     /**
