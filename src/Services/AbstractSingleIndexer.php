@@ -37,7 +37,7 @@ abstract class AbstractSingleIndexer
      *
      * @var Indexable
      */
-    protected Indexable $indexable;
+    protected ?Indexable $indexable = null;
 
     /**
      * Log of single indexing operations.
@@ -82,9 +82,21 @@ abstract class AbstractSingleIndexer
     public function __construct()
     {
         $this->client = ClientFactory::getClient();
-        $this->indexable = $this->createIndexable();
         $this->logOptionKey = $this->getLogOptionKey();
         $this->initializeOperationLog();
+    }
+
+    /**
+     * The indexable, resolved on first use rather than in the constructor.
+     *
+     * `resolveIndexable()` applies the `meiliscout/indexables` filter, and this
+     * class is built while plugins are still loading — before a consumer that
+     * boots after MeiliScout has had a chance to register on it. Resolving on
+     * first use is what makes the filter reach every indexing path.
+     */
+    protected function indexable(): Indexable
+    {
+        return $this->indexable ??= $this->createIndexable();
     }
 
     /**
@@ -166,10 +178,10 @@ abstract class AbstractSingleIndexer
             $this->ensureIndexExists();
 
             // Format the item for indexing
-            $document = $this->indexable->formatForIndexing($item);
+            $document = $this->indexable()->formatForIndexing($item);
 
             // Index the document
-            $index = $this->client->index($this->indexable->getIndexName());
+            $index = $this->client->index($this->indexable()->getIndexName());
             $index->addDocuments([$document]);
 
             $itemName = $this->getItemName($item);
@@ -196,7 +208,7 @@ abstract class AbstractSingleIndexer
     public function removeItem(int|string $itemId): bool
     {
         try {
-            $index = $this->client->index($this->indexable->getIndexName());
+            $index = $this->client->index($this->indexable()->getIndexName());
             $index->deleteDocument($itemId);
 
             $this->logOperation('success', "Item (ID: {$itemId}) removed from index");
@@ -233,9 +245,9 @@ abstract class AbstractSingleIndexer
     protected function ensureIndexExists(): void
     {
         try {
-            $indexName = $this->indexable->getIndexName();
-            $primaryKey = $this->indexable->getPrimaryKey();
-            $settings = $this->indexable->getIndexSettings();
+            $indexName = $this->indexable()->getIndexName();
+            $primaryKey = $this->indexable()->getPrimaryKey();
+            $settings = $this->indexable()->getIndexSettings();
 
             // Check if index exists
             if (! $this->indexExists($indexName)) {
@@ -250,7 +262,7 @@ abstract class AbstractSingleIndexer
             $index->updateSettings($settings);
 
         } catch (Exception $e) {
-            $indexName = $this->indexable->getIndexName();
+            $indexName = $this->indexable()->getIndexName();
             $this->logOperation('error', "Failed to ensure index '{$indexName}' exists: " . $e->getMessage());
             throw $e;
         }
