@@ -368,7 +368,11 @@ class SingleIndexingServiceProvider extends ServiceProvider
      * Determines if a post operation should be skipped.
      *
      * This method checks for various conditions where indexing should be skipped,
-     * such as autosaves, revisions, auto-drafts, etc.
+     * such as autosaves, revisions and auto-drafts.
+     *
+     * An AJAX request is not one of them. Quick edit, bulk edit and every
+     * Action Scheduler job run through admin-ajax.php, so skipping them leaves
+     * the index holding the values the database no longer has.
      *
      * @param int $postId The post ID
      * @param \WP_Post $post The post object
@@ -388,11 +392,6 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         // Skip auto-drafts
         if ($post->post_status === 'auto-draft') {
-            return true;
-        }
-
-        // Skip during AJAX requests (to avoid indexing during quick saves)
-        if (defined('DOING_AJAX') && DOING_AJAX) {
             return true;
         }
 

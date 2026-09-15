@@ -3,13 +3,6 @@
 declare(strict_types=1);
 
 namespace {
-    if (! class_exists('WP_Post', false)) {
-        class WP_Post
-        {
-            public function __construct(public int $ID, public string $post_type, public string $post_title) {}
-        }
-    }
-
     if (! function_exists('get_permalink')) {
         function get_permalink($post) { return 'https://example.test/?p='.$post->ID; }
     }

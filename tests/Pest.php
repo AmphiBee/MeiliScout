@@ -39,6 +39,20 @@ expect()->extend('toBeOne', function () {
 |
 */
 
+// Declared once for the whole suite: two test files declaring their own with
+// different properties is a collision that only shows when both are run.
+if (! class_exists('WP_Post', false)) {
+    class WP_Post
+    {
+        public function __construct(
+            public int $ID,
+            public string $post_type = 'post',
+            public string $post_title = '',
+            public string $post_status = 'publish',
+        ) {}
+    }
+}
+
 // Mock WordPress options storage for tests
 $GLOBALS['wp_options'] = [];
 
