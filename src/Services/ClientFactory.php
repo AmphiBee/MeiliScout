@@ -25,6 +25,16 @@ class ClientFactory
     private static ?Client $searchInstance = null;
 
     /**
+     * How long a successful health check is cached, in seconds.
+     */
+    private const HEALTH_CACHE_TTL = 300;
+
+    /**
+     * How long a failed health check is cached, in seconds.
+     */
+    private const HEALTH_CACHE_TTL_FAILURE = 60;
+
+    /**
      * Gets the Meilisearch client instance.
      * Creates it if it doesn't exist.
      */
@@ -49,7 +59,7 @@ class ClientFactory
             try {
                 $client = new Client($host, $key);
 
-                if (! self::isAvailable($client)) {
+                if (! self::isAvailable($client, $host)) {
                     self::logError('API key does not have required permissions.');
 
                     return null;
@@ -86,7 +96,7 @@ class ClientFactory
 
             try {
                 $client = new Client($host, $key);
-                if (! self::isAvailable($client)) {
+                if (! self::isAvailable($client, $host)) {
                     self::logError('API key does not have required permissions.');
 
                     return null;
@@ -127,9 +137,9 @@ class ClientFactory
             return false;
         }
 
-        // Vérifie si l'hôte peut être résolu
+        // La résolution DNS est vérifiée avec le health check, dont le résultat est mis en cache
         $hostParts = parse_url($host);
-        if (! isset($hostParts['host']) || ! checkdnsrr($hostParts['host'], 'A')) {
+        if (! isset($hostParts['host'])) {
             return false;
         }
 
@@ -137,14 +147,50 @@ class ClientFactory
     }
 
     /**
-     * Checks if the API key has required permissions.
+     * Checks if the Meilisearch instance is reachable.
+     *
+     * The result is cached per host so that the DNS lookup and the HTTP call
+     * to /health are not repeated on every request.
      */
-    private static function isAvailable(Client $client): bool
+    private static function isAvailable(Client $client, string $host): bool
     {
+        $cacheKey = 'meiliscout_health_'.md5($host);
+        $cached = get_transient($cacheKey);
+
+        if ($cached !== false) {
+            return $cached === 'available';
+        }
+
+        $available = self::checkAvailability($client, $host);
+
+        set_transient(
+            $cacheKey,
+            $available ? 'available' : 'unavailable',
+            $available ? self::HEALTH_CACHE_TTL : self::HEALTH_CACHE_TTL_FAILURE
+        );
+
+        return $available;
+    }
+
+    /**
+     * Resolves the host and calls the Meilisearch /health endpoint.
+     */
+    private static function checkAvailability(Client $client, string $host): bool
+    {
+        $hostname = parse_url($host, PHP_URL_HOST);
+
+        if (! $hostname || ! checkdnsrr($hostname, 'A')) {
+            self::logError("Unable to resolve Meilisearch host: {$host}");
+
+            return false;
+        }
+
         try {
             return $client->health()['status'] === 'available';
         } catch (ApiException $e) {
             self::logError('Failed to fetch API keys: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            self::logError('Failed to connect to Meilisearch: '.$e->getMessage());
         }
 
         return false;
