@@ -9,6 +9,7 @@ use Pollora\MeiliScout\Contracts\Indexable;
 use WP_Post;
 use WP_Term;
 
+use function apply_filters;
 use function get_object_taxonomies;
 use function get_permalink;
 use function get_post_meta;
@@ -23,6 +24,14 @@ use function wp_get_post_terms;
 class PostIndexable implements Indexable
 {
     private array $metaKeys = [];
+
+    /**
+     * @return string[]
+     */
+    public static function indexableStatuses(): array
+    {
+        return apply_filters('meiliscout/indexable_post_statuses', ['publish']);
+    }
 
     /**
      * Preloaded terms cache indexed by post ID.
@@ -116,7 +125,7 @@ class PostIndexable implements Indexable
                     'post_type' => $postType,
                     'posts_per_page' => $postsPerPage,
                     'paged' => $page,
-                    'post_status' => 'any',
+                    'post_status' => self::indexableStatuses(),
                     'orderby' => 'ID',
                     'order' => 'ASC',
                     'suppress_filters' => true,
