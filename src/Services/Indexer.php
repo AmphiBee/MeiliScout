@@ -194,12 +194,15 @@ class Indexer
         // Count posts directly from database without loading them
         $postTypes = Settings::get('indexed_post_types', []);
         if (!empty($postTypes)) {
+            $statuses = PostIndexable::indexableStatuses();
             $placeholders = implode(',', array_fill(0, count($postTypes), '%s'));
+            $statusPlaceholders = implode(',', array_fill(0, count($statuses), '%s'));
             $query = $wpdb->prepare(
                 "SELECT COUNT(*) FROM {$wpdb->posts}
                  WHERE post_type IN ($placeholders)
-                 AND post_status NOT IN ('trash', 'auto-draft')",
-                ...$postTypes
+                 AND post_status IN ($statusPlaceholders)",
+                ...$postTypes,
+                ...$statuses
             );
             $total += (int) $wpdb->get_var($query);
         }
