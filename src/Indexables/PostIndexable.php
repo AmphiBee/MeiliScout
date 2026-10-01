@@ -352,13 +352,29 @@ class PostIndexable implements Indexable
             throw new \InvalidArgumentException('Item must be instance of WP_Post');
         }
 
-        $document = get_object_vars($item);
+        $document = $this->withoutProtectedText(get_object_vars($item));
 
         $document['url'] = get_permalink($item);
         $document['terms'] = $this->getFlattenedTerms($item);
         $document['metas'] = $this->getMetaData($item);
 
         return apply_filters('meiliscout/post/document', $document, $item);
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @return array<string, mixed>
+     */
+    private function withoutProtectedText(array $document): array
+    {
+        $isProtected = ($document['post_password'] ?? '') !== '';
+        unset($document['post_password']);
+
+        if (! $isProtected) {
+            return $document;
+        }
+
+        return [...$document, 'post_content' => '', 'post_content_filtered' => '', 'post_excerpt' => ''];
     }
 
     public function formatForSearch(array $hit): mixed

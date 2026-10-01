@@ -43,4 +43,16 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {
 
         expect($document['metas'])->toBe(['_price' => 25.5]);
     });
+
+    test('a document never carries a password, nor the text it protects', function () {
+        $open = (new PostIndexable)->formatForIndexing(new \WP_Post(7, 'post', 'Open', 'publish', 'Body', 'Summary'));
+        $protected = (new PostIndexable)->formatForIndexing(new \WP_Post(8, 'post', 'Locked', 'publish', 'Body', 'Summary', 'secret'));
+
+        expect($open)->not->toHaveKey('post_password')
+            ->and($open['post_content'])->toBe('Body')
+            ->and($protected)->not->toHaveKey('post_password')
+            ->and($protected['post_title'])->toBe('Locked')
+            ->and($protected['post_content'])->toBe('')
+            ->and($protected['post_excerpt'])->toBe('');
+    });
 }

@@ -49,6 +49,9 @@ if (! class_exists('WP_Post', false)) {
             public string $post_type = 'post',
             public string $post_title = '',
             public string $post_status = 'publish',
+            public string $post_content = '',
+            public string $post_excerpt = '',
+            public string $post_password = '',
         ) {}
     }
 }
