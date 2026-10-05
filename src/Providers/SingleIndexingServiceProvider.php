@@ -98,6 +98,9 @@ class SingleIndexingServiceProvider extends ServiceProvider
         add_action('updated_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
         add_action('added_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
         add_action('deleted_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
+
+        // Hook for a post another plugin says changed, such as the parent of a product variation
+        add_action('meiliscout/reindex_post', [$this, 'handlePostReindex'], 10, 1);
     }
 
     /**
@@ -232,6 +235,20 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handlePostMetaUpdate(int|array $metaId, int $postId, string $metaKey, mixed $metaValue): void
     {
+        $this->handlePostReindex($postId);
+    }
+
+    /**
+     * Re-indexes a post through the same path as a save: skipped, queued or indexed alike.
+     *
+     * Fired with `do_action('meiliscout/reindex_post', $postId)` by code that knows a post's
+     * document changed while the post itself was not saved.
+     *
+     * @param int $postId The ID of the post to re-index
+     * @return void
+     */
+    public function handlePostReindex(int $postId): void
+    {
         if ($this->shouldSkipIndexing()) {
             return;
         }
@@ -247,11 +264,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
                 $this->asyncQueue->enqueue('post', 'index', $postId);
                 return;
             }
-            // Re-index the post to pick up the new meta data
             $this->postIndexer->indexPost($post);
         } catch (\Exception $e) {
-            // Log error but don't break the meta update process
-            error_log("MeiliScout: Failed to re-index post {$postId} after meta update: " . $e->getMessage());
+            // Log error but don't break the operation that changed the post
+            error_log("MeiliScout: Failed to re-index post {$postId}: " . $e->getMessage());
         }
     }
 
