@@ -3,10 +3,6 @@
 declare(strict_types=1);
 
 namespace {
-    if (! function_exists('apply_filters')) {
-        function apply_filters($hook, $value, ...$args) { return $GLOBALS['filters'][$hook] ?? $value; }
-    }
-
     if (! function_exists('get_post')) {
         function get_post($post) { return $GLOBALS['posts'][$post] ?? null; }
     }

@@ -18,9 +18,6 @@ namespace {
     if (! function_exists('get_post_meta')) {
         function get_post_meta($id, $key, $single = false) { return $GLOBALS['meta'][$key] ?? ''; }
     }
-    if (! function_exists('apply_filters')) {
-        function apply_filters($hook, $value, ...$args) { return $value; }
-    }
 }
 
 namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {

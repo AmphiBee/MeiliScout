@@ -28,6 +28,11 @@ use function get_term;
 class SingleIndexingServiceProvider extends ServiceProvider
 {
     /**
+     * After WooCommerce, which rewrites the variations of a renamed attribute term at priority 10.
+     */
+    public const EDITED_TERM_PRIORITY = 100;
+
+    /**
      * Post single indexer instance.
      *
      * @var PostSingleIndexer|null
@@ -115,7 +120,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
     {
         // Hook for term creation and updates
         add_action('created_term', [$this, 'handleTermSave'], 10, 3);
-        add_action('edited_term', [$this, 'handleTermSave'], 10, 3);
+        add_action('edited_term', [$this, 'handleTermSave'], self::EDITED_TERM_PRIORITY, 3);
 
         // Hook for term deletions
         add_action('delete_term', [$this, 'handleTermDelete'], 10, 4);

@@ -10,10 +10,6 @@ namespace {
     if (! function_exists('update_option')) {
         function update_option($option, $value) { return true; }
     }
-
-    if (! function_exists('apply_filters')) {
-        function apply_filters($hook, $value, ...$args) { return $GLOBALS['filters'][$hook] ?? $value; }
-    }
 }
 
 namespace Pollora\MeiliScout\Tests\Unit\Services {
