@@ -63,6 +63,11 @@ abstract class AbstractSingleIndexer
     protected static array $indexExistsCache = [];
 
     /**
+     * Bytes of documents sent in one request, well under Meilisearch's default payload limit.
+     */
+    protected const MAX_PAYLOAD_BYTES = 10 * 1024 * 1024;
+
+    /**
      * Counter for log operations to batch saves.
      *
      * @var int
@@ -182,10 +187,9 @@ abstract class AbstractSingleIndexer
             // Format the item for indexing
             $document = $this->indexable()->formatForIndexing($item);
 
-            // Index the document, replacing the documents it brought along last time
+            // Index the document and the documents it brings along, then drop the ones it no longer brings
             $index = $this->client->index($this->indexable()->getIndexName());
-            $this->removeDependents($index, [$this->getItemId($item)]);
-            $index->addDocuments($this->withDependents($document, $item));
+            $this->writeWithDependents($index, $this->withDependents($document, $item), [$this->getItemId($item)]);
 
             $itemName = $this->getItemName($item);
             $itemId = $this->getItemId($item);
@@ -242,8 +246,102 @@ abstract class AbstractSingleIndexer
     }
 
     /**
-     * Deletes the documents the given items brought along. Meilisearch runs the tasks of one index
-     * in the order they were enqueued, so documents added right after are not deleted.
+     * Writes the items' documents in requests of a bounded size, then deletes the documents the items
+     * brought along before and no longer do. Writing first means a failed request never leaves an item
+     * without the documents it brings along: the previous ones stay until a write succeeds.
+     *
+     * @param list<array<string, mixed>> $documents
+     * @param list<int|string> $itemIds
+     */
+    protected function writeWithDependents(Indexes $index, array $documents, array $itemIds): void
+    {
+        foreach ($this->inBoundedRequests($documents) as $request) {
+            $index->addDocuments($request);
+        }
+
+        $this->removeStaleDependents($index, $itemIds, $this->dependentIdsIn($documents, $itemIds));
+    }
+
+    /**
+     * Meilisearch refuses a request over its payload limit (100 MB by default), indexing included.
+     *
+     * @param list<array<string, mixed>> $documents
+     * @return list<list<array<string, mixed>>>
+     */
+    protected function inBoundedRequests(array $documents): array
+    {
+        $limit = (int) apply_filters('meiliscout/max_payload_bytes', self::MAX_PAYLOAD_BYTES);
+        $requests = [];
+        $request = [];
+        $size = 0;
+
+        foreach ($documents as $document) {
+            $documentSize = strlen((string) json_encode($document));
+
+            if ($request !== [] && $size + $documentSize > $limit) {
+                $requests[] = $request;
+                $request = [];
+                $size = 0;
+            }
+
+            $request[] = $document;
+            $size += $documentSize;
+        }
+
+        return $request === [] ? $requests : [...$requests, $request];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $documents
+     * @param list<int|string> $itemIds
+     * @return list<int|string>
+     */
+    protected function dependentIdsIn(array $documents, array $itemIds): array
+    {
+        $primaryKey = $this->indexable()->getPrimaryKey();
+        $ids = array_column($documents, $primaryKey);
+
+        return array_values(array_filter($ids, static fn (int|string $id): bool => ! in_array($id, $itemIds, true)));
+    }
+
+    /**
+     * The primary key has to be filterable for the documents just written to be kept.
+     *
+     * @param list<int|string> $itemIds
+     * @param list<int|string> $keptIds
+     */
+    protected function removeStaleDependents(Indexes $index, array $itemIds, array $keptIds): void
+    {
+        $indexable = $this->indexable();
+
+        if (! $indexable instanceof HasDependentDocuments || $itemIds === []) {
+            return;
+        }
+
+        $filter = $indexable->dependentsFilter($itemIds);
+
+        if ($keptIds !== []) {
+            $filter = '(' . $filter . ') AND NOT ' . $indexable->getPrimaryKey() . ' IN [' . $this->listed($keptIds) . ']';
+        }
+
+        $index->deleteDocuments(['filter' => $filter]);
+    }
+
+    /**
+     * A number is written bare, a string quoted with its quotes and backslashes escaped.
+     *
+     * @param list<int|string> $values
+     */
+    protected function listed(array $values): string
+    {
+        return implode(', ', array_map(
+            static fn (int|string $value): string => is_int($value) ? (string) $value : '"' . addcslashes($value, '"\\') . '"',
+            $values
+        ));
+    }
+
+    /**
+     * Deletes every document the given items brought along.
      *
      * @param list<int|string> $itemIds
      */

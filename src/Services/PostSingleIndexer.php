@@ -313,11 +313,10 @@ class PostSingleIndexer extends AbstractSingleIndexer
                 }
             }
 
-            // Send all documents in a single API call
+            // Send the documents in requests of a bounded size, then drop the dependents no longer brought along
             if (! empty($documents)) {
                 $index = $this->client->index($indexable->getIndexName());
-                $this->removeDependents($index, $formattedIds);
-                $index->addDocuments($documents);
+                $this->writeWithDependents($index, $documents, $formattedIds);
                 $statistics['indexed'] = count($formattedIds);
             }
 

@@ -10,6 +10,10 @@ namespace {
     if (! function_exists('update_option')) {
         function update_option($option, $value) { return true; }
     }
+
+    if (! function_exists('apply_filters')) {
+        function apply_filters($hook, $value, ...$args) { return $GLOBALS['filters'][$hook] ?? $value; }
+    }
 }
 
 namespace Pollora\MeiliScout\Tests\Unit\Services {
@@ -21,7 +25,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
     use Pollora\MeiliScout\Services\AbstractSingleIndexer;
 
     /** Records what the indexer asks of the index, in order. */
-    final class RecordingIndex extends Indexes
+    class RecordingIndex extends Indexes
     {
         /** @var list<array{string, mixed}> */
         public array $calls = [];
@@ -145,15 +149,41 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
         };
     }
 
-    test('an item replaces the documents it brought along, then writes them with its own', function () {
+    beforeEach(function () {
+        $GLOBALS['filters'] = [];
+    });
+
+    test('an item writes its documents first, then drops the dependents it no longer brings along', function () {
         $client = new RecordingClient;
 
         new ArrayIndexer(withVariants(), $client)->indexItem(['id' => 7]);
 
         expect($client->recorded->calls)->toBe([
-            ['deleteWhere', 'product IN [7]'],
             ['add', [['ID' => 7, 'title' => 'Lotion'], ['ID' => '7-0', 'product' => 7]]],
+            ['deleteWhere', '(product IN [7]) AND NOT ID IN ["7-0"]'],
         ]);
+    });
+
+    test('a request that fails before the cleanup leaves the previous dependents in place', function () {
+        $client = new RecordingClient(new class extends RecordingIndex
+        {
+            public function addDocuments(array $documents, ?string $primaryKey = null)
+            {
+                throw new \RuntimeException('413 Payload Too Large');
+            }
+        });
+
+        expect(fn () => new ArrayIndexer(withVariants(), $client)->indexItem(['id' => 7]))->toThrow(\RuntimeException::class);
+        expect($client->recorded->calls)->toBe([]);
+    });
+
+    test('documents are sent in requests no larger than the payload limit', function () {
+        $GLOBALS['filters']['meiliscout/max_payload_bytes'] = 30;
+        $client = new RecordingClient;
+
+        new ArrayIndexer(withVariants(), $client)->indexItem(['id' => 7]);
+
+        expect(array_column($client->recorded->calls, 0))->toBe(['add', 'add', 'deleteWhere']);
     });
 
     test('an item of an indexable without dependents writes its document alone', function () {
