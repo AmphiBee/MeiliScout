@@ -6,6 +6,8 @@ namespace Pollora\MeiliScout\Services;
 
 use Exception;
 use Meilisearch\Client;
+use Meilisearch\Endpoints\Indexes;
+use Pollora\MeiliScout\Contracts\HasDependentDocuments;
 use Pollora\MeiliScout\Contracts\Indexable;
 
 use function apply_filters;
@@ -180,9 +182,10 @@ abstract class AbstractSingleIndexer
             // Format the item for indexing
             $document = $this->indexable()->formatForIndexing($item);
 
-            // Index the document
+            // Index the document, replacing the documents it brought along last time
             $index = $this->client->index($this->indexable()->getIndexName());
-            $index->addDocuments([$document]);
+            $this->removeDependents($index, [$this->getItemId($item)]);
+            $index->addDocuments($this->withDependents($document, $item));
 
             $itemName = $this->getItemName($item);
             $itemId = $this->getItemId($item);
@@ -210,6 +213,7 @@ abstract class AbstractSingleIndexer
         try {
             $index = $this->client->index($this->indexable()->getIndexName());
             $index->deleteDocument($itemId);
+            $this->removeDependents($index, [$itemId]);
 
             $this->logOperation('success', "Item (ID: {$itemId}) removed from index");
             return true;
@@ -218,6 +222,40 @@ abstract class AbstractSingleIndexer
             $this->logOperation('error', "Failed to remove item {$itemId}: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * An item's document followed by the documents it brings along, when the indexable has any.
+     *
+     * @param array<string, mixed> $document
+     * @return list<array<string, mixed>>
+     */
+    protected function withDependents(array $document, mixed $item): array
+    {
+        $indexable = $this->indexable();
+
+        if (! $indexable instanceof HasDependentDocuments) {
+            return [$document];
+        }
+
+        return [$document, ...$indexable->dependentDocuments($document, $item)];
+    }
+
+    /**
+     * Deletes the documents the given items brought along. Meilisearch runs the tasks of one index
+     * in the order they were enqueued, so documents added right after are not deleted.
+     *
+     * @param list<int|string> $itemIds
+     */
+    protected function removeDependents(Indexes $index, array $itemIds): void
+    {
+        $indexable = $this->indexable();
+
+        if (! $indexable instanceof HasDependentDocuments || $itemIds === []) {
+            return;
+        }
+
+        $index->deleteDocuments(['filter' => $indexable->dependentsFilter($itemIds)]);
     }
 
     // Only Indexer reads this filter: without it, real-time indexing overwrites
