@@ -603,29 +603,48 @@ class Indexer
             $this->log('info', sprintf('Batch mode enabled for %d posts', $totalPosts));
         }
 
-        foreach ($postTypes as $postType) {
-            $query = new \WP_Query([
-                'post_type' => $postType,
-                'posts_per_page' => -1,
-                'post_status' => 'publish',
-            ]);
+        // Keep the bulk read off the persistent object cache (see ObjectCacheIsolation).
+        ObjectCacheIsolation::run(function () use ($postTypes, $postsIndex, $batchSize, $useBatch, &$documents, &$totalIndexed): void {
+            foreach ($postTypes as $postType) {
+                // Load the posts page by page rather than all at once, so neither
+                // PHP memory nor the object cache has to hold the whole post type.
+                $page = 1;
 
-            while ($query->have_posts()) {
-                $query->the_post();
-                $post = get_post();
-                $documents[] = $this->formatPostForIndexing($post);
+                do {
+                    $query = new \WP_Query([
+                        'post_type' => $postType,
+                        'posts_per_page' => $batchSize,
+                        'paged' => $page,
+                        'orderby' => 'ID',
+                        'order' => 'ASC',
+                        'no_found_rows' => true,
+                        'post_status' => 'publish',
+                    ]);
 
-                // Si le mode batch est activé et qu'on atteint la taille du batch
-                if (! $useBatch || ($useBatch && count($documents) >= $batchSize)) {
-                    $postsIndex->addDocuments($documents);
-                    $totalIndexed += count($documents);
-                    $this->log('info', sprintf('Batch of %d posts indexed', count($documents)));
-                    $documents = [];
-                }
+                    while ($query->have_posts()) {
+                        $query->the_post();
+                        $post = get_post();
+                        $documents[] = $this->formatPostForIndexing($post);
+
+                        // Si le mode batch est activé et qu'on atteint la taille du batch
+                        if (! $useBatch || ($useBatch && count($documents) >= $batchSize)) {
+                            $postsIndex->addDocuments($documents);
+                            $totalIndexed += count($documents);
+                            $this->log('info', sprintf('Batch of %d posts indexed', count($documents)));
+                            $documents = [];
+                        }
+                    }
+
+                    wp_reset_postdata();
+
+                    if (function_exists('wp_cache_flush_runtime')) {
+                        wp_cache_flush_runtime();
+                    }
+
+                    $page++;
+                } while ($query->post_count === $batchSize);
             }
-
-            wp_reset_postdata();
-        }
+        });
 
         // Indexer les documents restants
         if (! empty($documents)) {
