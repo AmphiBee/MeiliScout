@@ -99,60 +99,57 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
         protected function ensureIndexExists(): void {}
     }
 
-    function indexable(): Indexable
+    /** Items whose document is all they bring. */
+    class Lotions implements Indexable
     {
-        return new class implements Indexable
-        {
-            public function getIndexName(): string { return 'posts'; }
+        public function getIndexName(): string { return 'posts'; }
 
-            public function getPrimaryKey(): string { return 'ID'; }
+        public function getPrimaryKey(): string { return 'ID'; }
 
-            public function getIndexSettings(): array { return []; }
+        public function getIndexSettings(): array { return []; }
 
-            public function getItems(?int $offset = null, ?int $limit = null): iterable { return []; }
+        public function getItems(?int $offset = null, ?int $limit = null): iterable { return []; }
 
-            public function formatForIndexing(mixed $item): array { return ['ID' => $item['id'], 'title' => 'Lotion']; }
+        public function formatForIndexing(mixed $item): array { return ['ID' => $item['id'], 'title' => 'Lotion']; }
 
-            public function formatForSearch(array $hit): mixed { return $hit; }
-        };
+        public function formatForSearch(array $hit): mixed { return $hit; }
     }
 
-    function withVariants(): Indexable
+    final class LotionsWithVariants extends Lotions implements HasDependentDocuments
     {
-        return new class implements Indexable, HasDependentDocuments
+        public function dependentDocuments(array $document, mixed $item): array
         {
-            public function getIndexName(): string { return 'posts'; }
+            return [['ID' => $document['ID'].'-0', 'product' => $document['ID']]];
+        }
 
-            public function getPrimaryKey(): string { return 'ID'; }
+        public function dependentDocumentsFilter(array $itemIds): ?string
+        {
+            return 'product IN ['.implode(', ', $itemIds).']';
+        }
+    }
 
-            public function getIndexSettings(): array { return []; }
+    /** An indexable whose given items can bring no dependent document. */
+    final class LotionsWithoutVariants extends Lotions implements HasDependentDocuments
+    {
+        public function dependentDocuments(array $document, mixed $item): array
+        {
+            return [];
+        }
 
-            public function getItems(?int $offset = null, ?int $limit = null): iterable { return []; }
-
-            public function formatForIndexing(mixed $item): array { return ['ID' => $item['id'], 'title' => 'Lotion']; }
-
-            public function formatForSearch(array $hit): mixed { return $hit; }
-
-            public function dependentDocuments(array $document, mixed $item): array
-            {
-                return [['ID' => $document['ID'].'-0', 'product' => $document['ID']]];
-            }
-
-            public function dependentsFilter(array $itemIds): string
-            {
-                return 'product IN ['.implode(', ', $itemIds).']';
-            }
-        };
+        public function dependentDocumentsFilter(array $itemIds): ?string
+        {
+            return null;
+        }
     }
 
     beforeEach(function () {
         $GLOBALS['filters'] = [];
     });
 
-    test('an item writes its documents first, then drops the dependents it no longer brings along', function () {
+    test('an item writes its documents, then drops the dependent documents it no longer brings', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(withVariants(), $client)->indexItem(['id' => 7]);
+        new ArrayIndexer(new LotionsWithVariants, $client)->indexItem(['id' => 7]);
 
         expect($client->recorded->calls)->toBe([
             ['add', [['ID' => 7, 'title' => 'Lotion'], ['ID' => '7-0', 'product' => 7]]],
@@ -160,7 +157,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
         ]);
     });
 
-    test('a request that fails before the cleanup leaves the previous dependents in place', function () {
+    test('a request that fails before the cleanup leaves the previous dependent documents in place', function () {
         $client = new RecordingClient(new class extends RecordingIndex
         {
             public function addDocuments(array $documents, ?string $primaryKey = null)
@@ -169,7 +166,9 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
             }
         });
 
-        expect(fn () => new ArrayIndexer(withVariants(), $client)->indexItem(['id' => 7]))->toThrow(\RuntimeException::class);
+        $indexer = new ArrayIndexer(new LotionsWithVariants, $client);
+
+        expect(fn () => $indexer->indexItem(['id' => 7]))->toThrow(\RuntimeException::class);
         expect($client->recorded->calls)->toBe([]);
     });
 
@@ -177,15 +176,15 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
         $GLOBALS['filters']['meiliscout/max_payload_bytes'] = 30;
         $client = new RecordingClient;
 
-        new ArrayIndexer(withVariants(), $client)->indexItem(['id' => 7]);
+        new ArrayIndexer(new LotionsWithVariants, $client)->indexItem(['id' => 7]);
 
         expect(array_column($client->recorded->calls, 0))->toBe(['add', 'add', 'deleteWhere']);
     });
 
-    test('an item of an indexable without dependents writes its document alone', function () {
+    test('an item of an indexable without dependent documents writes its document alone', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(indexable(), $client)->indexItem(['id' => 7]);
+        new ArrayIndexer(new Lotions, $client)->indexItem(['id' => 7]);
 
         expect($client->recorded->calls)->toBe([['add', [['ID' => 7, 'title' => 'Lotion']]]]);
     });
@@ -193,16 +192,25 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
     test('a removed item takes the documents it brought along with it', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(withVariants(), $client)->removeItem(7);
+        new ArrayIndexer(new LotionsWithVariants, $client)->removeItem(7);
 
         expect($client->recorded->calls)->toBe([['delete', 7], ['deleteWhere', 'product IN [7]']]);
     });
 
-    test('a removed item of an indexable without dependents deletes its document alone', function () {
+    test('a removed item of an indexable without dependent documents deletes its document alone', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(indexable(), $client)->removeItem(7);
+        new ArrayIndexer(new Lotions, $client)->removeItem(7);
 
         expect($client->recorded->calls)->toBe([['delete', 7]]);
+    });
+
+    test('items that can bring no dependent document send no deletion, written or removed', function () {
+        $client = new RecordingClient;
+
+        new ArrayIndexer(new LotionsWithoutVariants, $client)->indexItem(['id' => 42]);
+        new ArrayIndexer(new LotionsWithoutVariants, $client)->removeItem(42);
+
+        expect(array_column($client->recorded->calls, 0))->toBe(['add', 'delete']);
     });
 }

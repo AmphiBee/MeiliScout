@@ -21,9 +21,10 @@ interface HasDependentDocuments
     public function dependentDocuments(array $document, mixed $item): array;
 
     /**
-     * A Meilisearch filter matching every dependent document of the given items.
+     * A Meilisearch filter matching every dependent document of the given items, or null when none of them can bring
+     * any: no deletion is then sent.
      *
      * @param non-empty-list<int|string> $itemIds
      */
-    public function dependentsFilter(array $itemIds): string;
+    public function dependentDocumentsFilter(array $itemIds): ?string;
 }

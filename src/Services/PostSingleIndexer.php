@@ -305,7 +305,7 @@ class PostSingleIndexer extends AbstractSingleIndexer
             foreach ($postsToIndex as $post) {
                 try {
                     $document = $indexable->formatForIndexing($post);
-                    $documents = [...$documents, ...$this->withDependents($document, $post)];
+                    $documents = [...$documents, ...$this->withDependentDocuments($document, $post)];
                     $formattedIds[] = $post->ID;
                 } catch (Exception $e) {
                     $statistics['errors']++;
@@ -313,10 +313,10 @@ class PostSingleIndexer extends AbstractSingleIndexer
                 }
             }
 
-            // Send the documents in requests of a bounded size, then drop the dependents no longer brought along
+            // Send the documents in bounded requests, then drop the dependent documents no longer brought along
             if (! empty($documents)) {
                 $index = $this->client->index($indexable->getIndexName());
-                $this->writeWithDependents($index, $documents, $formattedIds);
+                $this->writeWithDependentDocuments($index, $documents, $formattedIds);
                 $statistics['indexed'] = count($formattedIds);
             }
 

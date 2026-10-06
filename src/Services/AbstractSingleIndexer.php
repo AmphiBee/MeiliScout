@@ -189,7 +189,8 @@ abstract class AbstractSingleIndexer
 
             // Index the document and the documents it brings along, then drop the ones it no longer brings
             $index = $this->client->index($this->indexable()->getIndexName());
-            $this->writeWithDependents($index, $this->withDependents($document, $item), [$this->getItemId($item)]);
+            $documents = $this->withDependentDocuments($document, $item);
+            $this->writeWithDependentDocuments($index, $documents, [$this->getItemId($item)]);
 
             $itemName = $this->getItemName($item);
             $itemId = $this->getItemId($item);
@@ -217,7 +218,7 @@ abstract class AbstractSingleIndexer
         try {
             $index = $this->client->index($this->indexable()->getIndexName());
             $index->deleteDocument($itemId);
-            $this->removeDependents($index, [$itemId]);
+            $this->removeDependentDocuments($index, [$itemId]);
 
             $this->logOperation('success', "Item (ID: {$itemId}) removed from index");
             return true;
@@ -234,7 +235,7 @@ abstract class AbstractSingleIndexer
      * @param array<string, mixed> $document
      * @return list<array<string, mixed>>
      */
-    protected function withDependents(array $document, mixed $item): array
+    protected function withDependentDocuments(array $document, mixed $item): array
     {
         $indexable = $this->indexable();
 
@@ -253,13 +254,13 @@ abstract class AbstractSingleIndexer
      * @param list<array<string, mixed>> $documents
      * @param list<int|string> $itemIds
      */
-    protected function writeWithDependents(Indexes $index, array $documents, array $itemIds): void
+    protected function writeWithDependentDocuments(Indexes $index, array $documents, array $itemIds): void
     {
         foreach ($this->inBoundedRequests($documents) as $request) {
             $index->addDocuments($request);
         }
 
-        $this->removeStaleDependents($index, $itemIds, $this->dependentIdsIn($documents, $itemIds));
+        $this->removeStaleDependentDocuments($index, $itemIds, $this->dependentDocumentIdsIn($documents, $itemIds));
     }
 
     /**
@@ -296,7 +297,7 @@ abstract class AbstractSingleIndexer
      * @param list<int|string> $itemIds
      * @return list<int|string>
      */
-    protected function dependentIdsIn(array $documents, array $itemIds): array
+    protected function dependentDocumentIdsIn(array $documents, array $itemIds): array
     {
         $primaryKey = $this->indexable()->getPrimaryKey();
         $ids = array_column($documents, $primaryKey);
@@ -310,21 +311,32 @@ abstract class AbstractSingleIndexer
      * @param list<int|string> $itemIds
      * @param list<int|string> $keptIds
      */
-    protected function removeStaleDependents(Indexes $index, array $itemIds, array $keptIds): void
+    protected function removeStaleDependentDocuments(Indexes $index, array $itemIds, array $keptIds): void
     {
-        $indexable = $this->indexable();
+        $dependentDocumentsFilter = $this->dependentDocumentsFilterOf($itemIds);
 
-        if (! $indexable instanceof HasDependentDocuments || $itemIds === []) {
+        if ($dependentDocumentsFilter === null) {
             return;
         }
 
-        $filter = $indexable->dependentsFilter($itemIds);
+        $staleFilter = $this->staleDependentDocumentsFilter($dependentDocumentsFilter, $keptIds);
+        $index->deleteDocuments(['filter' => $staleFilter]);
+    }
 
-        if ($keptIds !== []) {
-            $filter = '(' . $filter . ') AND NOT ' . $indexable->getPrimaryKey() . ' IN [' . $this->listed($keptIds) . ']';
+    /**
+     * A filter matching the items' dependent documents, except those just written.
+     *
+     * @param list<int|string> $keptIds
+     */
+    protected function staleDependentDocumentsFilter(string $dependentDocumentsFilter, array $keptIds): string
+    {
+        if ($keptIds === []) {
+            return $dependentDocumentsFilter;
         }
 
-        $index->deleteDocuments(['filter' => $filter]);
+        $keptFilter = $this->indexable()->getPrimaryKey() . ' IN [' . $this->listed($keptIds) . ']';
+
+        return '(' . $dependentDocumentsFilter . ') AND NOT ' . $keptFilter;
     }
 
     /**
@@ -345,15 +357,25 @@ abstract class AbstractSingleIndexer
      *
      * @param list<int|string> $itemIds
      */
-    protected function removeDependents(Indexes $index, array $itemIds): void
+    protected function removeDependentDocuments(Indexes $index, array $itemIds): void
+    {
+        $this->removeStaleDependentDocuments($index, $itemIds, []);
+    }
+
+    /**
+     * The filter matching what the given items brought along, or null when none of them can bring anything.
+     *
+     * @param list<int|string> $itemIds
+     */
+    protected function dependentDocumentsFilterOf(array $itemIds): ?string
     {
         $indexable = $this->indexable();
 
         if (! $indexable instanceof HasDependentDocuments || $itemIds === []) {
-            return;
+            return null;
         }
 
-        $index->deleteDocuments(['filter' => $indexable->dependentsFilter($itemIds)]);
+        return $indexable->dependentDocumentsFilter($itemIds);
     }
 
     // Only Indexer reads this filter: without it, real-time indexing overwrites
