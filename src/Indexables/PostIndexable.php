@@ -152,9 +152,11 @@ class PostIndexable implements Indexable
                     return;
                 }
 
-                // Flush cache periodically to prevent memory leaks (every 10 pages)
+                // Free the in-memory cache periodically (every 10 pages); the persistent cache is left alone
                 if ($page % 10 === 0) {
-                    wp_cache_flush();
+                    if (function_exists('wp_cache_flush_runtime')) {
+                        wp_cache_flush_runtime();
+                    }
                     gc_collect_cycles();
                 }
 
