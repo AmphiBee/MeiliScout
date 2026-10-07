@@ -18,37 +18,22 @@
     "autoload": {
         "psr-4": {
             "Pollora\\MeiliScout\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Pollora\\MeiliScout\\Tests\\": "tests/"
         },
         "files": [
             "src/helpers.php"
         ]
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Pollora\\MeiliScout\\Tests\\": "tests/"
+        }
+    },
     "scripts": {
-        "post-autoload-dump": [
-            "@clear",
-            "@prepare"
-        ],
-        "serve": [
-            "Composer\\Config::disableProcessTimeout",
-            "@build"
-        ],
-        "refacto": "rector",
-        "lint": "pint",
-        "test:lint": "pint --test",
         "test:types": "phpstan analyse --ansi",
-        "test:unit": "pest --colors=always --min=100",
+        "test:unit": "pest --colors=always",
         "test": [
-            "@test:lint",
             "@test:types",
             "@test:unit"
-        ],
-        "post-autoload-dump": [
-            "Pollora\\MeiliScout\\MeiliScout::boot"
         ]
     },
     "minimum-stability": "stable",
@@ -60,8 +45,7 @@
         }
     },
     "require-dev": {
-        "roave/security-advisories": "dev-latest"
-        ,
+        "roave/security-advisories": "dev-latest",
         "pestphp/pest": "^3.7",
         "szepeviktor/phpstan-wordpress": "^2.0",
         "phpstan/phpstan": "^2.1"

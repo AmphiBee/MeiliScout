@@ -80,19 +80,21 @@ class AsyncIndexingQueue
         // Clear the queue immediately before processing
         delete_option(self::QUEUE_OPTION);
 
-        foreach ($queue as $item) {
-            try {
-                $this->dispatch($item);
-            } catch (\Exception $e) {
-                error_log(sprintf(
-                    'MeiliScout: Async queue failed to process item [%s:%s id=%d]: %s',
-                    $item['type'],
-                    $item['action'],
-                    $item['id'],
-                    $e->getMessage()
-                ));
+        ObjectCacheIsolation::run(function () use ($queue): void {
+            foreach ($queue as $item) {
+                try {
+                    $this->dispatch($item);
+                } catch (\Exception $e) {
+                    error_log(sprintf(
+                        'MeiliScout: Async queue failed to process item [%s:%s id=%d]: %s',
+                        $item['type'],
+                        $item['action'],
+                        $item['id'],
+                        $e->getMessage()
+                    ));
+                }
             }
-        }
+        });
     }
 
     /**

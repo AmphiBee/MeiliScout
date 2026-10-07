@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Foundation;
 
 use Closure;
 use Meilisearch\Client;
+use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Query\MeiliQueryBuilder;
 use Pollora\MeiliScout\Query\QueryIntegration;
 use Pollora\MeiliScout\Services\ClientFactory;
@@ -110,13 +111,19 @@ class Container implements ContainerInterface
     private function register(): void
     {
         add_action('admin_notices', function () {
+            if (! current_user_can('manage_options')) {
+                return;
+            }
+
             $errors = [];
 
             if (! ClientFactory::isConfigured()) {
+                $errors[] = __('MeiliScout is not configured yet: set the Meilisearch host and API key in the MeiliScout settings.', 'meiliscout');
+            } elseif (! ClientFactory::isReachable()) {
                 $errors[] = __('Unable to connect to Meilisearch. Please verify that the host and API key are correct.', 'meiliscout');
             }
 
-            if (! ClientFactory::isSearchConfigured()) {
+            if (! empty(Config::get('meili_search_key')) && ! ClientFactory::isSearchConfigured()) {
                 $errors[] = __('Unable to connect to Meilisearch. Please verify that the host and API search key are correct.', 'meiliscout');
             }
 

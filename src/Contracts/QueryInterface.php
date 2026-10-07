@@ -12,4 +12,13 @@ interface QueryInterface
      * @return mixed
      */
     public function get(string $key, $default = null);
+
+    /**
+     * Set a value on the query.
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @return mixed
+     */
+    public function set($key, $value);
 }

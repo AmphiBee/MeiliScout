@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Contracts\QueryInterface;
 use Pollora\MeiliScout\Domain\Search\Enums\ComparisonOperator;
 use Pollora\MeiliScout\Domain\Search\Enums\MetaType;
 use Pollora\MeiliScout\Domain\Search\Validators\EnumValidator;
@@ -29,6 +30,22 @@ class MetaQueryBuilder extends AbstractFilterBuilder
     protected function getQueryKey(): string
     {
         return 'meta_query';
+    }
+
+    /**
+     * Builds the meta filters of one query.
+     *
+     * The builder is shared by every query of the request: the non-indexable
+     * keys found for a previous query must not send this one to MySQL.
+     *
+     * @param  QueryInterface  $query  The query to read the meta_query from
+     * @param  array  $searchParams  The search parameters to add the filters to
+     */
+    public function build(QueryInterface $query, array &$searchParams): void
+    {
+        $this->nonIndexableMetaKeys = [];
+
+        parent::build($query, $searchParams);
     }
 
     /**
@@ -76,7 +93,7 @@ class MetaQueryBuilder extends AbstractFilterBuilder
         }
 
         // Check for value presence for other operators
-        if (! isset($query['value']) && ! in_array($operator, [ComparisonOperator::EXISTS, ComparisonOperator::NOT_EXISTS], true)) {
+        if (! isset($query['value'])) {
             return '';
         }
 
@@ -173,9 +190,15 @@ class MetaQueryBuilder extends AbstractFilterBuilder
      */
     private function updateNonIndexableMetaKeys(): void
     {
-        if (! empty($this->nonIndexableMetaKeys)) {
-            $existingKeys = Settings::get('non_indexable_meta_keys', []);
-            $updatedKeys = array_unique(array_merge($existingKeys, $this->nonIndexableMetaKeys));
+        if (empty($this->nonIndexableMetaKeys)) {
+            return;
+        }
+
+        $existingKeys = Settings::get('non_indexable_meta_keys', []);
+        $updatedKeys = array_values(array_unique(array_merge($existingKeys, $this->nonIndexableMetaKeys)));
+
+        // Front-end queries run this on every page view: write only when a key is new
+        if (count($updatedKeys) !== count($existingKeys)) {
             Settings::save('non_indexable_meta_keys', $updatedKeys);
         }
     }

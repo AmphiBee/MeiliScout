@@ -35,7 +35,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
      */
     protected function createIndexable(): Indexable
     {
-        return new TaxonomyIndexable();
+        return $this->resolveIndexable(new TaxonomyIndexable());
     }
 
     /**
@@ -235,7 +235,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
 
             // Get the indexable
             /** @var \Pollora\MeiliScout\Indexables\TaxonomyIndexable $indexable */
-            $indexable = $this->indexable;
+            $indexable = $this->indexable();
 
             // Format all documents
             $documents = [];
@@ -250,7 +250,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
 
             // Send all documents in a single API call
             if (! empty($documents)) {
-                $index = $this->client->index($indexable->getIndexName());
+                $index = $this->client()->index($indexable->getIndexName());
                 $index->addDocuments($documents);
                 $statistics['indexed'] = count($documents);
             }
@@ -309,7 +309,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
             return ['indexed' => 0, 'skipped' => 0, 'errors' => 1];
         }
 
-        return $this->indexTerms($terms);
+        return $this->indexTerms($terms, null);
     }
 
     /**

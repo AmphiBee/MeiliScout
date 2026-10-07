@@ -28,6 +28,11 @@ use function get_term;
 class SingleIndexingServiceProvider extends ServiceProvider
 {
     /**
+     * After WooCommerce, which rewrites the variations of a renamed attribute term at priority 10.
+     */
+    public const EDITED_TERM_PRIORITY = 100;
+
+    /**
      * Post single indexer instance.
      *
      * @var PostSingleIndexer|null
@@ -47,6 +52,13 @@ class SingleIndexingServiceProvider extends ServiceProvider
      * @var AsyncIndexingQueue|null
      */
     private ?AsyncIndexingQueue $asyncQueue = null;
+
+    /**
+     * Term fields copied into post documents, recorded before an update.
+     *
+     * @var array<int, array{name: string, slug: string, parent: int}>
+     */
+    private array $termsBeforeEdit = [];
 
     /**
      * Register the service provider.
@@ -98,6 +110,9 @@ class SingleIndexingServiceProvider extends ServiceProvider
         add_action('updated_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
         add_action('added_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
         add_action('deleted_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
+
+        // Hook for a post another plugin says changed, such as the parent of a product variation
+        add_action('meiliscout/reindex_post', [$this, 'handlePostReindex'], 10, 1);
     }
 
     /**
@@ -111,8 +126,9 @@ class SingleIndexingServiceProvider extends ServiceProvider
     private function registerTaxonomyHooks(): void
     {
         // Hook for term creation and updates
-        add_action('created_term', [$this, 'handleTermSave'], 10, 3);
-        add_action('edited_term', [$this, 'handleTermSave'], 10, 3);
+        add_action('created_term', [$this, 'handleTermCreate'], 10, 3);
+        add_action('edit_terms', [$this, 'rememberTermBeforeEdit'], 10, 2);
+        add_action('edited_term', [$this, 'handleTermSave'], self::EDITED_TERM_PRIORITY, 3);
 
         // Hook for term deletions
         add_action('delete_term', [$this, 'handleTermDelete'], 10, 4);
@@ -232,6 +248,20 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handlePostMetaUpdate(int|array $metaId, int $postId, string $metaKey, mixed $metaValue): void
     {
+        $this->handlePostReindex($postId);
+    }
+
+    /**
+     * Re-indexes a post through the same path as a save: skipped, queued or indexed alike.
+     *
+     * Fired with `do_action('meiliscout/reindex_post', $postId)` by code that knows a post's
+     * document changed while the post itself was not saved.
+     *
+     * @param int $postId The ID of the post to re-index
+     * @return void
+     */
+    public function handlePostReindex(int $postId): void
+    {
         if ($this->shouldSkipIndexing()) {
             return;
         }
@@ -247,19 +277,67 @@ class SingleIndexingServiceProvider extends ServiceProvider
                 $this->asyncQueue->enqueue('post', 'index', $postId);
                 return;
             }
-            // Re-index the post to pick up the new meta data
             $this->postIndexer->indexPost($post);
         } catch (\Exception $e) {
-            // Log error but don't break the meta update process
-            error_log("MeiliScout: Failed to re-index post {$postId} after meta update: " . $e->getMessage());
+            // Log error but don't break the operation that changed the post
+            error_log("MeiliScout: Failed to re-index post {$postId}: " . $e->getMessage());
         }
     }
 
     /**
-     * Handles taxonomy term save operations (create and update).
+     * Handles taxonomy term creation.
      *
-     * This method is called when a term is created or updated and ensures
-     * it's properly indexed in the search index.
+     * Only the term itself is indexed: a term that was just created has no
+     * posts yet, so there is nothing to re-index.
+     *
+     * @param int $termId The ID of the created term
+     * @param int $ttId The term taxonomy ID
+     * @param string $taxonomy The taxonomy name
+     * @return void
+     */
+    public function handleTermCreate(int $termId, int $ttId, string $taxonomy): void
+    {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
+        try {
+            if ($this->isAsyncMode()) {
+                $this->asyncQueue->enqueue('term', 'index', $termId);
+                return;
+            }
+
+            $this->taxonomyIndexer->indexTerm($termId);
+        } catch (\Exception $e) {
+            error_log("MeiliScout: Failed to index term {$termId}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Records the fields post documents copy from a term, before it is updated.
+     *
+     * handleTermSave() compares them with the saved term to decide whether the
+     * term's posts need re-indexing.
+     *
+     * @param int $termId The ID of the term about to be updated
+     * @param string $taxonomy The taxonomy name
+     * @return void
+     */
+    public function rememberTermBeforeEdit(int $termId, string $taxonomy): void
+    {
+        $term = get_term($termId, $taxonomy);
+
+        if ($term instanceof \WP_Term) {
+            $this->termsBeforeEdit[$termId] = $this->termFieldsInPostDocuments($term);
+        }
+    }
+
+    /**
+     * Handles taxonomy term updates.
+     *
+     * The term is always re-indexed. Its posts are re-indexed only when a field
+     * their documents copy (name, slug, parent) changed: editing a description
+     * or an SEO field must not rewrite every post that carries the term.
      *
      * @param int $termId The ID of the term being saved
      * @param int $ttId The term taxonomy ID
@@ -272,17 +350,22 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
+        $reindexPosts = $this->termFieldsChanged($termId, $taxonomy);
+
         try {
             if ($this->isAsyncMode()) {
                 $this->asyncQueue->enqueue('term', 'index', $termId);
-                $this->asyncQueue->enqueue('posts_for_term', 'reindex', $termId, ['taxonomy' => $taxonomy]);
+
+                if ($reindexPosts) {
+                    $this->asyncQueue->enqueue('posts_for_term', 'reindex', $termId, ['taxonomy' => $taxonomy]);
+                }
+
                 return;
             }
 
             $result = $this->taxonomyIndexer->indexTerm($termId);
 
-            // If the term was successfully indexed, also re-index associated posts
-            if ($result) {
+            if ($result && $reindexPosts) {
                 $this->postIndexer->reindexPostsForTerm($termId, $taxonomy);
             }
         } catch (\Exception $e) {
@@ -292,10 +375,45 @@ class SingleIndexingServiceProvider extends ServiceProvider
     }
 
     /**
+     * Whether a field copied into post documents changed during the update.
+     *
+     * Unknown previous state (no edit_terms before edited_term) counts as a
+     * change, so the posts are re-indexed as before.
+     */
+    private function termFieldsChanged(int $termId, string $taxonomy): bool
+    {
+        $before = $this->termsBeforeEdit[$termId] ?? null;
+        unset($this->termsBeforeEdit[$termId]);
+
+        $term = get_term($termId, $taxonomy);
+
+        if ($before === null || !$term instanceof \WP_Term) {
+            return true;
+        }
+
+        return $this->termFieldsInPostDocuments($term) !== $before;
+    }
+
+    /**
+     * The term fields PostIndexable copies into each post document.
+     *
+     * @return array{name: string, slug: string, parent: int}
+     */
+    private function termFieldsInPostDocuments(\WP_Term $term): array
+    {
+        return [
+            'name' => $term->name,
+            'slug' => $term->slug,
+            'parent' => (int) $term->parent,
+        ];
+    }
+
+    /**
      * Handles taxonomy term deletion operations.
      *
-     * This method removes the term from the search index and re-indexes
-     * any posts that were associated with the deleted term.
+     * This method removes the term from the search index. Its posts are not
+     * re-indexed here: delete_term fires once the term's relationships are
+     * gone, so a query for the term's posts would come back empty.
      *
      * @param int $termId The ID of the term being deleted
      * @param int $ttId The term taxonomy ID
@@ -312,15 +430,11 @@ class SingleIndexingServiceProvider extends ServiceProvider
         try {
             if ($this->isAsyncMode()) {
                 $this->asyncQueue->enqueue('term', 'remove', $termId);
-                $this->asyncQueue->enqueue('posts_for_term', 'reindex', $termId, ['taxonomy' => $taxonomy]);
                 return;
             }
 
             // Remove the term from the index
             $this->taxonomyIndexer->removeTerm($termId);
-
-            // Re-index posts that had this term to update their term data
-            $this->postIndexer->reindexPostsForTerm($termId, $taxonomy);
         } catch (\Exception $e) {
             // Log error but don't break the deletion process
             error_log("MeiliScout: Failed to handle term deletion {$termId}: " . $e->getMessage());
@@ -347,7 +461,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         $term = get_term($termId);
 
-        if (!$term instanceof \WP_Term || is_wp_error($term)) {
+        if (!$term instanceof \WP_Term) {
             return;
         }
 
@@ -368,7 +482,11 @@ class SingleIndexingServiceProvider extends ServiceProvider
      * Determines if a post operation should be skipped.
      *
      * This method checks for various conditions where indexing should be skipped,
-     * such as autosaves, revisions, auto-drafts, etc.
+     * such as autosaves, revisions and auto-drafts.
+     *
+     * An AJAX request is not one of them. Quick edit, bulk edit and every
+     * Action Scheduler job run through admin-ajax.php, so skipping them leaves
+     * the index holding the values the database no longer has.
      *
      * @param int $postId The post ID
      * @param \WP_Post $post The post object
@@ -388,11 +506,6 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         // Skip auto-drafts
         if ($post->post_status === 'auto-draft') {
-            return true;
-        }
-
-        // Skip during AJAX requests (to avoid indexing during quick saves)
-        if (defined('DOING_AJAX') && DOING_AJAX) {
             return true;
         }
 

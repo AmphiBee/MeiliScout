@@ -15,6 +15,7 @@ use function get_permalink;
 use function get_post_meta;
 use function get_posts;
 use function get_term;
+use function is_wp_error;
 use function maybe_unserialize;
 use function update_meta_cache;
 use function update_object_term_cache;
@@ -100,11 +101,7 @@ class PostIndexable implements Indexable
     {
         $postTypes = Settings::get('indexed_post_types', []);
 
-        // Fallback intelligent: use configured meta keys if set, otherwise gather from DB
-        $configuredMetaKeys = Settings::get('indexed_meta_keys', []);
-        $this->metaKeys = !empty($configuredMetaKeys)
-            ? $configuredMetaKeys
-            : $this->gatherMetaKeys($postTypes);
+        $this->metaKeys = $this->resolveMetaKeys($postTypes);
 
         $postsPerPage = Settings::get('indexing.posts_per_page', 200);
 
@@ -156,9 +153,11 @@ class PostIndexable implements Indexable
                     return;
                 }
 
-                // Flush cache periodically to prevent memory leaks (every 10 pages)
+                // Free the in-memory cache periodically (every 10 pages); the persistent cache is left alone
                 if ($page % 10 === 0) {
-                    wp_cache_flush();
+                    if (function_exists('wp_cache_flush_runtime')) {
+                        wp_cache_flush_runtime();
+                    }
                     gc_collect_cycles();
                 }
 
@@ -206,10 +205,7 @@ class PostIndexable implements Indexable
 
         // Ensure meta keys are set from settings or gathered from DB
         if (empty($this->metaKeys)) {
-            $configuredMetaKeys = Settings::get('indexed_meta_keys', []);
-            $this->metaKeys = !empty($configuredMetaKeys)
-                ? $configuredMetaKeys
-                : $this->gatherMetaKeys($postTypes);
+            $this->metaKeys = $this->resolveMetaKeys($postTypes);
         }
 
         // Preload meta cache using WordPress core function
@@ -262,11 +258,12 @@ class PostIndexable implements Indexable
                 }
             }
 
-            foreach ($rawTerms as $term) {
-                if (! $term instanceof WP_Term) {
-                    continue;
-                }
+            // An unknown taxonomy gives a WP_Error
+            if (is_wp_error($rawTerms)) {
+                continue;
+            }
 
+            foreach ($rawTerms as $term) {
                 $terms[] = [
                     'term_id' => (int) $term->term_id,
                     'name' => $term->name,
@@ -402,11 +399,12 @@ class PostIndexable implements Indexable
 
         foreach ($taxonomies as $taxonomy) {
             $rawTerms = wp_get_post_terms($post->ID, $taxonomy);
-            foreach ($rawTerms as $term) {
-                if (! $term instanceof WP_Term) {
-                    continue;
-                }
+            // An unknown taxonomy gives a WP_Error
+            if (is_wp_error($rawTerms)) {
+                continue;
+            }
 
+            foreach ($rawTerms as $term) {
                 $terms[] = [
                     'term_id' => (int) $term->term_id,
                     'name' => $term->name,
@@ -421,6 +419,20 @@ class PostIndexable implements Indexable
         return $terms;
     }
 
+    /**
+     * Configured keys win; without them the database is asked. Every indexing path
+     * needs this, including the single-document one, which no preloading precedes.
+     *
+     * @param  string[]  $postTypes
+     * @return string[]
+     */
+    private function resolveMetaKeys(array $postTypes): array
+    {
+        $configured = Settings::get('indexed_meta_keys', []);
+
+        return ! empty($configured) ? $configured : $this->gatherMetaKeys($postTypes);
+    }
+
     private function getMetaData(WP_Post $post): array
     {
         // Use preloaded data if available (batch mode)
@@ -429,6 +441,10 @@ class PostIndexable implements Indexable
         }
 
         // Fallback to individual queries (single item mode)
+        if ($this->metaKeys === []) {
+            $this->metaKeys = $this->resolveMetaKeys([$post->post_type]);
+        }
+
         $meta = [];
         foreach ($this->metaKeys as $key) {
             $value = get_post_meta($post->ID, $key, true);

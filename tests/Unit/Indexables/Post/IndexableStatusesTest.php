@@ -6,9 +6,6 @@ namespace {
     if (! function_exists('get_posts')) {
         function get_posts($args) { $GLOBALS['get_posts_args'][] = $args; return []; }
     }
-    if (! function_exists('apply_filters')) {
-        function apply_filters($hook, $value, ...$args) { return $value; }
-    }
 }
 
 namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {

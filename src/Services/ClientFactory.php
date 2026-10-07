@@ -5,206 +5,196 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Services;
 
 use Meilisearch\Client;
-use Meilisearch\Exceptions\ApiException;
 use Pollora\MeiliScout\Config\Config;
-use Psr\Log\LoggerInterface;
+
+use function error_log;
+use function get_transient;
+use function set_transient;
 
 /**
- * Factory for creating and managing the Meilisearch client instance.
+ * Factory for creating and managing the Meilisearch client instances.
  */
 class ClientFactory
 {
     /**
-     * The Meilisearch client instance.
+     * Cache key prefix for the reachability probe.
+     */
+    private const PROBE_CACHE_PREFIX = 'meiliscout_probe_';
+
+    /**
+     * How long a successful probe is trusted, in seconds.
+     */
+    private const PROBE_TTL_REACHABLE = 300;
+
+    /**
+     * How long a failed probe is trusted, in seconds. Shorter than the success
+     * window so a Meilisearch instance that comes back is picked up quickly.
+     */
+    private const PROBE_TTL_UNREACHABLE = 30;
+
+    /**
+     * The Meilisearch client instance, built with the admin key.
      */
     private static ?Client $instance = null;
 
     /**
-     * The Meilisearch search client instance.
+     * The Meilisearch client instance, built with the search key.
      */
     private static ?Client $searchInstance = null;
 
     /**
-     * How long a successful health check is cached, in seconds.
-     */
-    private const HEALTH_CACHE_TTL = 300;
-
-    /**
-     * How long a failed health check is cached, in seconds.
-     */
-    private const HEALTH_CACHE_TTL_FAILURE = 60;
-
-    /**
-     * Gets the Meilisearch client instance.
-     * Creates it if it doesn't exist.
+     * Gets the client built with the admin key, used to write to the indexes.
+     *
+     * Returns null when the host or the key is missing, or when Meilisearch
+     * does not answer.
      */
     public static function getClient(): ?Client
     {
-        if (self::$instance === null) {
-            $host = Config::get('meili_host');
-            $key = Config::get('meili_key');
-
-            if (! self::isValidHost($host)) {
-                self::logError("Invalid Meilisearch host: {$host}");
-
-                return null;
-            }
-
-            if (empty($key)) {
-                self::logError('Meilisearch API key is missing.');
-
-                return null;
-            }
-
-            try {
-                $client = new Client($host, $key);
-
-                if (! self::isAvailable($client, $host)) {
-                    self::logError('API key does not have required permissions.');
-
-                    return null;
-                }
-
-                self::$instance = $client;
-            } catch (\Throwable $e) {
-                self::logError('Failed to connect to Meilisearch: '.$e->getMessage());
-
-                return null;
-            }
-        }
-
-        return self::$instance;
+        return self::$instance ??= self::makeClient('meili_key');
     }
 
+    /**
+     * Gets the client built with the search key, used to read from the indexes.
+     *
+     * Returns null when no search key is set or when Meilisearch does not answer.
+     */
     public static function getSearchClient(): ?Client
     {
-        if (self::$searchInstance === null) {
-            $host = Config::get('meili_host');
-            $key = Config::get('meili_search_key');
+        return self::$searchInstance ??= self::makeClient('meili_search_key');
+    }
 
-            if (! self::isValidHost($host)) {
-                self::logError("Invalid Meilisearch host: {$host}");
-
-                return null;
-            }
-
-            if (empty($key)) {
-                self::logError('Meilisearch API search key is missing.');
-
-                return null;
-            }
-
-            try {
-                $client = new Client($host, $key);
-                if (! self::isAvailable($client, $host)) {
-                    self::logError('API key does not have required permissions.');
-
-                    return null;
-                }
-
-                self::$searchInstance = $client;
-            } catch (\Throwable $e) {
-                self::logError('Failed to connect to Meilisearch: '.$e->getMessage());
-
-                return null;
-            }
+    /**
+     * Gets the client to search with: the search key when one is set, the
+     * admin key otherwise.
+     */
+    public static function getReadClient(): ?Client
+    {
+        if (! empty(Config::get('meili_search_key'))) {
+            return self::getSearchClient();
         }
 
-        return self::$searchInstance;
+        return self::getClient();
     }
 
+    /**
+     * Whether a host and an admin key are set. Does not contact Meilisearch.
+     */
     public static function isConfigured(): bool
     {
-        return ! (is_null(self::getClient()) && Config::get('meili_host') && Config::get('meili_key'));
+        return ! empty(Config::get('meili_host')) && ! empty(Config::get('meili_key'));
     }
 
+    /**
+     * Whether Meilisearch answers with the admin key.
+     */
+    public static function isReachable(): bool
+    {
+        return self::getClient() !== null;
+    }
+
+    /**
+     * Whether Meilisearch answers with the search key, when one is set.
+     */
     public static function isSearchConfigured(): bool
     {
         return self::getSearchClient() !== null;
     }
 
     /**
-     * Checks if the Meilisearch host is valid.
+     * Forgets the clients built so far, so the next call reads the settings again.
      */
-    private static function isValidHost(?string $host): bool
+    public static function reset(): void
     {
-        if (empty($host)) {
-            return false;
-        }
-
-        // Vérifie si l'URL est bien formatée
-        if (! filter_var($host, FILTER_VALIDATE_URL)) {
-            return false;
-        }
-
-        // La résolution DNS est vérifiée avec le health check, dont le résultat est mis en cache
-        $hostParts = parse_url($host);
-        if (! isset($hostParts['host'])) {
-            return false;
-        }
-
-        return true;
+        self::$instance = null;
+        self::$searchInstance = null;
     }
 
     /**
-     * Checks if the Meilisearch instance is reachable.
-     *
-     * The result is cached per host so that the DNS lookup and the HTTP call
-     * to /health are not repeated on every request.
+     * Builds a client from the configured host and the given key setting.
      */
-    private static function isAvailable(Client $client, string $host): bool
+    private static function makeClient(string $keySetting): ?Client
     {
-        $cacheKey = 'meiliscout_health_'.md5($host);
+        $host = Config::get('meili_host');
+        $key = Config::get($keySetting);
+
+        if (empty($host) || empty($key)) {
+            return null;
+        }
+
+        if (! self::isValidHost($host)) {
+            self::logError("Invalid Meilisearch host: {$host}");
+
+            return null;
+        }
+
+        try {
+            $client = new Client($host, $key);
+        } catch (\Throwable $e) {
+            self::logError('Failed to create the Meilisearch client: '.$e->getMessage());
+
+            return null;
+        }
+
+        return self::isAvailable($client, $host, $key) ? $client : null;
+    }
+
+    /**
+     * Checks that the host is a well-formed URL.
+     *
+     * Whether it resolves is left to the availability check: a DNS lookup would
+     * reject `localhost`, IP addresses and names only known to /etc/hosts.
+     */
+    private static function isValidHost(string $host): bool
+    {
+        return filter_var($host, FILTER_VALIDATE_URL) !== false
+            && parse_url($host, PHP_URL_HOST) !== null;
+    }
+
+    /**
+     * Checks that Meilisearch answers, caching the verdict for a short window.
+     *
+     * The verdict is keyed on the host and the key, so changing either one
+     * triggers a new check.
+     */
+    private static function isAvailable(Client $client, string $host, string $key): bool
+    {
+        $cacheKey = self::PROBE_CACHE_PREFIX.md5($host.'|'.$key);
         $cached = get_transient($cacheKey);
 
         if ($cached !== false) {
             return $cached === 'available';
         }
 
-        $available = self::checkAvailability($client, $host);
+        $available = self::probe($client);
 
         set_transient(
             $cacheKey,
             $available ? 'available' : 'unavailable',
-            $available ? self::HEALTH_CACHE_TTL : self::HEALTH_CACHE_TTL_FAILURE
+            $available ? self::PROBE_TTL_REACHABLE : self::PROBE_TTL_UNREACHABLE
         );
 
         return $available;
     }
 
     /**
-     * Resolves the host and calls the Meilisearch /health endpoint.
+     * Calls the Meilisearch /health endpoint.
      */
-    private static function checkAvailability(Client $client, string $host): bool
+    private static function probe(Client $client): bool
     {
-        $hostname = parse_url($host, PHP_URL_HOST);
-
-        if (! $hostname || ! checkdnsrr($hostname, 'A')) {
-            self::logError("Unable to resolve Meilisearch host: {$host}");
-
-            return false;
-        }
-
         try {
-            return $client->health()['status'] === 'available';
-        } catch (ApiException $e) {
-            self::logError('Failed to fetch API keys: '.$e->getMessage());
+            return ($client->health()['status'] ?? null) === 'available';
         } catch (\Throwable $e) {
-            self::logError('Failed to connect to Meilisearch: '.$e->getMessage());
+            self::logError('Failed to reach Meilisearch: '.$e->getMessage());
         }
 
         return false;
     }
 
     /**
-     * Logs an error message.
+     * Logs an error message to the PHP error log.
      */
     private static function logError(string $message): void
     {
-        if (class_exists(LoggerInterface::class)) {
-            /** @var LoggerInterface $logger */
-            $logger = app(LoggerInterface::class);
-            $logger->error($message);
-        }
+        error_log('MeiliScout: '.$message);
     }
 }

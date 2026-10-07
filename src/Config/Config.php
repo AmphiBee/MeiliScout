@@ -22,7 +22,7 @@ class Config
         }
 
         if (defined($constKey)) {
-            return constant($key);
+            return constant($constKey);
         }
 
         return self::getFromDatabase($key, $default);
@@ -36,7 +36,9 @@ class Config
      */
     public static function isReadOnly(string $key): bool
     {
-        return getenv($key) !== false || defined($key);
+        $constKey = strtoupper($key);
+
+        return getenv($constKey) !== false || defined($constKey);
     }
 
     /**

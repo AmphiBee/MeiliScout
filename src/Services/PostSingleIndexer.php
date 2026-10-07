@@ -27,13 +27,18 @@ use function in_array;
 class PostSingleIndexer extends AbstractSingleIndexer
 {
     /**
+     * Number of posts loaded per query when re-indexing a term's posts.
+     */
+    private const TERM_REINDEX_BATCH_SIZE = 100;
+
+    /**
      * Creates the PostIndexable instance for formatting post data.
      *
      * @return Indexable The post indexable instance
      */
     protected function createIndexable(): Indexable
     {
-        return new PostIndexable();
+        return $this->resolveIndexable(new PostIndexable());
     }
 
     /**
@@ -162,25 +167,43 @@ class PostSingleIndexer extends AbstractSingleIndexer
         $reindexedCount = 0;
 
         try {
-            // Get all posts that have this term
-            $posts = get_posts([
-                'post_type' => $this->getIndexedPostTypes(),
-                'posts_per_page' => -1,
-                'post_status' => PostIndexable::indexableStatuses(),
-                'tax_query' => [
-                    [
-                        'taxonomy' => $taxonomy,
-                        'field'    => 'term_id',
-                        'terms'    => $termId,
-                    ],
-                ],
-            ]);
+            // Walk the term's posts page by page: loading them all at once
+            // primes the meta of every post in a single object-cache write,
+            // which a widely used term turns into a Redis OOM.
+            ObjectCacheIsolation::run(function () use ($termId, $taxonomy, &$reindexedCount): void {
+                $page = 1;
 
-            foreach ($posts as $post) {
-                if ($this->indexPost($post)) {
-                    $reindexedCount++;
-                }
-            }
+                do {
+                    $posts = get_posts([
+                        'post_type' => $this->getIndexedPostTypes(),
+                        'posts_per_page' => self::TERM_REINDEX_BATCH_SIZE,
+                        'paged' => $page,
+                        'orderby' => 'ID',
+                        'order' => 'ASC',
+                        'no_found_rows' => true,
+                        'post_status' => PostIndexable::indexableStatuses(),
+                        'tax_query' => [
+                            [
+                                'taxonomy' => $taxonomy,
+                                'field'    => 'term_id',
+                                'terms'    => $termId,
+                            ],
+                        ],
+                    ]);
+
+                    foreach ($posts as $post) {
+                        if ($this->indexPost($post)) {
+                            $reindexedCount++;
+                        }
+                    }
+
+                    if (function_exists('wp_cache_flush_runtime')) {
+                        wp_cache_flush_runtime();
+                    }
+
+                    $page++;
+                } while (count($posts) === self::TERM_REINDEX_BATCH_SIZE);
+            });
 
             $this->logOperation('success', "Re-indexed {$reindexedCount} posts for term {$termId} in taxonomy {$taxonomy}");
 
@@ -300,29 +323,32 @@ class PostSingleIndexer extends AbstractSingleIndexer
 
             // Get the indexable
             /** @var \Pollora\MeiliScout\Indexables\PostIndexable $indexable */
-            $indexable = $this->indexable;
+            $indexable = $this->indexable();
             $indexable->preloadBatchData($postsToIndex);
 
-            // Format all documents
+            // Format all documents, each followed by the documents it brings along
             $documents = [];
+            $formattedIds = [];
             foreach ($postsToIndex as $post) {
                 try {
-                    $documents[] = $indexable->formatForIndexing($post);
+                    $document = $indexable->formatForIndexing($post);
+                    $documents = [...$documents, ...$this->withDependentDocuments($document, $post)];
+                    $formattedIds[] = $post->ID;
                 } catch (Exception $e) {
                     $statistics['errors']++;
                     $this->logOperation('error', "Failed to format post {$post->ID}: " . $e->getMessage());
                 }
             }
 
-            // Send all documents in a single API call
+            // Send the documents in bounded requests, then drop the dependent documents no longer brought along
             if (! empty($documents)) {
-                $index = $this->client->index($indexable->getIndexName());
-                $index->addDocuments($documents);
-                $statistics['indexed'] = count($documents);
+                $index = $this->client()->index($indexable->getIndexName());
+                $this->writeWithDependentDocuments($index, $documents, $formattedIds);
+                $statistics['indexed'] = count($formattedIds);
             }
 
             // Aggressive memory cleanup after batch
-            unset($documents, $postsToIndex);
+            unset($documents, $formattedIds, $postsToIndex);
             gc_collect_cycles();
 
         } catch (Exception $e) {
