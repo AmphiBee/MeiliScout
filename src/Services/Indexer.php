@@ -97,6 +97,17 @@ class Indexer
      */
     public function index(bool $clearIndices = false): void
     {
+        // Keep the bulk read off the persistent object cache (see ObjectCacheIsolation).
+        ObjectCacheIsolation::run(fn () => $this->runIndex($clearIndices));
+    }
+
+    /**
+     * Runs a full indexation.
+     *
+     * @param  bool  $clearIndices  Whether to clear existing indices before indexing
+     */
+    private function runIndex(bool $clearIndices): void
+    {
         $this->initializeLog();
 
         try {
@@ -257,6 +268,19 @@ class Indexer
      */
     public function indexChunk(int $offset, int $limit, bool $clearIndices = false): void
     {
+        // Keep the bulk read off the persistent object cache (see ObjectCacheIsolation).
+        ObjectCacheIsolation::run(fn () => $this->runIndexChunk($offset, $limit, $clearIndices));
+    }
+
+    /**
+     * Indexes a chunk of content.
+     *
+     * @param  int  $offset  Starting offset
+     * @param  int  $limit  Number of items to index
+     * @param  bool  $clearIndices  Whether to clear existing indices before indexing
+     */
+    private function runIndexChunk(int $offset, int $limit, bool $clearIndices): void
+    {
         $this->initializeLog();
 
         try {
@@ -314,7 +338,9 @@ class Indexer
                         $items = [];
 
                         // Aggressive memory cleanup after each batch
-                        wp_cache_flush();
+                        if (function_exists('wp_cache_flush_runtime')) {
+                            wp_cache_flush_runtime();
+                        }
                         gc_collect_cycles();
                     }
                 }
@@ -330,7 +356,9 @@ class Indexer
                     ));
 
                     // Aggressive memory cleanup after last batch
-                    wp_cache_flush();
+                    if (function_exists('wp_cache_flush_runtime')) {
+                        wp_cache_flush_runtime();
+                    }
                     gc_collect_cycles();
                 }
 

@@ -149,7 +149,9 @@ class PostIndexable implements Indexable
 
                 // Flush cache periodically to prevent memory leaks
                 if ($page % 10 === 0) {
-                    wp_cache_flush();
+                    if (function_exists('wp_cache_flush_runtime')) {
+                        wp_cache_flush_runtime();
+                    }
                     gc_collect_cycles();
                 }
 
