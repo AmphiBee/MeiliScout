@@ -10,7 +10,6 @@ use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Indexables\PostIndexable;
 use WP_Post;
 
-use function apply_filters;
 use function get_post;
 use function get_posts;
 use function in_array;
@@ -182,7 +181,7 @@ class PostSingleIndexer extends AbstractSingleIndexer
                         'orderby' => 'ID',
                         'order' => 'ASC',
                         'no_found_rows' => true,
-                        'post_status' => $this->getIndexablePostStatuses(),
+                        'post_status' => PostIndexable::indexableStatuses(),
                         'tax_query' => [
                             [
                                 'taxonomy' => $taxonomy,
@@ -254,24 +253,8 @@ class PostSingleIndexer extends AbstractSingleIndexer
      */
     private function shouldIndexPostStatus(string $postStatus): bool
     {
-        $indexableStatuses = $this->getIndexablePostStatuses();
+        $indexableStatuses = PostIndexable::indexableStatuses();
         return in_array($postStatus, $indexableStatuses, true);
-    }
-
-    /**
-     * Gets the list of post statuses that should be indexed.
-     *
-     * @return string[] Array of indexable post statuses
-     */
-    private function getIndexablePostStatuses(): array
-    {
-        /**
-         * Filters the post statuses that should be indexed.
-         *
-         * @since 1.0.0
-         * @param string[] $statuses Array of post statuses that should be indexed
-         */
-        return apply_filters('meiliscout/indexable_post_statuses', ['publish']);
     }
 
     /**

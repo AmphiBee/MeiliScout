@@ -102,7 +102,9 @@ class IndexCommand
             WP_CLI::log("Total documents: {$totalCount}");
             WP_CLI::log("Number of chunks: {$numChunks}");
 
-            wp_cache_flush();
+            if (function_exists('wp_cache_flush_runtime')) {
+                wp_cache_flush_runtime();
+            }
             gc_collect_cycles();
 
             for ($i = 0; $i < $numChunks; $i++) {
@@ -193,7 +195,9 @@ class IndexCommand
             $limit = (int) $assoc_args['limit'];
             $clearIndices = isset($assoc_args['clear']) && $assoc_args['clear'];
 
-            wp_cache_flush();
+            if (function_exists('wp_cache_flush_runtime')) {
+                wp_cache_flush_runtime();
+            }
             gc_collect_cycles();
 
             $indexer = new Indexer;

@@ -97,6 +97,17 @@ class Indexer
      */
     public function index(bool $clearIndices = false): void
     {
+        // Keep the bulk read off the persistent object cache (see ObjectCacheIsolation).
+        ObjectCacheIsolation::run(fn () => $this->runIndex($clearIndices));
+    }
+
+    /**
+     * Runs a full indexation.
+     *
+     * @param  bool  $clearIndices  Whether to clear existing indices before indexing
+     */
+    private function runIndex(bool $clearIndices): void
+    {
         $this->initializeLog();
 
         try {
@@ -125,6 +136,10 @@ class Indexer
 
                 $index = $this->client->index($indexName);
                 $index->updateSettings($indexable->getIndexSettings());
+
+                if (! $clearIndices) {
+                    $this->deleteNonIndexableStatuses($indexable);
+                }
 
                 // Document indexing with optimized batch size
                 $totalIndexed = 0;
@@ -172,6 +187,36 @@ class Indexer
     }
 
     /**
+     * Removes the posts whose status is no longer indexable from the index.
+     *
+     * A full run only adds documents, so a post indexed before it went private,
+     * draft or trash (or before only public statuses were indexed) would stay
+     * searchable. Deleting by filter cleans the index without emptying it.
+     *
+     * @param Indexable $indexable The indexable being indexed
+     */
+    private function deleteNonIndexableStatuses(Indexable $indexable): void
+    {
+        if (! $indexable instanceof PostIndexable) {
+            return;
+        }
+
+        $statuses = array_map(
+            fn (string $status) => sprintf("'%s'", addslashes($status)),
+            PostIndexable::indexableStatuses()
+        );
+
+        try {
+            $this->client->index($indexable->getIndexName())->deleteDocuments([
+                'filter' => sprintf('post_status NOT IN [%s]', implode(', ', $statuses)),
+            ]);
+            $this->log('info', 'Documents with a non-indexable status scheduled for deletion');
+        } catch (\Exception $e) {
+            $this->log('error', 'Failed to delete documents with a non-indexable status: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Gets the total count of items to be indexed.
      *
      * @return int Total number of items
@@ -184,12 +229,15 @@ class Indexer
         // Count posts directly from database without loading them
         $postTypes = Settings::get('indexed_post_types', []);
         if (!empty($postTypes)) {
+            $statuses = PostIndexable::indexableStatuses();
             $placeholders = implode(',', array_fill(0, count($postTypes), '%s'));
+            $statusPlaceholders = implode(',', array_fill(0, count($statuses), '%s'));
             $query = $wpdb->prepare(
                 "SELECT COUNT(*) FROM {$wpdb->posts}
                  WHERE post_type IN ($placeholders)
-                 AND post_status NOT IN ('trash', 'auto-draft')",
-                ...$postTypes
+                 AND post_status IN ($statusPlaceholders)",
+                ...$postTypes,
+                ...$statuses
             );
             $total += (int) $wpdb->get_var($query);
         }
@@ -220,6 +268,19 @@ class Indexer
      */
     public function indexChunk(int $offset, int $limit, bool $clearIndices = false): void
     {
+        // Keep the bulk read off the persistent object cache (see ObjectCacheIsolation).
+        ObjectCacheIsolation::run(fn () => $this->runIndexChunk($offset, $limit, $clearIndices));
+    }
+
+    /**
+     * Indexes a chunk of content.
+     *
+     * @param  int  $offset  Starting offset
+     * @param  int  $limit  Number of items to index
+     * @param  bool  $clearIndices  Whether to clear existing indices before indexing
+     */
+    private function runIndexChunk(int $offset, int $limit, bool $clearIndices): void
+    {
         $this->initializeLog();
 
         try {
@@ -249,6 +310,10 @@ class Indexer
                 $index = $this->client->index($indexName);
                 $index->updateSettings($indexable->getIndexSettings());
 
+                if (! $clearIndices && $offset === 0) {
+                    $this->deleteNonIndexableStatuses($indexable);
+                }
+
                 // Document indexing with offset/limit
                 $totalIndexed = 0;
                 $batchSize = $this->bulkBatchSize;
@@ -273,7 +338,9 @@ class Indexer
                         $items = [];
 
                         // Aggressive memory cleanup after each batch
-                        wp_cache_flush();
+                        if (function_exists('wp_cache_flush_runtime')) {
+                            wp_cache_flush_runtime();
+                        }
                         gc_collect_cycles();
                     }
                 }
@@ -289,7 +356,9 @@ class Indexer
                     ));
 
                     // Aggressive memory cleanup after last batch
-                    wp_cache_flush();
+                    if (function_exists('wp_cache_flush_runtime')) {
+                        wp_cache_flush_runtime();
+                    }
                     gc_collect_cycles();
                 }
 
