@@ -59,9 +59,15 @@ class TaxQueryBuilder extends AbstractFilterBuilder
         $fieldKey = "terms.{$field}";
         $taxonomyKey = "terms.taxonomy";
 
-        // Handle EXISTS and NOT EXISTS cases
-        if (in_array($operator, [ComparisonOperator::EXISTS, ComparisonOperator::NOT_EXISTS], true)) {
-            return "{$taxonomyKey} {$operator->value} '{$taxonomy}'";
+        $taxonomyValue = $this->formatValue($taxonomy);
+
+        // A post has the taxonomy when one of its terms belongs to it
+        if ($operator === ComparisonOperator::EXISTS) {
+            return "{$taxonomyKey} = {$taxonomyValue}";
+        }
+
+        if ($operator === ComparisonOperator::NOT_EXISTS) {
+            return "NOT {$taxonomyKey} = {$taxonomyValue}";
         }
 
         // Handle cases requiring values
@@ -79,10 +85,18 @@ class TaxQueryBuilder extends AbstractFilterBuilder
 
         // Special case for NOT IN / != : use an enclosing NOT clause
         if (in_array($operator, [ComparisonOperator::NOT_IN, ComparisonOperator::NOT_EQUALS], true)) {
-            return "NOT ({$taxonomyKey} = '{$taxonomy}' AND {$fieldKey} IN [{$terms}])";
+            return "NOT ({$taxonomyKey} = {$taxonomyValue} AND {$fieldKey} IN [{$terms}])";
+        }
+
+        // AND: the post carries every one of the terms
+        if ($operator === ComparisonOperator::AND) {
+            $values = is_array($query['terms']) ? $query['terms'] : [$query['terms']];
+            $each = array_map(fn ($value) => "{$fieldKey} = {$this->formatValue($value)}", $values);
+
+            return "({$taxonomyKey} = {$taxonomyValue} AND ".implode(' AND ', $each).')';
         }
 
         // Default case: simple filter
-        return "({$taxonomyKey} = '{$taxonomy}' AND {$fieldKey} {$operator->value} [{$terms}])";
+        return "({$taxonomyKey} = {$taxonomyValue} AND {$fieldKey} {$operator->value} [{$terms}])";
     }
 }
