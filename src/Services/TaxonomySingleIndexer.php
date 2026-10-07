@@ -309,7 +309,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
             return ['indexed' => 0, 'skipped' => 0, 'errors' => 1];
         }
 
-        return $this->indexTerms($terms);
+        return $this->indexTerms($terms, null);
     }
 
     /**
