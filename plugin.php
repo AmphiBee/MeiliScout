@@ -16,8 +16,21 @@ define('MEILISCOUT_DIR_PATH', plugin_dir_path(__FILE__));
 define('MEILISCOUT_DIR_URL', plugin_dir_url(__FILE__));
 define('MEILISCOUT_VERSION', '1.0.0');
 
-// Load Composer autoloader
-require_once __DIR__.'/vendor/autoload.php';
+// Load the plugin's own dependencies when it ships them (release zip). Installed
+// with Composer as a dependency of the site, the site's autoloader has them.
+if (file_exists(__DIR__.'/vendor/autoload.php')) {
+    require_once __DIR__.'/vendor/autoload.php';
+}
+
+if (! class_exists(Pollora\MeiliScout\Foundation\Application::class)) {
+    add_action('admin_notices', static function (): void {
+        echo '<div class="notice notice-error"><p>'
+            .esc_html__('MeiliScout cannot start: its dependencies are missing. Install the release zip, or run composer install.', 'meiliscout')
+            .'</p></div>';
+    });
+
+    return;
+}
 
 use Pollora\MeiliScout\Foundation\Application;
 

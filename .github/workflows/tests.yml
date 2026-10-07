@@ -21,6 +21,8 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
 
+      - uses: ramsey/composer-install@v3
+
       - name: PHPStan
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
 
