@@ -116,7 +116,7 @@ class Indexer
                 }
 
                 $index = $this->client->index($indexName);
-                $index->updateSettings($indexable->getIndexSettings());
+                IndexSettings::push($index, $indexName, $indexable->getIndexSettings());
 
                 if (! $clearIndices) {
                     $this->deleteNonIndexableStatuses($indexable);
@@ -313,7 +313,7 @@ class Indexer
                 }
 
                 $index = $this->client->index($indexName);
-                $index->updateSettings($indexable->getIndexSettings());
+                IndexSettings::push($index, $indexName, $indexable->getIndexSettings());
 
                 if (! $clearIndices && $offset === 0) {
                     $this->deleteNonIndexableStatuses($indexable);

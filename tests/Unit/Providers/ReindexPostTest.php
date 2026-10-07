@@ -51,7 +51,9 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
     test('a post another plugin says changed is indexed', function () {
         $indexer = new RecordingPostIndexer;
 
-        reindexing($indexer)->handlePostReindex(125);
+        $provider = reindexing($indexer);
+        $provider->handlePostReindex(125);
+        $provider->runPendingTasks();
 
         expect($indexer->indexed)->toBe([125]);
     });
@@ -60,7 +62,9 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
         $GLOBALS['filters']['meiliscout/skip_indexing'] = true;
         $indexer = new RecordingPostIndexer;
 
-        reindexing($indexer)->handlePostReindex(125);
+        $provider = reindexing($indexer);
+        $provider->handlePostReindex(125);
+        $provider->runPendingTasks();
 
         expect($indexer->indexed)->toBe([]);
     });
@@ -68,7 +72,9 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
     test('a post that does not exist is not indexed', function () {
         $indexer = new RecordingPostIndexer;
 
-        reindexing($indexer)->handlePostReindex(404);
+        $provider = reindexing($indexer);
+        $provider->handlePostReindex(404);
+        $provider->runPendingTasks();
 
         expect($indexer->indexed)->toBe([]);
     });

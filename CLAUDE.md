@@ -152,6 +152,8 @@ The plugin provides several filters for customization:
 - `meiliscout/log_directory`: Customize log directory path
 - `meiliscout/async_indexing_delay`: Delay before async queue processing (default: 300s)
 - `meiliscout/post/displayed_attributes`: Restrict fields Meilisearch may return (default: `['*']`)
+- `meiliscout/reindex_on_meta_change`: Whether a changed meta key re-indexes the post (default: selected meta keys only)
+- `meiliscout/http_client_options`: Options of the Symfony HttpClient used for Meilisearch (default: `['timeout' => 10]`)
 
 ## Environment Variables
 

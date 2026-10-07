@@ -75,6 +75,33 @@ add_filter('meiliscout/post/displayed_attributes', function (array $attributes, 
 }, 10, 2);
 ```
 
+### meiliscout/reindex_on_meta_change
+Decide whether a changed post meta key re-indexes the post. By default, only the
+selected meta keys do; with none selected, every key except WordPress internals
+(`_edit_lock`, `_wp_old_slug`...) does.
+
+```php
+// An indexable whose documents read the variation prices
+add_filter('meiliscout/reindex_on_meta_change', function (bool $reindex, string $metaKey, int $postId) {
+    return $reindex || $metaKey === '_price';
+}, 10, 3);
+```
+
+Changes are indexed once per post, at the end of the request (or by the async
+queue when `MEILISCOUT_ASYNC_INDEXING` is on), however many hooks they fire.
+
+### meiliscout/http_client_options
+Options of the Symfony HttpClient that sends the Meilisearch requests
+(defaults to `['timeout' => 10]`).
+
+```php
+add_filter('meiliscout/http_client_options', fn (array $options) => [
+    ...$options,
+    'timeout' => 5,
+    'proxy' => 'http://proxy.internal:3128',
+]);
+```
+
 ## Environment Variables
 
 | Variable | Description |

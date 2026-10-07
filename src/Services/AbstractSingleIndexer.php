@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Services;
 use Exception;
 use Meilisearch\Client;
 use Meilisearch\Endpoints\Indexes;
+use Meilisearch\Exceptions\ApiException;
 use Pollora\MeiliScout\Contracts\HasDependentDocuments;
 use Pollora\MeiliScout\Contracts\Indexable;
 
@@ -424,17 +425,18 @@ abstract class AbstractSingleIndexer
             $primaryKey = $this->indexable()->getPrimaryKey();
             $settings = $this->indexable()->getIndexSettings();
 
-            // Check if index exists
+            $index = $this->client()->index($indexName);
+
             if (! $this->indexExists($indexName)) {
-                // Create the index
                 $this->client()->createIndex($indexName, ['primaryKey' => $primaryKey]);
-                // Update cache
                 $this->markIndexExists($indexName);
+                IndexSettings::push($index, $indexName, $settings);
+
+                return;
             }
 
-            // Update settings (this is idempotent)
-            $index = $this->client()->index($indexName);
-            $index->updateSettings($settings);
+            // Settings are sent only when they changed: each update is a task, often a full re-index
+            IndexSettings::pushIfChanged($index, $indexName, $settings);
 
         } catch (Exception $e) {
             $indexName = $this->indexable()->getIndexName();
@@ -459,25 +461,18 @@ abstract class AbstractSingleIndexer
         }
 
         try {
-            $indexes = $this->client()->getIndexes();
-
-            // Handle case where results might be null
-            if (isset($indexes['results']) && is_array($indexes['results'])) {
-                foreach ($indexes['results'] as $index) {
-                    // Cache all found indexes
-                    self::$indexExistsCache[$index['uid']] = true;
-                }
+            // One GET for this index: the index list is paginated, 20 at a time
+            $this->client()->getIndex($indexName);
+            self::$indexExistsCache[$indexName] = true;
+        } catch (ApiException $e) {
+            if ($e->httpStatus !== 404) {
+                throw $e;
             }
 
-            // Cache the result for requested index
-            if (! isset(self::$indexExistsCache[$indexName])) {
-                self::$indexExistsCache[$indexName] = false;
-            }
-
-            return self::$indexExistsCache[$indexName];
-        } catch (Exception) {
-            return false;
+            self::$indexExistsCache[$indexName] = false;
         }
+
+        return self::$indexExistsCache[$indexName];
     }
 
     /**
@@ -561,7 +556,8 @@ abstract class AbstractSingleIndexer
             $this->operationLog['operations'] = array_slice($this->operationLog['operations'], -50);
         }
 
-        update_option($this->logOptionKey, $this->operationLog);
+        // Not autoloaded: the log is written often and only read by the admin
+        update_option($this->logOptionKey, $this->operationLog, false);
     }
 
     /**
