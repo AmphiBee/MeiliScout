@@ -93,7 +93,7 @@ class MetaQueryBuilder extends AbstractFilterBuilder
         }
 
         // Check for value presence for other operators
-        if (! isset($query['value']) && ! in_array($operator, [ComparisonOperator::EXISTS, ComparisonOperator::NOT_EXISTS], true)) {
+        if (! isset($query['value'])) {
             return '';
         }
 

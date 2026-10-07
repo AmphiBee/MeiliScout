@@ -17,13 +17,6 @@ class EnumValidator
      */
     public static function isValid(string $enumClass, string|int $value): bool
     {
-        if (! is_subclass_of($enumClass, BackedEnum::class)) {
-            throw new \InvalidArgumentException(sprintf(
-                'The class %s must be a BackedEnum enumeration',
-                $enumClass
-            ));
-        }
-
         return ! is_null($enumClass::tryFrom($value));
     }
 
@@ -38,13 +31,6 @@ class EnumValidator
      */
     public static function getValidValueOrDefault(string $enumClass, string|int $value, BackedEnum $default): BackedEnum
     {
-        if (! is_subclass_of($enumClass, BackedEnum::class)) {
-            throw new \InvalidArgumentException(sprintf(
-                'The class %s must be a BackedEnum enumeration',
-                $enumClass
-            ));
-        }
-
         return $enumClass::tryFrom($value) ?? $default;
     }
 }

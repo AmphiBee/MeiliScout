@@ -15,6 +15,7 @@ use function get_permalink;
 use function get_post_meta;
 use function get_posts;
 use function get_term;
+use function is_wp_error;
 use function maybe_unserialize;
 use function update_meta_cache;
 use function update_object_term_cache;
@@ -257,11 +258,12 @@ class PostIndexable implements Indexable
                 }
             }
 
-            foreach ($rawTerms as $term) {
-                if (! $term instanceof WP_Term) {
-                    continue;
-                }
+            // An unknown taxonomy gives a WP_Error
+            if (is_wp_error($rawTerms)) {
+                continue;
+            }
 
+            foreach ($rawTerms as $term) {
                 $terms[] = [
                     'term_id' => (int) $term->term_id,
                     'name' => $term->name,
@@ -397,11 +399,12 @@ class PostIndexable implements Indexable
 
         foreach ($taxonomies as $taxonomy) {
             $rawTerms = wp_get_post_terms($post->ID, $taxonomy);
-            foreach ($rawTerms as $term) {
-                if (! $term instanceof WP_Term) {
-                    continue;
-                }
+            // An unknown taxonomy gives a WP_Error
+            if (is_wp_error($rawTerms)) {
+                continue;
+            }
 
+            foreach ($rawTerms as $term) {
                 $terms[] = [
                     'term_id' => (int) $term->term_id,
                     'name' => $term->name,

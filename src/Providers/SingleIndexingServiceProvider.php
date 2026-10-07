@@ -461,7 +461,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         $term = get_term($termId);
 
-        if (!$term instanceof \WP_Term || is_wp_error($term)) {
+        if (!$term instanceof \WP_Term) {
             return;
         }
 
