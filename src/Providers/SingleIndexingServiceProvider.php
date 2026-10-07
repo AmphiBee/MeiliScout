@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Providers;
 
 use Pollora\MeiliScout\Config\Config;
+use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
 use Pollora\MeiliScout\Services\AsyncIndexingQueue;
+use Pollora\MeiliScout\Services\IndexingTask;
+use Pollora\MeiliScout\Services\ObjectCacheIsolation;
 use Pollora\MeiliScout\Services\PostSingleIndexer;
 use Pollora\MeiliScout\Services\TaxonomySingleIndexer;
 
@@ -59,6 +62,30 @@ class SingleIndexingServiceProvider extends ServiceProvider
      * @var array<int, array{name: string, slug: string, parent: int}>
      */
     private array $termsBeforeEdit = [];
+
+    /**
+     * Tasks waiting for the end of the request, one per post or term (sync mode).
+     *
+     * @var array<string, array{type: string, action: string, id: int, extra: array<string, mixed>}>
+     */
+    private array $pendingTasks = [];
+
+    /**
+     * Meta keys WordPress writes on its own, which never change a document.
+     *
+     * @var list<string>
+     */
+    private const INTERNAL_META_KEYS = [
+        '_edit_lock',
+        '_edit_last',
+        '_wp_old_slug',
+        '_wp_old_date',
+        '_encloseme',
+        '_pingme',
+        '_wp_trash_meta_status',
+        '_wp_trash_meta_time',
+        '_wp_desired_post_slug',
+    ];
 
     /**
      * Register the service provider.
@@ -161,16 +188,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        try {
-            if ($this->isAsyncMode()) {
-                $this->asyncQueue->enqueue('post', 'index', $postId);
-                return;
-            }
-            $this->postIndexer->indexPost($post);
-        } catch (\Exception $e) {
-            // Log error but don't break the save process
-            error_log("MeiliScout: Failed to index post {$postId}: " . $e->getMessage());
-        }
+        $this->queue('post', 'index', $postId);
     }
 
     /**
@@ -187,16 +205,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        try {
-            if ($this->isAsyncMode()) {
-                $this->asyncQueue->enqueue('post', 'remove', $postId);
-                return;
-            }
-            $this->postIndexer->removePost($postId);
-        } catch (\Exception $e) {
-            // Log error but don't break the deletion process
-            error_log("MeiliScout: Failed to remove post {$postId} from index: " . $e->getMessage());
-        }
+        $this->queue('post', 'remove', $postId);
     }
 
     /**
@@ -221,17 +230,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        try {
-            if ($this->isAsyncMode()) {
-                $this->asyncQueue->enqueue('post', 'index', $post->ID);
-                return;
-            }
-            // Always try to index - the indexer will handle whether to index or remove
-            $this->postIndexer->indexPost($post);
-        } catch (\Exception $e) {
-            // Log error but don't break the status change process
-            error_log("MeiliScout: Failed to handle status change for post {$post->ID}: " . $e->getMessage());
-        }
+        $this->queue('post', 'index', $post->ID);
     }
 
     /**
@@ -248,7 +247,28 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handlePostMetaUpdate(int|array $metaId, int $postId, string $metaKey, mixed $metaValue): void
     {
-        $this->handlePostReindex($postId);
+        if ($this->metaKeyChangesDocument($metaKey, $postId)) {
+            $this->handlePostReindex($postId);
+        }
+    }
+
+    /**
+     * Whether a meta key is copied into post documents, so that changing it calls for a re-index.
+     *
+     * With meta keys selected, only those are. Without, documents carry every
+     * meta key, except the ones WordPress keeps for itself (edit lock, old slug...).
+     * The `meiliscout/reindex_on_meta_change` filter has the last word, for
+     * indexables whose documents depend on other meta keys.
+     */
+    private function metaKeyChangesDocument(string $metaKey, int $postId): bool
+    {
+        $indexedMetaKeys = Settings::get('indexed_meta_keys', []);
+
+        $changesDocument = ! empty($indexedMetaKeys)
+            ? in_array($metaKey, $indexedMetaKeys, true)
+            : ! in_array($metaKey, self::INTERNAL_META_KEYS, true);
+
+        return (bool) apply_filters('meiliscout/reindex_on_meta_change', $changesDocument, $metaKey, $postId);
     }
 
     /**
@@ -272,16 +292,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        try {
-            if ($this->isAsyncMode()) {
-                $this->asyncQueue->enqueue('post', 'index', $postId);
-                return;
-            }
-            $this->postIndexer->indexPost($post);
-        } catch (\Exception $e) {
-            // Log error but don't break the operation that changed the post
-            error_log("MeiliScout: Failed to re-index post {$postId}: " . $e->getMessage());
-        }
+        $this->queue('post', 'index', $postId);
     }
 
     /**
@@ -301,16 +312,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        try {
-            if ($this->isAsyncMode()) {
-                $this->asyncQueue->enqueue('term', 'index', $termId);
-                return;
-            }
-
-            $this->taxonomyIndexer->indexTerm($termId);
-        } catch (\Exception $e) {
-            error_log("MeiliScout: Failed to index term {$termId}: " . $e->getMessage());
-        }
+        $this->queue('term', 'index', $termId);
     }
 
     /**
@@ -352,25 +354,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         $reindexPosts = $this->termFieldsChanged($termId, $taxonomy);
 
-        try {
-            if ($this->isAsyncMode()) {
-                $this->asyncQueue->enqueue('term', 'index', $termId);
+        $this->queue('term', 'index', $termId);
 
-                if ($reindexPosts) {
-                    $this->asyncQueue->enqueue('posts_for_term', 'reindex', $termId, ['taxonomy' => $taxonomy]);
-                }
-
-                return;
-            }
-
-            $result = $this->taxonomyIndexer->indexTerm($termId);
-
-            if ($result && $reindexPosts) {
-                $this->postIndexer->reindexPostsForTerm($termId, $taxonomy);
-            }
-        } catch (\Exception $e) {
-            // Log error but don't break the save process
-            error_log("MeiliScout: Failed to index term {$termId}: " . $e->getMessage());
+        if ($reindexPosts) {
+            $this->queue('posts_for_term', 'reindex', $termId, ['taxonomy' => $taxonomy]);
         }
     }
 
@@ -427,18 +414,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        try {
-            if ($this->isAsyncMode()) {
-                $this->asyncQueue->enqueue('term', 'remove', $termId);
-                return;
-            }
-
-            // Remove the term from the index
-            $this->taxonomyIndexer->removeTerm($termId);
-        } catch (\Exception $e) {
-            // Log error but don't break the deletion process
-            error_log("MeiliScout: Failed to handle term deletion {$termId}: " . $e->getMessage());
-        }
+        $this->queue('term', 'remove', $termId);
     }
 
     /**
@@ -465,17 +441,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        try {
-            if ($this->isAsyncMode()) {
-                $this->asyncQueue->enqueue('term', 'index', $termId);
-                return;
-            }
-            // Re-index the term to pick up the new meta data
-            $this->taxonomyIndexer->indexTerm($term);
-        } catch (\Exception $e) {
-            // Log error but don't break the meta update process
-            error_log("MeiliScout: Failed to re-index term {$termId} after meta update: " . $e->getMessage());
-        }
+        $this->queue('term', 'index', $termId);
     }
 
     /**
@@ -510,6 +476,70 @@ class SingleIndexingServiceProvider extends ServiceProvider
         }
 
         return false;
+    }
+
+    /**
+     * Queues an indexing task.
+     *
+     * In async mode, the task goes to the WP-Cron queue. Otherwise it waits for
+     * the end of the request: saving a post fires save_post, transition_post_status
+     * and one hook per meta key, and each used to send its own requests to
+     * Meilisearch. Kept per item, the last task wins, and runs once.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    private function queue(string $type, string $action, int $id, array $extra = []): void
+    {
+        if ($this->isAsyncMode()) {
+            $this->asyncQueue->enqueue($type, $action, $id, $extra);
+
+            return;
+        }
+
+        if ($this->pendingTasks === []) {
+            add_action('shutdown', [$this, 'runPendingTasks'], 0);
+        }
+
+        // Re-added at the end: tasks run in the order of their last change
+        $key = IndexingTask::key($type, $id);
+        unset($this->pendingTasks[$key]);
+        $this->pendingTasks[$key] = IndexingTask::make($type, $action, $id, $extra);
+    }
+
+    /**
+     * Runs the tasks queued during the request. Hooked on shutdown.
+     *
+     * A failing task is logged and never breaks the request that saved the content.
+     */
+    public function runPendingTasks(): void
+    {
+        $pendingTasks = $this->pendingTasks;
+        $this->pendingTasks = [];
+
+        if ($pendingTasks === []) {
+            return;
+        }
+
+        $tasks = new IndexingTask(
+            $this->postIndexer ??= new PostSingleIndexer(),
+            $this->taxonomyIndexer ??= new TaxonomySingleIndexer()
+        );
+
+        ObjectCacheIsolation::run(function () use ($pendingTasks, $tasks): void {
+            foreach ($pendingTasks as $task) {
+                try {
+                    $tasks->run($task);
+                } catch (\Throwable $e) {
+                    error_log(sprintf(
+                        'MeiliScout: Failed to %s %s %d: %s',
+                        $task['action'],
+                        $task['type'],
+                        $task['id'],
+                        $e->getMessage()
+                    ));
+                }
+            }
+        });
     }
 
     /**

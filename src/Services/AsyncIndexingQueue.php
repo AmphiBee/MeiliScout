@@ -50,13 +50,7 @@ class AsyncIndexingQueue
     {
         $queue = $this->loadQueue();
 
-        $key = "{$type}:{$id}";
-        $queue[$key] = [
-            'type'   => $type,
-            'action' => $action,
-            'id'     => $id,
-            'extra'  => $extra,
-        ];
+        $queue[IndexingTask::key($type, $id)] = IndexingTask::make($type, $action, $id, $extra);
 
         update_option(self::QUEUE_OPTION, $queue, false);
 
@@ -80,10 +74,12 @@ class AsyncIndexingQueue
         // Clear the queue immediately before processing
         delete_option(self::QUEUE_OPTION);
 
-        ObjectCacheIsolation::run(function () use ($queue): void {
+        $tasks = new IndexingTask($this->postIndexer, $this->taxonomyIndexer);
+
+        ObjectCacheIsolation::run(function () use ($queue, $tasks): void {
             foreach ($queue as $item) {
                 try {
-                    $this->dispatch($item);
+                    $tasks->run($item);
                 } catch (\Exception $e) {
                     error_log(sprintf(
                         'MeiliScout: Async queue failed to process item [%s:%s id=%d]: %s',
@@ -113,33 +109,6 @@ class AsyncIndexingQueue
         return (int) apply_filters('meiliscout/async_indexing_delay', self::DEFAULT_DELAY);
     }
 
-    /**
-     * Dispatches a single queued item to the appropriate indexer.
-     *
-     * @param array{type: string, action: string, id: int, extra: mixed[]} $item
-     */
-    private function dispatch(array $item): void
-    {
-        ['type' => $type, 'action' => $action, 'id' => $id, 'extra' => $extra] = $item;
-
-        match ($type) {
-            'post' => match ($action) {
-                'index'  => $this->postIndexer->indexPost($id),
-                'remove' => $this->postIndexer->removePost($id),
-                default  => null,
-            },
-            'term' => match ($action) {
-                'index'  => $this->taxonomyIndexer->indexTerm($id),
-                'remove' => $this->taxonomyIndexer->removeTerm($id),
-                default  => null,
-            },
-            'posts_for_term' => match ($action) {
-                'reindex' => $this->postIndexer->reindexPostsForTerm($id, $extra['taxonomy'] ?? ''),
-                default   => null,
-            },
-            default => null,
-        };
-    }
 
     /**
      * Loads the current queue from the WordPress options table.
