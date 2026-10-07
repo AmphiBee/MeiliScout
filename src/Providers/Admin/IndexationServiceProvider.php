@@ -18,6 +18,25 @@ use function Pollora\MeiliScout\get_template_part;
 class IndexationServiceProvider extends ServiceProvider
 {
     /**
+     * Cron hook that runs a full indexation.
+     */
+    private const PROCESS_INDEXATION = 'meiliscout_process_indexation';
+
+    /**
+     * Delay in seconds before a scheduled indexation runs.
+     */
+    private const SCHEDULE_DELAY = 10;
+
+    /**
+     * A full indexation that keeps the indexes while it runs.
+     */
+    private const IN_PLACE_INDEXATION = [
+        'clear_indices' => false,
+        'index_posts' => true,
+        'index_taxonomies' => true,
+    ];
+
+    /**
      * Registers the service provider's hooks and actions.
      *
      * @return void
@@ -30,7 +49,8 @@ class IndexationServiceProvider extends ServiceProvider
         add_action('admin_menu', [$this, 'addIndexationMenu']);
         add_action('admin_post_meiliscout_indexation', [$this, 'handleIndexation']);
         add_action('rest_api_init', [$this, 'registerRestRoutes']);
-        add_action('meiliscout_process_indexation', [$this, 'processIndexation']);
+        add_action(self::PROCESS_INDEXATION, [$this, 'processIndexation']);
+        add_action('meiliscout/schedule_indexation', [$this, 'scheduleIndexation']);
     }
 
     /**
@@ -150,8 +170,8 @@ class IndexationServiceProvider extends ServiceProvider
         $indexer->log('info', 'Indexation will start soon...');
 
         // Schedule indexation event
-        if (! wp_next_scheduled('meiliscout_process_indexation')) {
-            wp_schedule_single_event(time() + 10, 'meiliscout_process_indexation', [
+        if (! wp_next_scheduled(self::PROCESS_INDEXATION)) {
+            wp_schedule_single_event(time() + self::SCHEDULE_DELAY, self::PROCESS_INDEXATION, [
                 [
                     'clear_indices' => isset($_POST['clear_indices']),
                     'index_posts' => isset($_POST['index_posts']),
@@ -163,6 +183,22 @@ class IndexationServiceProvider extends ServiceProvider
         // Redirect with token so the UI can poll for status
         wp_redirect(admin_url('admin.php?page=meiliscout-indexation&token=' . urlencode($token)));
         exit;
+    }
+
+    /**
+     * Schedules a full indexation once, without emptying the indexes: `meiliscout/schedule_indexation`.
+     */
+    public function scheduleIndexation(): void
+    {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
+        if ($this->isIndexationScheduled()) {
+            return;
+        }
+
+        wp_schedule_single_event(time() + self::SCHEDULE_DELAY, self::PROCESS_INDEXATION, [self::IN_PLACE_INDEXATION]);
     }
 
     /**
@@ -221,5 +257,15 @@ class IndexationServiceProvider extends ServiceProvider
             'meiliscout-indexation',
             [$this, 'renderIndexationPage']
         );
+    }
+
+    private function shouldSkipIndexing(): bool
+    {
+        return (bool) apply_filters('meiliscout/skip_indexing', false);
+    }
+
+    private function isIndexationScheduled(): bool
+    {
+        return wp_next_scheduled(self::PROCESS_INDEXATION, [self::IN_PLACE_INDEXATION]) !== false;
     }
 }

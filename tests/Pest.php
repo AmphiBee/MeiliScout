@@ -56,6 +56,16 @@ if (! class_exists('WP_Post', false)) {
     }
 }
 
+// Declared once for the whole suite: a file declaring its own that ignores `$GLOBALS['filters']`
+// silently disarmed the filters every later file set.
+if (! function_exists('apply_filters')) {
+    function apply_filters($hook, $value, ...$args) { return $GLOBALS['filters'][$hook] ?? $value; }
+}
+
+uses()->beforeEach(function () {
+    $GLOBALS['filters'] = [];
+})->in('Unit');
+
 // Mock WordPress options storage for tests
 $GLOBALS['wp_options'] = [];
 

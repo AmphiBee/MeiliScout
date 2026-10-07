@@ -28,6 +28,11 @@ use function get_term;
 class SingleIndexingServiceProvider extends ServiceProvider
 {
     /**
+     * After WooCommerce, which rewrites the variations of a renamed attribute term at priority 10.
+     */
+    public const EDITED_TERM_PRIORITY = 100;
+
+    /**
      * Post single indexer instance.
      *
      * @var PostSingleIndexer|null
@@ -98,6 +103,9 @@ class SingleIndexingServiceProvider extends ServiceProvider
         add_action('updated_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
         add_action('added_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
         add_action('deleted_post_meta', [$this, 'handlePostMetaUpdate'], 10, 4);
+
+        // Hook for a post another plugin says changed, such as the parent of a product variation
+        add_action('meiliscout/reindex_post', [$this, 'handlePostReindex'], 10, 1);
     }
 
     /**
@@ -112,7 +120,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
     {
         // Hook for term creation and updates
         add_action('created_term', [$this, 'handleTermSave'], 10, 3);
-        add_action('edited_term', [$this, 'handleTermSave'], 10, 3);
+        add_action('edited_term', [$this, 'handleTermSave'], self::EDITED_TERM_PRIORITY, 3);
 
         // Hook for term deletions
         add_action('delete_term', [$this, 'handleTermDelete'], 10, 4);
@@ -232,6 +240,20 @@ class SingleIndexingServiceProvider extends ServiceProvider
      */
     public function handlePostMetaUpdate(int|array $metaId, int $postId, string $metaKey, mixed $metaValue): void
     {
+        $this->handlePostReindex($postId);
+    }
+
+    /**
+     * Re-indexes a post through the same path as a save: skipped, queued or indexed alike.
+     *
+     * Fired with `do_action('meiliscout/reindex_post', $postId)` by code that knows a post's
+     * document changed while the post itself was not saved.
+     *
+     * @param int $postId The ID of the post to re-index
+     * @return void
+     */
+    public function handlePostReindex(int $postId): void
+    {
         if ($this->shouldSkipIndexing()) {
             return;
         }
@@ -247,11 +269,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
                 $this->asyncQueue->enqueue('post', 'index', $postId);
                 return;
             }
-            // Re-index the post to pick up the new meta data
             $this->postIndexer->indexPost($post);
         } catch (\Exception $e) {
-            // Log error but don't break the meta update process
-            error_log("MeiliScout: Failed to re-index post {$postId} after meta update: " . $e->getMessage());
+            // Log error but don't break the operation that changed the post
+            error_log("MeiliScout: Failed to re-index post {$postId}: " . $e->getMessage());
         }
     }
 
@@ -368,7 +389,11 @@ class SingleIndexingServiceProvider extends ServiceProvider
      * Determines if a post operation should be skipped.
      *
      * This method checks for various conditions where indexing should be skipped,
-     * such as autosaves, revisions, auto-drafts, etc.
+     * such as autosaves, revisions and auto-drafts.
+     *
+     * An AJAX request is not one of them. Quick edit, bulk edit and every
+     * Action Scheduler job run through admin-ajax.php, so skipping them leaves
+     * the index holding the values the database no longer has.
      *
      * @param int $postId The post ID
      * @param \WP_Post $post The post object
@@ -388,11 +413,6 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         // Skip auto-drafts
         if ($post->post_status === 'auto-draft') {
-            return true;
-        }
-
-        // Skip during AJAX requests (to avoid indexing during quick saves)
-        if (defined('DOING_AJAX') && DOING_AJAX) {
             return true;
         }
 

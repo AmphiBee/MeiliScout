@@ -33,7 +33,7 @@ class PostSingleIndexer extends AbstractSingleIndexer
      */
     protected function createIndexable(): Indexable
     {
-        return new PostIndexable();
+        return $this->resolveIndexable(new PostIndexable());
     }
 
     /**
@@ -300,29 +300,32 @@ class PostSingleIndexer extends AbstractSingleIndexer
 
             // Get the indexable
             /** @var \Pollora\MeiliScout\Indexables\PostIndexable $indexable */
-            $indexable = $this->indexable;
+            $indexable = $this->indexable();
             $indexable->preloadBatchData($postsToIndex);
 
-            // Format all documents
+            // Format all documents, each followed by the documents it brings along
             $documents = [];
+            $formattedIds = [];
             foreach ($postsToIndex as $post) {
                 try {
-                    $documents[] = $indexable->formatForIndexing($post);
+                    $document = $indexable->formatForIndexing($post);
+                    $documents = [...$documents, ...$this->withDependentDocuments($document, $post)];
+                    $formattedIds[] = $post->ID;
                 } catch (Exception $e) {
                     $statistics['errors']++;
                     $this->logOperation('error', "Failed to format post {$post->ID}: " . $e->getMessage());
                 }
             }
 
-            // Send all documents in a single API call
+            // Send the documents in bounded requests, then drop the dependent documents no longer brought along
             if (! empty($documents)) {
                 $index = $this->client->index($indexable->getIndexName());
-                $index->addDocuments($documents);
-                $statistics['indexed'] = count($documents);
+                $this->writeWithDependentDocuments($index, $documents, $formattedIds);
+                $statistics['indexed'] = count($formattedIds);
             }
 
             // Aggressive memory cleanup after batch
-            unset($documents, $postsToIndex);
+            unset($documents, $formattedIds, $postsToIndex);
             gc_collect_cycles();
 
         } catch (Exception $e) {

@@ -35,7 +35,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
      */
     protected function createIndexable(): Indexable
     {
-        return new TaxonomyIndexable();
+        return $this->resolveIndexable(new TaxonomyIndexable());
     }
 
     /**
@@ -235,7 +235,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
 
             // Get the indexable
             /** @var \Pollora\MeiliScout\Indexables\TaxonomyIndexable $indexable */
-            $indexable = $this->indexable;
+            $indexable = $this->indexable();
 
             // Format all documents
             $documents = [];

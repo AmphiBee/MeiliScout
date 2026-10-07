@@ -6,8 +6,11 @@ namespace Pollora\MeiliScout\Services;
 
 use Exception;
 use Meilisearch\Client;
+use Meilisearch\Endpoints\Indexes;
+use Pollora\MeiliScout\Contracts\HasDependentDocuments;
 use Pollora\MeiliScout\Contracts\Indexable;
 
+use function apply_filters;
 use function current_time;
 use function error_log;
 use function update_option;
@@ -36,7 +39,7 @@ abstract class AbstractSingleIndexer
      *
      * @var Indexable
      */
-    protected Indexable $indexable;
+    protected ?Indexable $indexable = null;
 
     /**
      * Log of single indexing operations.
@@ -60,6 +63,11 @@ abstract class AbstractSingleIndexer
     protected static array $indexExistsCache = [];
 
     /**
+     * Bytes of documents sent in one request, well under Meilisearch's default payload limit.
+     */
+    protected const MAX_PAYLOAD_BYTES = 10 * 1024 * 1024;
+
+    /**
      * Counter for log operations to batch saves.
      *
      * @var int
@@ -81,9 +89,21 @@ abstract class AbstractSingleIndexer
     public function __construct()
     {
         $this->client = ClientFactory::getClient();
-        $this->indexable = $this->createIndexable();
         $this->logOptionKey = $this->getLogOptionKey();
         $this->initializeOperationLog();
+    }
+
+    /**
+     * The indexable, resolved on first use rather than in the constructor.
+     *
+     * `resolveIndexable()` applies the `meiliscout/indexables` filter, and this
+     * class is built while plugins are still loading — before a consumer that
+     * boots after MeiliScout has had a chance to register on it. Resolving on
+     * first use is what makes the filter reach every indexing path.
+     */
+    protected function indexable(): Indexable
+    {
+        return $this->indexable ??= $this->createIndexable();
     }
 
     /**
@@ -165,11 +185,12 @@ abstract class AbstractSingleIndexer
             $this->ensureIndexExists();
 
             // Format the item for indexing
-            $document = $this->indexable->formatForIndexing($item);
+            $document = $this->indexable()->formatForIndexing($item);
 
-            // Index the document
-            $index = $this->client->index($this->indexable->getIndexName());
-            $index->addDocuments([$document]);
+            // Index the document and the documents it brings along, then drop the ones it no longer brings
+            $index = $this->client->index($this->indexable()->getIndexName());
+            $documents = $this->withDependentDocuments($document, $item);
+            $this->writeWithDependentDocuments($index, $documents, [$this->getItemId($item)]);
 
             $itemName = $this->getItemName($item);
             $itemId = $this->getItemId($item);
@@ -195,8 +216,9 @@ abstract class AbstractSingleIndexer
     public function removeItem(int|string $itemId): bool
     {
         try {
-            $index = $this->client->index($this->indexable->getIndexName());
+            $index = $this->client->index($this->indexable()->getIndexName());
             $index->deleteDocument($itemId);
+            $this->removeDependentDocuments($index, [$itemId]);
 
             $this->logOperation('success', "Item (ID: {$itemId}) removed from index");
             return true;
@@ -205,6 +227,168 @@ abstract class AbstractSingleIndexer
             $this->logOperation('error', "Failed to remove item {$itemId}: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * An item's document followed by the documents it brings along, when the indexable has any.
+     *
+     * @param array<string, mixed> $document
+     * @return list<array<string, mixed>>
+     */
+    protected function withDependentDocuments(array $document, mixed $item): array
+    {
+        $indexable = $this->indexable();
+
+        if (! $indexable instanceof HasDependentDocuments) {
+            return [$document];
+        }
+
+        return [$document, ...$indexable->dependentDocuments($document, $item)];
+    }
+
+    /**
+     * Writes the items' documents in requests of a bounded size, then deletes the documents the items
+     * brought along before and no longer do. Writing first means a failed request never leaves an item
+     * without the documents it brings along: the previous ones stay until a write succeeds.
+     *
+     * @param list<array<string, mixed>> $documents
+     * @param list<int|string> $itemIds
+     */
+    protected function writeWithDependentDocuments(Indexes $index, array $documents, array $itemIds): void
+    {
+        foreach ($this->inBoundedRequests($documents) as $request) {
+            $index->addDocuments($request);
+        }
+
+        $this->removeStaleDependentDocuments($index, $itemIds, $this->dependentDocumentIdsIn($documents, $itemIds));
+    }
+
+    /**
+     * Meilisearch refuses a request over its payload limit (100 MB by default), indexing included.
+     *
+     * @param list<array<string, mixed>> $documents
+     * @return list<list<array<string, mixed>>>
+     */
+    protected function inBoundedRequests(array $documents): array
+    {
+        $limit = (int) apply_filters('meiliscout/max_payload_bytes', self::MAX_PAYLOAD_BYTES);
+        $requests = [];
+        $request = [];
+        $size = 0;
+
+        foreach ($documents as $document) {
+            $documentSize = strlen((string) json_encode($document));
+
+            if ($request !== [] && $size + $documentSize > $limit) {
+                $requests[] = $request;
+                $request = [];
+                $size = 0;
+            }
+
+            $request[] = $document;
+            $size += $documentSize;
+        }
+
+        return $request === [] ? $requests : [...$requests, $request];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $documents
+     * @param list<int|string> $itemIds
+     * @return list<int|string>
+     */
+    protected function dependentDocumentIdsIn(array $documents, array $itemIds): array
+    {
+        $primaryKey = $this->indexable()->getPrimaryKey();
+        $ids = array_column($documents, $primaryKey);
+
+        return array_values(array_filter($ids, static fn (int|string $id): bool => ! in_array($id, $itemIds, true)));
+    }
+
+    /**
+     * The primary key has to be filterable for the documents just written to be kept.
+     *
+     * @param list<int|string> $itemIds
+     * @param list<int|string> $keptIds
+     */
+    protected function removeStaleDependentDocuments(Indexes $index, array $itemIds, array $keptIds): void
+    {
+        $dependentDocumentsFilter = $this->dependentDocumentsFilterOf($itemIds);
+
+        if ($dependentDocumentsFilter === null) {
+            return;
+        }
+
+        $staleFilter = $this->staleDependentDocumentsFilter($dependentDocumentsFilter, $keptIds);
+        $index->deleteDocuments(['filter' => $staleFilter]);
+    }
+
+    /**
+     * A filter matching the items' dependent documents, except those just written.
+     *
+     * @param list<int|string> $keptIds
+     */
+    protected function staleDependentDocumentsFilter(string $dependentDocumentsFilter, array $keptIds): string
+    {
+        if ($keptIds === []) {
+            return $dependentDocumentsFilter;
+        }
+
+        $keptFilter = $this->indexable()->getPrimaryKey() . ' IN [' . $this->listed($keptIds) . ']';
+
+        return '(' . $dependentDocumentsFilter . ') AND NOT ' . $keptFilter;
+    }
+
+    /**
+     * A number is written bare, a string quoted with its quotes and backslashes escaped.
+     *
+     * @param list<int|string> $values
+     */
+    protected function listed(array $values): string
+    {
+        return implode(', ', array_map(
+            static fn (int|string $value): string => is_int($value) ? (string) $value : '"' . addcslashes($value, '"\\') . '"',
+            $values
+        ));
+    }
+
+    /**
+     * Deletes every document the given items brought along.
+     *
+     * @param list<int|string> $itemIds
+     */
+    protected function removeDependentDocuments(Indexes $index, array $itemIds): void
+    {
+        $this->removeStaleDependentDocuments($index, $itemIds, []);
+    }
+
+    /**
+     * The filter matching what the given items brought along, or null when none of them can bring anything.
+     *
+     * @param list<int|string> $itemIds
+     */
+    protected function dependentDocumentsFilterOf(array $itemIds): ?string
+    {
+        $indexable = $this->indexable();
+
+        if (! $indexable instanceof HasDependentDocuments || $itemIds === []) {
+            return null;
+        }
+
+        return $indexable->dependentDocumentsFilter($itemIds);
+    }
+
+    // Only Indexer reads this filter: without it, real-time indexing overwrites
+    // the substituted indexable's settings on every save.
+    protected function resolveIndexable(Indexable $default): Indexable
+    {
+        foreach (apply_filters('meiliscout/indexables', [$default]) as $indexable) {
+            if ($indexable instanceof $default) {
+                return $indexable;
+            }
+        }
+
+        return $default;
     }
 
     /**
@@ -219,9 +403,9 @@ abstract class AbstractSingleIndexer
     protected function ensureIndexExists(): void
     {
         try {
-            $indexName = $this->indexable->getIndexName();
-            $primaryKey = $this->indexable->getPrimaryKey();
-            $settings = $this->indexable->getIndexSettings();
+            $indexName = $this->indexable()->getIndexName();
+            $primaryKey = $this->indexable()->getPrimaryKey();
+            $settings = $this->indexable()->getIndexSettings();
 
             // Check if index exists
             if (! $this->indexExists($indexName)) {
@@ -236,7 +420,7 @@ abstract class AbstractSingleIndexer
             $index->updateSettings($settings);
 
         } catch (Exception $e) {
-            $indexName = $this->indexable->getIndexName();
+            $indexName = $this->indexable()->getIndexName();
             $this->logOperation('error', "Failed to ensure index '{$indexName}' exists: " . $e->getMessage());
             throw $e;
         }
