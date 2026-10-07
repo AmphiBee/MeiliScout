@@ -154,7 +154,13 @@ The plugin provides several filters for customization:
 - `meiliscout/post/displayed_attributes`: Restrict fields Meilisearch may return (default: `['*']`)
 - `meiliscout/reindex_on_meta_change`: Whether a changed meta key re-indexes the post (default: selected meta keys only)
 - `meiliscout/http_client_options`: Options of the Symfony HttpClient used for Meilisearch (default: `['timeout' => 10]`)
+- `meiliscout/index_prefix`: Prefix of the index names (default: `MEILI_INDEX_PREFIX`, else the site's domain)
 
 ## Environment Variables
 
 - `MEILISCOUT_ASYNC_INDEXING`: Enable async indexing mode (`true`/`false`)
+- `MEILI_INDEX_PREFIX`: Prefix of the index names
+
+## Index Names and Migrations
+
+`Services/IndexNames` names the indexes and records the *active* ones searches read, with the document format (`SCHEMA_VERSION`) they were built in. Writes go to the *target* names, and are mirrored to the active index while a migration is pending. A full indexation builds the targets and activates them. Bump `SCHEMA_VERSION` whenever the documents change in a way searches depend on, and keep a read path for the previous version (see `TaxQueryBuilder::buildLegacyFilter()`).

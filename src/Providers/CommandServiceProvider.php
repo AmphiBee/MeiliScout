@@ -21,6 +21,8 @@ class CommandServiceProvider extends ServiceProvider
             $indexCommand = new IndexCommand;
             \WP_CLI::add_command('meiliscout index', $indexCommand);
             \WP_CLI::add_command('meiliscout index-chunk', [$indexCommand, 'index_chunk']);
+            \WP_CLI::add_command('meiliscout status', [$indexCommand, 'status']);
+            \WP_CLI::add_command('meiliscout delete-legacy-indexes', [$indexCommand, 'delete_legacy_indexes']);
         }
     }
 }

@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Query;
 
 use Meilisearch\Client;
 use Pollora\MeiliScout\Services\ClientFactory;
+use Pollora\MeiliScout\Services\IndexNames;
 use WP_Query;
 
 /**
@@ -69,17 +70,16 @@ class QueryIntegration
             return $posts;
         }
 
-        // Add parameters for facets
-        $searchParams['facets'] = [
-            'terms.term_id',
-            'terms.term_taxonomy_id',
-            'terms.taxonomy',
-            'terms.name',
-            'terms.slug',
-        ];
+        // Facets cost on every search: computed only for the queries that ask for them,
+        // e.g. 'meilisearch_facets' => ['taxonomies.category.slug']
+        $facets = $query->get('meilisearch_facets');
+        if (is_array($facets) && $facets !== []) {
+            $searchParams['facets'] = array_values($facets);
+        }
 
         try {
-            $results = $this->client->index('posts')->search('', $searchParams);
+            // The index searches read: the previous one until a full indexation migrates them
+            $results = $this->client->index(IndexNames::active('posts'))->search('', $searchParams);
         } catch (\Throwable $e) {
             // Let WordPress run the query on MySQL rather than break the page
             error_log('MeiliScout: search failed, falling back to MySQL: '.$e->getMessage());

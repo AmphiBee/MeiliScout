@@ -102,17 +102,69 @@ add_filter('meiliscout/http_client_options', fn (array $options) => [
 ]);
 ```
 
+### meiliscout/index_prefix
+Prefix of the index names (`{prefix}_posts`, `{prefix}_taxonomies`). Defaults to
+`MEILI_INDEX_PREFIX`, or to the site's domain (plus the blog id on multisite), so
+that sites sharing a Meilisearch instance, a staging copy included, never write
+to the same indexes. Return `''` for no prefix.
+
+```php
+add_filter('meiliscout/index_prefix', fn () => 'shop');
+```
+
+Changing the prefix calls for a full indexation: until then, searches keep
+reading the previous indexes (see "Upgrading to 2.0").
+
+## Query Variables
+
+| Variable | Description |
+|----------|-------------|
+| `use_meilisearch` | Run this `WP_Query` on Meilisearch |
+| `meilisearch_facets` | Facets to compute, e.g. `['taxonomies.category.slug']`; the distribution lands in `$query->facet_distribution`. None by default: facets cost on every search |
+
+## Upgrading to 2.0
+
+2.0 changes the documents and the index names:
+
+- Terms are grouped by taxonomy, in `taxonomies.<taxonomy>`, and taxonomy
+  filters use them. The flat `terms` list matched a term's taxonomy and slug
+  independently: a tag named `news` satisfied a `category = news` filter. It
+  stays in the documents, but is no longer filterable.
+- A `tax_query` on a hierarchical taxonomy includes the child terms, as in
+  WordPress (`'include_children' => false` to opt out).
+- Indexes are prefixed: `posts` becomes `{prefix}_posts`.
+
+Nothing breaks on update. Searches keep reading the previous indexes, in the
+previous format, and saved content is written to both, until a full
+indexation (admin, or `wp meiliscout index`) builds the new indexes and moves
+searches to them. An admin notice says so until then, then offers to delete
+the previous indexes. If your search API key is restricted to some indexes,
+give it access to the new names first.
+
+Facets are no longer computed on every query: ask for them with
+`meilisearch_facets`.
+
 ## Environment Variables
 
 | Variable | Description |
 |----------|-------------|
 | `MEILISCOUT_ASYNC_INDEXING` | Enable async mode (`true`/`false`) |
+| `MEILI_INDEX_PREFIX` | Prefix of the index names (default: the site's domain) |
 
 ## WP-CLI Commands
 
 ```bash
-# Standard indexing
+# Standard indexing (also migrates the indexes when needed)
+wp meiliscout index
+
+# Rebuild the indexes from scratch, searches staying available meanwhile
 wp meiliscout index --clear
+
+# Indexes read and written, pending migration
+wp meiliscout status
+
+# Delete the indexes searches no longer read since a migration
+wp meiliscout delete-legacy-indexes
 
 # Chunked indexing for large sites
 wp meiliscout index --chunk-size=50000 --clear

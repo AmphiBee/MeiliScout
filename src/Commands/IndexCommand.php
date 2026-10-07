@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Commands;
 
+use Pollora\MeiliScout\Services\IndexNames;
 use Pollora\MeiliScout\Services\Indexer;
 use WP_CLI;
 
@@ -70,6 +71,7 @@ class IndexCommand
             $indexer->index($clearIndices);
 
             WP_CLI::success('Indexing completed successfully!');
+            $this->reportLegacyIndexes();
         } catch (\Exception $e) {
             WP_CLI::error('Error: '.$e->getMessage());
         }
@@ -150,8 +152,72 @@ class IndexCommand
         $totalMinutes = (int) floor($totalElapsed / 60);
         $totalSeconds = (int) round(fmod($totalElapsed, 60.0));
 
+        // Every chunk is in: searches can move to these indexes
+        $indexer->activate();
+
         WP_CLI::success("All chunks completed successfully!");
         WP_CLI::log("Total execution time: {$totalMinutes}m {$totalSeconds}s");
+        $this->reportLegacyIndexes();
+    }
+
+    /**
+     * Shows the indexes searches read and write, and whether a migration is pending.
+     *
+     * ## EXAMPLES
+     *
+     *     wp meiliscout status
+     */
+    public function status($args, $assoc_args): void
+    {
+        $rows = array_map(fn (string $base) => [
+            'index' => $base,
+            'searches read' => IndexNames::active($base),
+            'writes go to' => IndexNames::name($base),
+        ], IndexNames::BASES);
+
+        \WP_CLI\Utils\format_items('table', $rows, ['index', 'searches read', 'writes go to']);
+        WP_CLI::log(sprintf('Document format: %d (current: %d)', IndexNames::activeSchema(), IndexNames::SCHEMA_VERSION));
+
+        if (IndexNames::migrationPending()) {
+            WP_CLI::warning('Migration pending: run `wp meiliscout index` to build the new indexes and move searches to them.');
+        }
+
+        $this->reportLegacyIndexes();
+    }
+
+    /**
+     * Deletes the indexes searches no longer read since the last migration.
+     *
+     * ## EXAMPLES
+     *
+     *     wp meiliscout delete-legacy-indexes
+     */
+    public function delete_legacy_indexes($args, $assoc_args): void
+    {
+        try {
+            $deleted = (new Indexer)->deleteLegacyIndexes();
+
+            $deleted === []
+                ? WP_CLI::success('No legacy index to delete.')
+                : WP_CLI::success('Deleted: '.implode(', ', $deleted));
+        } catch (\Exception $e) {
+            WP_CLI::error('Error: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Points at the legacy indexes left after a migration.
+     */
+    private function reportLegacyIndexes(): void
+    {
+        $legacy = IndexNames::legacyIndexes();
+
+        if ($legacy !== []) {
+            WP_CLI::log(sprintf(
+                'Searches no longer read %s: delete them with `wp meiliscout delete-legacy-indexes`.',
+                implode(', ', $legacy)
+            ));
+        }
     }
 
     /**

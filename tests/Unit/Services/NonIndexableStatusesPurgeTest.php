@@ -43,7 +43,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
             ->with(['filter' => "post_status NOT IN ['publish']"]);
 
         $client = $this->createMock(Client::class);
-        $client->method('index')->with('posts')->willReturn($index);
+        $client->method('index')->with('example_test_posts')->willReturn($index);
 
         purge(indexerWith($client, $this->createMock(IndexingLogger::class)), new PostIndexable);
     });

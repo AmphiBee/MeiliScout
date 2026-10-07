@@ -31,6 +31,16 @@ final class IndexSettings
     public static function push(Indexes $index, string $indexName, array $settings): void
     {
         $index->updateSettings($settings);
+        self::remember($indexName, $settings);
+    }
+
+    /**
+     * Records settings an index already has, such as the ones a rebuilt index was swapped in with.
+     *
+     * @param  array<string, mixed>  $settings
+     */
+    public static function remember(string $indexName, array $settings): void
+    {
         update_option(self::OPTION_PREFIX.$indexName, self::fingerprint($settings), false);
     }
 

@@ -27,7 +27,7 @@ $indexationData = [
             <div class="flex items-center mb-4">
                 <input type="checkbox" name="clear_indices" id="clear_indices" class="mr-2">
                 <label for="clear_indices" class="text-gray-700">
-                    Vider les indices avant l'indexation
+                    Reconstruire les index (la recherche reste disponible pendant la reconstruction)
                 </label>
             </div>
 
