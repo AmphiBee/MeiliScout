@@ -125,11 +125,7 @@ test('nested meta queries are correctly formatted', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe(
-        'post_type = \'post\' AND post_status = \'publish\' AND '.
-        '(metas.price BETWEEN [10, 20] OR '.
-        '(metas.color IN [\'red\', \'blue\'] AND metas.size = \'M\'))'
-    );
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((metas.price >= 10 AND metas.price <= 20) OR (metas.color IN [\'red\', \'blue\'] AND metas.size = \'M\'))');
 });
 
 test('meta query with EXISTS operator is correctly formatted', function () {
@@ -196,7 +192,7 @@ test('meta query with date type is correctly formatted', function () {
     $builder = new MeiliQueryBuilder;
     $params = $builder->build($query);
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.event_date BETWEEN [\'2023-01-01\', \'2023-12-31\'])');
+    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((metas.event_date >= \'2023-01-01\' AND metas.event_date <= \'2023-12-31\'))');
 });
 
 test('meta query with REGEXP operator is correctly formatted', function () {
