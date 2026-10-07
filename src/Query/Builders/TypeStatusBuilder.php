@@ -24,8 +24,35 @@ class TypeStatusBuilder implements QueryBuilderInterface
     {
         $searchParams['filter'] = $searchParams['filter'] ?? [];
 
-        $this->addFilter($searchParams['filter'], 'post_type', $query->get('post_type') ?? 'post');
-        $this->addFilter($searchParams['filter'], 'post_status', $query->get('post_status') ?? 'publish');
+        $postType = $query->get('post_type');
+        if ($postType === null || $postType === '' || $postType === []) {
+            // As in WordPress: posts, unless a search or a taxonomy query widens it to every type
+            $postType = (! empty($query->get('s')) || ! empty($query->get('tax_query'))) ? 'any' : 'post';
+        }
+
+        // 'any' leaves the type open: only indexed post types are in the index
+        if (! $this->isAny($postType)) {
+            $this->addFilter($searchParams['filter'], 'post_type', $postType);
+        }
+
+        $postStatus = $query->get('post_status');
+        if ($postStatus === null || $postStatus === '' || $postStatus === []) {
+            $postStatus = 'publish';
+        }
+
+        if (! $this->isAny($postStatus)) {
+            $this->addFilter($searchParams['filter'], 'post_status', $postStatus);
+        }
+    }
+
+    /**
+     * Whether a post_type or post_status query var asks for any value.
+     *
+     * @param  array|string  $value  The query var
+     */
+    private function isAny(array|string $value): bool
+    {
+        return $value === 'any' || $value === ['any'];
     }
 
     /**

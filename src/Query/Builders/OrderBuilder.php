@@ -4,60 +4,92 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Query\Builders;
 
+use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\QueryInterface;
 
 /**
- * Builder for handling WP_Query ordering parameters in Meilisearch.
+ * Translates the WordPress orderby/order query vars into a Meilisearch sort.
+ *
+ * Only attributes declared sortable on the posts index can be sorted on
+ * (post_title, post_date and the indexed meta keys): any other field is left
+ * out, since Meilisearch rejects a sort on a non-sortable attribute.
  */
 class OrderBuilder implements QueryBuilderInterface
 {
     /**
-     * Builds the sort parameters for Meilisearch based on WP_Query orderby and order parameters.
+     * WordPress orderby values mapped to document attributes.
      *
-     * @param  QueryInterface  $query  The WordPress query
-     * @param  array  $searchParams  The Meilisearch search parameters
-     * @return void
+     * @var array<string, string>
+     */
+    private const FIELDS = [
+        'date' => 'post_date',
+        'post_date' => 'post_date',
+        'title' => 'post_title',
+        'post_title' => 'post_title',
+    ];
+
+    /**
+     * Builds the sort parameter.
+     *
+     * @param  QueryInterface  $query  The query to read orderby and order from
+     * @param  array  $searchParams  The search parameters to add the sort to
      */
     public function build(QueryInterface $query, array &$searchParams): void
     {
-        $orderby = $query->get('orderby', 'post_date');
-        $order = strtolower($query->get('order', 'desc'));
+        $orderby = $query->get('orderby');
 
-        // Handle special cases
-        if ($orderby === 'date') {
-            $orderby = 'post_date';
-        } elseif ($orderby === 'ID') {
-            $orderby = 'ID';
+        if (empty($orderby)) {
+            // As in WordPress: a search is ordered by relevance, anything else by date
+            if (! empty($query->get('s'))) {
+                return;
+            }
+
+            $orderby = 'date';
         }
 
-        // Handle meta_value and meta_value_num ordering
-        if (in_array($orderby, ['meta_value', 'meta_value_num'])) {
+        $fields = is_array($orderby)
+            ? $orderby
+            : array_fill_keys(preg_split('/[\s,]+/', trim((string) $orderby)) ?: [], $query->get('order'));
+
+        $sort = [];
+
+        foreach ($fields as $field => $direction) {
+            $attribute = $this->sortableAttribute((string) $field, $query);
+
+            if ($attribute !== null) {
+                $sort[] = $attribute.':'.(strtoupper((string) $direction) === 'ASC' ? 'asc' : 'desc');
+            }
+        }
+
+        if (! empty($sort)) {
+            $searchParams['sort'] = $sort;
+        }
+    }
+
+    /**
+     * The sortable attribute an orderby field stands for, or null when it has none.
+     *
+     * @param  string  $field  An orderby value: a field, meta_value(_num), or a named meta_query clause
+     * @param  QueryInterface  $query  The query, to resolve meta keys
+     */
+    private function sortableAttribute(string $field, QueryInterface $query): ?string
+    {
+        if (isset(self::FIELDS[$field])) {
+            return self::FIELDS[$field];
+        }
+
+        if (in_array($field, ['meta_value', 'meta_value_num'], true)) {
             $metaKey = $query->get('meta_key');
-            if ($metaKey) {
-                $searchParams['sort'] = ["metas.$metaKey:$order"];
-            }
-
-            return;
+        } else {
+            // A named meta_query clause: 'orderby' => 'price_clause'
+            $metaQuery = $query->get('meta_query');
+            $metaKey = is_array($metaQuery) ? ($metaQuery[$field]['key'] ?? null) : null;
         }
 
-        // Handle multiple orderby parameters
-        if (is_array($orderby)) {
-            $sorts = [];
-            foreach ($orderby as $field => $direction) {
-                if ($field === 'date') {
-                    $field = 'post_date';
-                }
-                $direction = strtolower($direction);
-                $sorts[] = "$field:$direction";
-            }
-            if (! empty($sorts)) {
-                $searchParams['sort'] = $sorts;
-            }
-
-            return;
+        if (! is_string($metaKey) || $metaKey === '') {
+            return null;
         }
 
-        // Single field ordering
-        $searchParams['sort'] = ["$orderby:$order"];
+        return in_array($metaKey, Settings::get('indexed_meta_keys', []), true) ? "metas.{$metaKey}" : null;
     }
 }

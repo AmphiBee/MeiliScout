@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query;
 
 use Meilisearch\Client;
-use Pollora\MeiliScout\Config\Settings;
-use Pollora\MeiliScout\Domain\Search\Enums\TaxonomyFields;
 use Pollora\MeiliScout\Services\ClientFactory;
 use WP_Query;
 
@@ -80,34 +78,31 @@ class QueryIntegration
             'terms.slug',
         ];
 
-        $results = $this->client->index('posts')->search('', $searchParams);
+        try {
+            $results = $this->client->index('posts')->search('', $searchParams);
+        } catch (\Throwable $e) {
+            // Let WordPress run the query on MySQL rather than break the page
+            error_log('MeiliScout: search failed, falling back to MySQL: '.$e->getMessage());
 
-        $query->found_posts = $query->post_count = $results->getHitsCount();
-        $query->max_num_pages = ceil($results->getHitsCount() / $results->getLimit());
-        $query->posts = $this->convertToWpPosts($results->getHits());
-
-        // Retrieve and format facet distribution
-        $facetDistribution = $results->getFacetDistribution() ?? [];
-        $formattedFacets = [];
-
-        // Iterate through facets and reformat them to match expected structure
-        foreach ($facetDistribution as $facetKey => $values) {
-            // Extract taxonomy and field from key (e.g.: "taxonomies.category.term_id")
-            $parts = explode('.', $facetKey);
-            if (count($parts) === 3 && $parts[0] === 'taxonomies') {
-                $taxonomy = $parts[1];
-                $field = $parts[2];
-
-                if (! isset($formattedFacets[$taxonomy])) {
-                    $formattedFacets[$taxonomy] = [];
-                }
-
-                $formattedFacets[$taxonomy][$field] = $values;
-            }
+            return $posts;
         }
 
-        $query->facet_distribution = $formattedFacets;
+        $hits = $results->getHits();
+        $limit = $results->getLimit();
+
+        // getHitsCount() is the size of this page: the total is (estimated)TotalHits
+        $query->found_posts = $results->getTotalHits() ?? $results->getEstimatedTotalHits() ?? $results->getHitsCount();
+        $query->max_num_pages = $limit > 0 ? (int) ceil($query->found_posts / $limit) : 1;
+        $query->facet_distribution = $results->getFacetDistribution();
         $query->facet_raw = $results->getRaw();
+
+        if ($query->get('fields') === 'ids') {
+            $query->posts = array_map(fn (array $hit) => (int) $hit['ID'], $hits);
+        } else {
+            $query->posts = $this->convertToWpPosts($hits);
+        }
+
+        $query->post_count = count($query->posts);
 
         return $query->posts;
     }

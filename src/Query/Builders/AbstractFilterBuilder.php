@@ -70,8 +70,9 @@ abstract class AbstractFilterBuilder implements QueryBuilderInterface
                 return '';
             }
 
-            if (isset($query['relation'])) {
-                return '('.$this->buildFilters($query, strtoupper($query['relation'])).')';
+            // A nested group: with a relation, or a plain list of clauses (AND, as in WordPress)
+            if (isset($query['relation']) || array_is_list($query)) {
+                return '('.$this->buildFilters($query, strtoupper($query['relation'] ?? 'AND')).')';
             }
 
             return $this->buildSingleFilter($query);

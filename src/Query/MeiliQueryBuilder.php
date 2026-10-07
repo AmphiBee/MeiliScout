@@ -10,6 +10,7 @@ use Pollora\MeiliScout\Domain\Search\Enums\ComparisonOperator;
 use Pollora\MeiliScout\Domain\Search\Enums\MetaType;
 use Pollora\MeiliScout\Query\Builders\DateQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\MetaQueryBuilder;
+use Pollora\MeiliScout\Query\Builders\OrderBuilder;
 use Pollora\MeiliScout\Query\Builders\PaginationBuilder;
 use Pollora\MeiliScout\Query\Builders\SearchQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\TaxQueryBuilder;
@@ -28,13 +29,6 @@ class MeiliQueryBuilder
      * @var array
      */
     private array $builders;
-
-    /**
-     * Search parameters for MeiliSearch.
-     *
-     * @var array
-     */
-    private array $searchParams = [];
 
     /**
      * Meta query builder instance.
@@ -57,6 +51,7 @@ class MeiliQueryBuilder
             new TaxQueryBuilder,
             $this->metaQueryBuilder = new MetaQueryBuilder,
             new DateQueryBuilder,
+            new OrderBuilder,
         ];
     }
 
@@ -68,29 +63,37 @@ class MeiliQueryBuilder
      */
     public function build(QueryInterface $query): array
     {
-        $this->searchParams = [];
-
         if ($query->get('meta_key') !== null && $query->get('meta_key') !== '') {
-            $query->set('meta_query', [
-                [
-                    'key' => $query->get('meta_key'),
-                    'value' => $query->get('meta_value') ?? $query->get('meta_value_num') ?? null,
-                    'compare' => $query->get('meta_compare') ?? ComparisonOperator::getDefault()->value,
-                    'type' => $query->get('meta_type') ?? MetaType::getDefault()->value,
-                ],
-            ]);
+            $clause = [
+                'key' => $query->get('meta_key'),
+                'value' => $query->get('meta_value') ?? $query->get('meta_value_num') ?? null,
+                'compare' => $query->get('meta_compare') ?? ComparisonOperator::getDefault()->value,
+                'type' => $query->get('meta_type') ?? MetaType::getDefault()->value,
+            ];
+            $metaQuery = $query->get('meta_query');
+
+            // meta_key narrows the meta_query, as in WordPress: it must not replace it
+            $query->set('meta_query', empty($metaQuery) || ! is_array($metaQuery)
+                ? [$clause]
+                : ['relation' => 'AND', $metaQuery, $clause]);
         }
+
+        /** @var array<string, mixed> $params */
+        $params = [];
 
         foreach ($this->builders as $builder) {
-            $builder->build($query, $this->searchParams);
+            $builder->build($query, $params);
         }
 
-        // Combine filters at the end
-        if (isset($this->searchParams['filter']) && is_array($this->searchParams['filter'])) {
-            $this->searchParams['filter'] = implode(' AND ', $this->searchParams['filter']);
+        // Combine filters at the end; send none rather than an empty one
+        $filters = $params['filter'] ?? [];
+        unset($params['filter']);
+
+        if (! empty($filters)) {
+            $params['filter'] = implode(' AND ', $filters);
         }
 
-        return $this->searchParams;
+        return $params;
     }
 
     /**
