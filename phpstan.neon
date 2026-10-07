@@ -4,6 +4,8 @@ includes:
 
 parameters:
     level: 5
+    # The plugin's minimum PHP version
+    phpVersion: 80200
     paths:
         - src
     excludePaths:

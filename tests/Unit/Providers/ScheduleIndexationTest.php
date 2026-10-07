@@ -33,7 +33,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
     });
 
     test('a full indexation is scheduled in place, without emptying the indexes', function () {
-        new IndexationServiceProvider()->scheduleIndexation();
+        (new IndexationServiceProvider())->scheduleIndexation();
 
         expect($GLOBALS['cron'])->toHaveCount(1);
         expect($GLOBALS['cron'][0]['hook'])->toBe('meiliscout_process_indexation');
@@ -41,8 +41,8 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
     });
 
     test('a full indexation already waiting is not scheduled again', function () {
-        new IndexationServiceProvider()->scheduleIndexation();
-        new IndexationServiceProvider()->scheduleIndexation();
+        (new IndexationServiceProvider())->scheduleIndexation();
+        (new IndexationServiceProvider())->scheduleIndexation();
 
         expect($GLOBALS['cron'])->toHaveCount(1);
     });
@@ -50,7 +50,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
     test('nothing is scheduled while indexing is skipped', function () {
         $GLOBALS['filters']['meiliscout/skip_indexing'] = true;
 
-        new IndexationServiceProvider()->scheduleIndexation();
+        (new IndexationServiceProvider())->scheduleIndexation();
 
         expect($GLOBALS['cron'])->toBe([]);
     });

@@ -149,7 +149,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
     test('an item writes its documents, then drops the dependent documents it no longer brings', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(new LotionsWithVariants, $client)->indexItem(['id' => 7]);
+        (new ArrayIndexer(new LotionsWithVariants, $client))->indexItem(['id' => 7]);
 
         expect($client->recorded->calls)->toBe([
             ['add', [['ID' => 7, 'title' => 'Lotion'], ['ID' => '7-0', 'product' => 7]]],
@@ -176,7 +176,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
         $GLOBALS['filters']['meiliscout/max_payload_bytes'] = 30;
         $client = new RecordingClient;
 
-        new ArrayIndexer(new LotionsWithVariants, $client)->indexItem(['id' => 7]);
+        (new ArrayIndexer(new LotionsWithVariants, $client))->indexItem(['id' => 7]);
 
         expect(array_column($client->recorded->calls, 0))->toBe(['add', 'add', 'deleteWhere']);
     });
@@ -184,7 +184,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
     test('an item of an indexable without dependent documents writes its document alone', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(new Lotions, $client)->indexItem(['id' => 7]);
+        (new ArrayIndexer(new Lotions, $client))->indexItem(['id' => 7]);
 
         expect($client->recorded->calls)->toBe([['add', [['ID' => 7, 'title' => 'Lotion']]]]);
     });
@@ -192,7 +192,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
     test('a removed item takes the documents it brought along with it', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(new LotionsWithVariants, $client)->removeItem(7);
+        (new ArrayIndexer(new LotionsWithVariants, $client))->removeItem(7);
 
         expect($client->recorded->calls)->toBe([['delete', 7], ['deleteWhere', 'product IN [7]']]);
     });
@@ -200,7 +200,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
     test('a removed item of an indexable without dependent documents deletes its document alone', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(new Lotions, $client)->removeItem(7);
+        (new ArrayIndexer(new Lotions, $client))->removeItem(7);
 
         expect($client->recorded->calls)->toBe([['delete', 7]]);
     });
@@ -208,8 +208,8 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
     test('items that can bring no dependent document send no deletion, written or removed', function () {
         $client = new RecordingClient;
 
-        new ArrayIndexer(new LotionsWithoutVariants, $client)->indexItem(['id' => 42]);
-        new ArrayIndexer(new LotionsWithoutVariants, $client)->removeItem(42);
+        (new ArrayIndexer(new LotionsWithoutVariants, $client))->indexItem(['id' => 42]);
+        (new ArrayIndexer(new LotionsWithoutVariants, $client))->removeItem(42);
 
         expect(array_column($client->recorded->calls, 0))->toBe(['add', 'delete']);
     });
