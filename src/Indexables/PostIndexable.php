@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Indexables;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
+use Pollora\MeiliScout\Services\IndexNames;
 use WP_Post;
 use WP_Term;
 
@@ -53,7 +54,7 @@ class PostIndexable implements Indexable
 
     public function getIndexName(): string
     {
-        return 'posts';
+        return IndexNames::target('posts');
     }
 
     public function getPrimaryKey(): string
@@ -75,20 +76,16 @@ class PostIndexable implements Indexable
             $filterableAttributes[] = "metas.{$metaKey}";
         }
 
-        // Filterable fields from terms (facets)
-        $filterableAttributes[] = 'terms.term_id';
-        $filterableAttributes[] = 'terms.slug';
-        $filterableAttributes[] = 'terms.name';
-        $filterableAttributes[] = 'terms.taxonomy';
-        $filterableAttributes[] = 'terms.term_taxonomy_id';
+        // Terms, one field per taxonomy: taxonomies.category.slug, taxonomies.post_tag.term_id...
+        $filterableAttributes[] = 'taxonomies';
 
         return [
-            'filterableAttributes' => array_unique($filterableAttributes),
-            'sortableAttributes' => array_unique([
+            'filterableAttributes' => array_values(array_unique($filterableAttributes)),
+            'sortableAttributes' => array_values(array_unique([
                 'post_title',
                 'post_date',
                 ...array_map(fn($key) => "metas.{$key}", $filterableMetaKeys),
-            ]),
+            ])),
             'displayedAttributes' => apply_filters(
                 'meiliscout/post/displayed_attributes',
                 ['*'],
@@ -360,9 +357,34 @@ class PostIndexable implements Indexable
 
         $document['url'] = get_permalink($item);
         $document['terms'] = $this->getFlattenedTerms($item);
+        $document['taxonomies'] = $this->groupedByTaxonomy($document['terms']);
         $document['metas'] = $this->getMetaData($item);
 
         return apply_filters('meiliscout/post/document', $document, $item);
+    }
+
+    /**
+     * The terms, one list per taxonomy.
+     *
+     * Meilisearch flattens a list of objects into one list per field: filtering
+     * the flat `terms` on taxonomy and slug matched them independently, so a tag
+     * named like a category satisfied a category filter. Grouped by taxonomy,
+     * `taxonomies.category.slug` only holds category slugs.
+     *
+     * @param  array<array<string, mixed>>  $terms
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private function groupedByTaxonomy(array $terms): array
+    {
+        $grouped = [];
+
+        foreach ($terms as $term) {
+            $taxonomy = (string) $term['taxonomy'];
+            unset($term['taxonomy']);
+            $grouped[$taxonomy][] = $term;
+        }
+
+        return $grouped;
     }
 
     /**

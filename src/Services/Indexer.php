@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Services;
 
 use Meilisearch\Client;
+use Meilisearch\Exceptions\ApiException;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Indexables\PostIndexable;
@@ -14,6 +15,7 @@ use Pollora\MeiliScout\Services\TaxonomySingleIndexer;
 
 use function apply_filters;
 use function current_time;
+use function get_posts;
 use function update_option;
 
 /**
@@ -94,15 +96,18 @@ class Indexer
         try {
             // Save the current indexing structure
             $this->saveIndexingStructure();
+            $startedAt = current_time('mysql', true);
 
             foreach ($this->indexables as $indexable) {
-                $indexName = $indexable->getIndexName();
-                $this->log('info', sprintf('Starting indexation for %s', $indexName));
+                $finalName = $indexable->getIndexName();
+                // Rebuilt under a temporary name, then swapped in: searches never see an empty index
+                $rebuildName = $clearIndices ? $this->startRebuild($indexable, $finalName) : null;
+                $indexName = $rebuildName ?? $finalName;
+                $this->log('info', sprintf('Starting indexation for %s', $finalName));
 
-                // Index configuration
-                if ($clearIndices) {
+                // An indexable naming its own index cannot be rebuilt aside: empty it first
+                if ($clearIndices && $rebuildName === null) {
                     $this->client->deleteIndex($indexName);
-                    // Clear cache since we deleted the index
                     unset($this->indexExistsCache[$indexName]);
                 }
 
@@ -155,8 +160,14 @@ class Indexer
                     ));
                 }
 
-                $this->log('success', sprintf('Total of %d items indexed for %s', $totalIndexed, $indexName));
+                if ($rebuildName !== null) {
+                    $this->finishRebuild($indexable, $finalName, $rebuildName, $startedAt);
+                }
+
+                $this->log('success', sprintf('Total of %d items indexed for %s', $totalIndexed, $finalName));
             }
+
+            $this->activate();
 
             $this->log('success', 'Indexing completed successfully', true);
             $this->logger->complete('completed');
@@ -164,6 +175,116 @@ class Indexer
             $this->log('error', 'Error during indexing: ' . $e->getMessage(), true);
             $this->logger->complete('error');
             throw $e;
+        }
+    }
+
+    /**
+     * Moves searches to the indexes just built, in the current format.
+     *
+     * Called once every indexable was indexed. The indexes searches leave are
+     * listed for deletion in the admin.
+     */
+    public function activate(): void
+    {
+        $migrating = IndexNames::migrationPending();
+
+        IndexNames::activate();
+
+        if ($migrating) {
+            $this->log('success', sprintf('Searches now use %s', implode(', ', array_map([IndexNames::class, 'name'], IndexNames::BASES))));
+        }
+    }
+
+    /**
+     * Deletes the indexes searches no longer read since the last migration.
+     *
+     * @return list<string> The deleted indexes
+     */
+    public function deleteLegacyIndexes(): array
+    {
+        $this->ensureClient();
+
+        $legacy = IndexNames::legacyIndexes();
+
+        foreach ($legacy as $indexName) {
+            $this->client->deleteIndex($indexName);
+        }
+
+        IndexNames::forgetLegacyIndexes();
+
+        return $legacy;
+    }
+
+    /**
+     * Starts rebuilding an index under a temporary name.
+     *
+     * @return string|null The temporary name, or null when the indexable names its index itself
+     */
+    private function startRebuild(Indexable $indexable, string $indexName): ?string
+    {
+        $rebuildName = $indexName.'__rebuild';
+        IndexNames::redirect($indexName, $rebuildName);
+
+        if ($indexable->getIndexName() !== $rebuildName) {
+            IndexNames::lift($indexName);
+
+            return null;
+        }
+
+        // Left over by an interrupted rebuild
+        $this->client->deleteIndex($rebuildName);
+        unset($this->indexExistsCache[$rebuildName]);
+
+        return $rebuildName;
+    }
+
+    /**
+     * Swaps the rebuilt index in, then indexes again what changed meanwhile.
+     *
+     * Saves made during the rebuild went to the index being replaced: the
+     * posts modified since the run started are indexed again once swapped.
+     */
+    private function finishRebuild(Indexable $indexable, string $indexName, string $rebuildName, string $startedAt): void
+    {
+        IndexNames::lift($indexName);
+
+        // A swap needs both indexes
+        if (! $this->indexExists($indexName)) {
+            $this->client->createIndex($indexName, ['primaryKey' => $indexable->getPrimaryKey()]);
+        }
+
+        // Meilisearch runs tasks in order: the swap waits for the documents written to the rebuild
+        $this->client->swapIndexes([[$indexName, $rebuildName]]);
+        $this->client->deleteIndex($rebuildName);
+        IndexSettings::remember($indexName, $indexable->getIndexSettings());
+        $this->log('info', sprintf('Rebuilt index swapped in for %s', $indexName));
+
+        if ($indexable instanceof PostIndexable) {
+            $this->reindexPostsModifiedSince($startedAt);
+        }
+    }
+
+    /**
+     * Indexes the posts saved since a date (GMT, MySQL format).
+     */
+    private function reindexPostsModifiedSince(string $since): void
+    {
+        $postIds = get_posts([
+            'post_type' => Settings::get('indexed_post_types', []),
+            'post_status' => PostIndexable::indexableStatuses(),
+            'date_query' => [['column' => 'post_modified_gmt', 'after' => $since, 'inclusive' => true]],
+            'posts_per_page' => -1,
+            'fields' => 'ids',
+            'suppress_filters' => true,
+            'no_found_rows' => true,
+        ]);
+
+        foreach ($postIds as $postId) {
+            $this->postSingleIndexer->indexPost((int) $postId);
+        }
+
+        if ($postIds !== []) {
+            $this->log('info', sprintf('%d posts saved during the rebuild indexed again', count($postIds)));
         }
     }
 
@@ -466,15 +587,11 @@ class Indexer
         try {
             $this->log('info', 'Starting indices purge');
 
-            // Purge posts index
-            $postsIndex = $this->client->index('posts');
-            $postsIndex->delete();
-            $this->log('success', 'Index "posts" deleted');
-
-            // Purge taxonomies index
-            $taxonomiesIndex = $this->client->index('taxonomies');
-            $taxonomiesIndex->delete();
-            $this->log('success', 'Index "taxonomies" deleted');
+            foreach ($this->indexables as $indexable) {
+                $indexName = $indexable->getIndexName();
+                $this->client->deleteIndex($indexName);
+                $this->log('success', sprintf('Index "%s" deleted', $indexName));
+            }
 
             $this->log('success', 'Purge completed successfully');
         } catch (\Exception $e) {
@@ -600,25 +717,18 @@ class Indexer
         }
 
         try {
-            $indexes = $this->client->getIndexes();
-
-            // Handle case where results might be null
-            if (isset($indexes['results']) && is_array($indexes['results'])) {
-                foreach ($indexes['results'] as $index) {
-                    // Cache all found indexes
-                    $this->indexExistsCache[$index['uid']] = true;
-                }
+            // One GET for this index: the index list is paginated, 20 at a time
+            $this->client->getIndex($indexName);
+            $this->indexExistsCache[$indexName] = true;
+        } catch (ApiException $e) {
+            if ($e->httpStatus !== 404) {
+                throw $e;
             }
 
-            // Cache result for requested index
-            if (! isset($this->indexExistsCache[$indexName])) {
-                $this->indexExistsCache[$indexName] = false;
-            }
-
-            return $this->indexExistsCache[$indexName];
-        } catch (\Exception) {
-            return false;
+            $this->indexExistsCache[$indexName] = false;
         }
+
+        return $this->indexExistsCache[$indexName];
     }
 
     /**

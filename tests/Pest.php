@@ -66,6 +66,19 @@ uses()->beforeEach(function () {
     $GLOBALS['filters'] = [];
 })->in('Unit');
 
+if (! class_exists('WP_Term', false)) {
+    class WP_Term
+    {
+        public int $term_id = 0;
+        public string $name = '';
+        public string $slug = '';
+        public int $parent = 0;
+        public string $description = '';
+        public string $taxonomy = '';
+        public int $term_taxonomy_id = 0;
+    }
+}
+
 // Mock WordPress options storage for tests
 $GLOBALS['wp_options'] = [];
 
@@ -97,4 +110,13 @@ if (! function_exists('delete_option')) {
         unset($GLOBALS['wp_options'][$option]);
         return true;
     }
+}
+
+// Index names derive from the site's address
+if (! function_exists('home_url')) {
+    function home_url($path = '') { return 'https://example.test'.$path; }
+}
+
+if (! function_exists('is_multisite')) {
+    function is_multisite() { return false; }
 }

@@ -2,272 +2,90 @@
 
 declare(strict_types=1);
 
-namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder;
+namespace {
+    if (! function_exists('is_taxonomy_hierarchical')) {
+        function is_taxonomy_hierarchical($taxonomy) { return in_array($taxonomy, $GLOBALS['hierarchical'] ?? [], true); }
+    }
+    if (! function_exists('get_term_by')) {
+        function get_term_by($field, $value, $taxonomy)
+        {
+            foreach ($GLOBALS['tax_terms'] ?? [] as $term) {
+                if ($term->taxonomy === $taxonomy && (string) $term->{$field} === (string) $value) {
+                    return $term;
+                }
+            }
 
-use Pollora\MeiliScout\Query\MeiliQueryBuilder;
+            return false;
+        }
+    }
+    if (! function_exists('get_term_children')) {
+        function get_term_children($termId, $taxonomy) { return $GLOBALS['term_children'][$termId] ?? []; }
+    }
+}
 
-test('single taxonomy query is correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'field' => 'slug',
-                'terms' => 'news',
-            ],
-        ],
-    ]);
+namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder {
 
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
+    use Pollora\MeiliScout\Query\MeiliQueryBuilder;
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.slug IN [\'news\']))');
-});
+    function taxFilter(array $taxQuery): string
+    {
+        $filter = (new MeiliQueryBuilder)->build(new MockWPQuery(['tax_query' => $taxQuery]))['filter'];
 
-test('multiple taxonomy terms are correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'field' => 'slug',
-                'terms' => ['news', 'events'],
-            ],
-        ],
-    ]);
+        return substr($filter, strlen("post_type = 'post' AND post_status = 'publish' AND "));
+    }
 
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
+    function term(int $id, string $slug, string $taxonomy): \WP_Term
+    {
+        $term = new \WP_Term;
+        $term->term_id = $id;
+        $term->slug = $slug;
+        $term->taxonomy = $taxonomy;
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.slug IN [\'news\', \'events\']))');
-});
+        return $term;
+    }
 
-test('multiple taxonomy queries are combined with AND by default', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'field' => 'slug',
-                'terms' => 'news',
-            ],
-            [
-                'taxonomy' => 'post_tag',
-                'field' => 'slug',
-                'terms' => 'featured',
-            ],
-        ],
-    ]);
+    beforeEach(function () {
+        $GLOBALS['wp_options'] = [];
+        $GLOBALS['hierarchical'] = [];
+        $GLOBALS['tax_terms'] = [];
+        $GLOBALS['term_children'] = [];
+    });
 
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
+    test('a term is matched within its own taxonomy only', function () {
+        expect(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news']]]))
+            ->toBe("(taxonomies.category.slug IN ['news'])");
+    });
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.slug IN [\'news\']) AND (terms.taxonomy = \'post_tag\' AND terms.slug IN [\'featured\']))');
-});
+    test('every field and operator maps to the taxonomy field', function () {
+        expect(taxFilter([['taxonomy' => 'post_tag', 'terms' => [1, 2]]]))->toBe('(taxonomies.post_tag.term_id IN [1, 2])')
+            ->and(taxFilter([['taxonomy' => 'post_tag', 'field' => 'name', 'terms' => 'Événements']]))->toBe("(taxonomies.post_tag.name IN ['Événements'])")
+            ->and(taxFilter([['taxonomy' => 'post_tag', 'field' => 'slug', 'terms' => ['a', 'b'], 'operator' => 'NOT IN']]))->toBe("(taxonomies.post_tag.slug NOT IN ['a', 'b'])")
+            ->and(taxFilter([['taxonomy' => 'post_tag', 'field' => 'slug', 'terms' => ['a', 'b'], 'operator' => 'AND']]))->toBe("((taxonomies.post_tag.slug = 'a' AND taxonomies.post_tag.slug = 'b'))")
+            ->and(taxFilter([['taxonomy' => 'post_tag', 'operator' => 'EXISTS']]))->toBe('(taxonomies.post_tag.term_id EXISTS)')
+            ->and(taxFilter([['taxonomy' => 'post_tag', 'operator' => 'NOT EXISTS']]))->toBe('(taxonomies.post_tag.term_id NOT EXISTS)');
+    });
 
-test('taxonomy queries respect the relation parameter', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
+    test('relations and nested queries are kept', function () {
+        expect(taxFilter([
             'relation' => 'OR',
-            [
-                'taxonomy' => 'category',
-                'field' => 'slug',
-                'terms' => 'news',
-            ],
-            [
-                'taxonomy' => 'post_tag',
-                'field' => 'slug',
-                'terms' => 'featured',
-            ],
-        ],
-    ]);
+            ['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news']],
+            ['relation' => 'AND', ['taxonomy' => 'post_tag', 'field' => 'slug', 'terms' => ["Editor's pick"]], ['taxonomy' => 'genre', 'terms' => [4]]],
+        ]))->toBe("(taxonomies.category.slug IN ['news'] OR (taxonomies.post_tag.slug IN ['Editor\\'s pick'] AND taxonomies.genre.term_id IN [4]))");
+    });
 
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
+    test('a term of a hierarchical taxonomy brings its children, as in WordPress', function () {
+        $GLOBALS['hierarchical'] = ['category'];
+        $GLOBALS['tax_terms'] = [term(3, 'news', 'category')];
+        $GLOBALS['term_children'] = [3 => [8, 9]];
 
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.slug IN [\'news\']) OR (terms.taxonomy = \'post_tag\' AND terms.slug IN [\'featured\']))');
-});
+        expect(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news']]]))
+            ->toBe('(taxonomies.category.term_id IN [3, 8, 9])')
+            ->and(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news'], 'include_children' => false]]))
+            ->toBe("(taxonomies.category.slug IN ['news'])");
+    });
 
-test('nested taxonomy queries are correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            'relation' => 'OR',
-            [
-                'taxonomy' => 'category',
-                'field' => 'slug',
-                'terms' => ['news', 'events'],
-            ],
-            [
-                'relation' => 'AND',
-                [
-                    'taxonomy' => 'post_tag',
-                    'field' => 'slug',
-                    'terms' => ['featured', 'trending'],
-                ],
-                [
-                    'taxonomy' => 'genre',
-                    'field' => 'slug',
-                    'terms' => 'tech',
-                ],
-            ],
-        ],
-    ]);
-
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
-
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.slug IN [\'news\', \'events\']) OR ((terms.taxonomy = \'post_tag\' AND terms.slug IN [\'featured\', \'trending\']) AND (terms.taxonomy = \'genre\' AND terms.slug IN [\'tech\'])))');
-});
-
-test('deeply nested taxonomy queries with special characters are correctly escaped', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            'relation' => 'AND',
-            [
-                'taxonomy' => 'category',
-                'field' => 'slug',
-                'terms' => 'Breaking \'News\'',
-            ],
-            [
-                'relation' => 'OR',
-                [
-                    'taxonomy' => 'post_tag',
-                    'field' => 'slug',
-                    'terms' => ['Editor\'s Pick', 'Today\'s \'Special\''],
-                ],
-                [
-                    'relation' => 'AND',
-                    [
-                        'taxonomy' => 'genre',
-                        'field' => 'slug',
-                        'terms' => 'Tech & \'Innovation\'',
-                    ],
-                    [
-                        'taxonomy' => 'region',
-                        'field' => 'slug',
-                        'terms' => ['North \'America\'', 'South \'America\''],
-                    ],
-                ],
-            ],
-        ],
-    ]);
-
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
-
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.slug IN [\'Breaking \\\'News\\\'\']) AND ((terms.taxonomy = \'post_tag\' AND terms.slug IN [\'Editor\\\'s Pick\', \'Today\\\'s \\\'Special\\\'\']) OR ((terms.taxonomy = \'genre\' AND terms.slug IN [\'Tech & \\\'Innovation\\\'\']) AND (terms.taxonomy = \'region\' AND terms.slug IN [\'North \\\'America\\\'\', \'South \\\'America\\\'\']))))');
-});
-
-test('taxonomy query with term_id field is correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'field' => 'term_id',
-                'terms' => [1, 2, 3],
-            ],
-        ],
-    ]);
-
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
-
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.term_id IN [1, 2, 3]))');
-});
-
-test('taxonomy query with name field is correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'field' => 'name',
-                'terms' => ['Actualités', 'Événements'],
-            ],
-        ],
-    ]);
-
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
-
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.name IN [\'Actualités\', \'Événements\']))');
-});
-
-test('taxonomy query with term_taxonomy_id field is correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'field' => 'term_taxonomy_id',
-                'terms' => [10, 20],
-            ],
-        ],
-    ]);
-
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
-
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.term_taxonomy_id IN [10, 20]))');
-});
-
-test('taxonomy query with EXISTS operator is correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'operator' => 'EXISTS',
-            ],
-        ],
-    ]);
-
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
-
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (terms.taxonomy = \'category\')');
-});
-
-test('taxonomy query with NOT EXISTS operator is correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'operator' => 'NOT EXISTS',
-            ],
-        ],
-    ]);
-
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
-
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (NOT terms.taxonomy = \'category\')');
-});
-
-test('taxonomy query with AND operator is correctly formatted', function () {
-    $query = new MockWPQuery([
-        'tax_query' => [
-            [
-                'taxonomy' => 'category',
-                'field' => 'slug',
-                'terms' => ['news', 'featured'],
-                'operator' => 'AND',
-            ],
-        ],
-    ]);
-
-    $builder = new MeiliQueryBuilder;
-    $params = $builder->build($query);
-
-    expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND ((terms.taxonomy = \'category\' AND terms.slug = \'news\' AND terms.slug = \'featured\'))');
-});
-
-/**
- * Meilisearch flattens `terms` into one array per field: `terms.taxonomy` and
- * `terms.slug` are matched independently, so a post tagged `news` matches
- * category `news` as soon as it has any category. Fixing it needs one field
- * per taxonomy in the documents (`taxonomies.category.slug`), hence a re-index.
- */
-test('a term is matched within its own taxonomy only', function () {
-    $query = new MockWPQuery([
-        'post_type' => 'post',
-        'tax_query' => [['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news']]],
-    ]);
-
-    expect((new MeiliQueryBuilder)->build($query)['filter'])
-        ->toContain("taxonomies.category.slug IN ['news']");
-})->todo('Needs one field per taxonomy in the post documents (schema migration).');
+    test('a taxonomy name that could not be an attribute name is ignored', function () {
+        expect((new MeiliQueryBuilder)->build(new MockWPQuery(['tax_query' => [['taxonomy' => "category = 1 OR x", 'terms' => [1]]]]))['filter'])
+            ->toBe("post_type = 'post' AND post_status = 'publish'");
+    });
+}

@@ -209,6 +209,7 @@ abstract class AbstractSingleIndexer
             $index = $this->client()->index($this->indexable()->getIndexName());
             $documents = $this->withDependentDocuments($document, $item);
             $this->writeWithDependentDocuments($index, $documents, [$this->getItemId($item)]);
+            $this->onMirror(fn (Indexes $mirror) => $this->writeWithDependentDocuments($mirror, $documents, [$this->getItemId($item)]));
 
             $itemName = $this->getItemName($item);
             $itemId = $this->getItemId($item);
@@ -237,6 +238,10 @@ abstract class AbstractSingleIndexer
             $index = $this->client()->index($this->indexable()->getIndexName());
             $index->deleteDocument($itemId);
             $this->removeDependentDocuments($index, [$itemId]);
+            $this->onMirror(function (Indexes $mirror) use ($itemId): void {
+                $mirror->deleteDocument($itemId);
+                $this->removeDependentDocuments($mirror, [$itemId]);
+            });
 
             $this->logOperation('success', "Item (ID: {$itemId}) removed from index");
             return true;
@@ -244,6 +249,33 @@ abstract class AbstractSingleIndexer
         } catch (Exception $e) {
             $this->logOperation('error', "Failed to remove item {$itemId}: " . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Repeats a write on the index searches still read, until a full indexation migrates them.
+     *
+     * Documents in the current format carry the legacy `terms` list too, so the
+     * previous index keeps answering searches with up-to-date content. A failure
+     * there is logged: the write to the current index already succeeded.
+     *
+     * @param  callable(Indexes): void  $write
+     */
+    protected function onMirror(callable $write): void
+    {
+        $mirrorName = IndexNames::mirrorOf($this->indexable()->getIndexName());
+
+        if ($mirrorName === null) {
+            return;
+        }
+
+        try {
+            // A write would create a deleted index again
+            if ($this->indexExists($mirrorName)) {
+                $write($this->client()->index($mirrorName));
+            }
+        } catch (Exception $e) {
+            $this->logOperation('error', "Failed to update the index searches still read ({$mirrorName}): ".$e->getMessage());
         }
     }
 

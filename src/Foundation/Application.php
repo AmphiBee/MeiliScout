@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Foundation;
 
 use Pollora\MeiliScout\Providers\Admin\ContentSelectionServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\IndexationServiceProvider;
+use Pollora\MeiliScout\Providers\Admin\MigrationServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\SettingsServiceProvider;
 use Pollora\MeiliScout\Providers\AssetsServiceProvider;
 use Pollora\MeiliScout\Providers\CommandServiceProvider;
@@ -29,6 +30,7 @@ class Application
         SettingsServiceProvider::class,
         ContentSelectionServiceProvider::class,
         IndexationServiceProvider::class,
+        MigrationServiceProvider::class,
         CommandServiceProvider::class,
         QueryServiceProvider::class,
         SingleIndexingServiceProvider::class,

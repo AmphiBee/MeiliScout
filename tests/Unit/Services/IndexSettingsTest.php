@@ -60,7 +60,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
         $client = $this->createMock(Client::class);
         $client->method('index')->willReturn($index);
         $client->method('getIndex')->willThrowException(new ApiException(new Response(404), ['message' => 'Index `posts` not found.', 'code' => 'index_not_found']));
-        $client->expects($this->once())->method('createIndex')->with('posts', ['primaryKey' => 'ID']);
+        $client->expects($this->once())->method('createIndex')->with('example_test_posts', ['primaryKey' => 'ID']);
 
         ensureIndex(postIndexerWith($client));
     });

@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Indexables;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
+use Pollora\MeiliScout\Services\IndexNames;
 use WP_Term;
 
 use function get_term_link;
@@ -32,7 +33,7 @@ class TaxonomyIndexable implements Indexable
 
     public function getIndexName(): string
     {
-        return 'taxonomies';
+        return IndexNames::target('taxonomies');
     }
 
     public function getPrimaryKey(): string

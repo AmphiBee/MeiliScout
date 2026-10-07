@@ -3,16 +3,6 @@
 declare(strict_types=1);
 
 namespace {
-    if (! class_exists('WP_Term', false)) {
-        class WP_Term
-        {
-            public int $term_id = 0;
-            public string $name = '';
-            public string $slug = '';
-            public int $parent = 0;
-            public string $description = '';
-        }
-    }
     if (! function_exists('get_term')) {
         function get_term($id, $taxonomy = '') { return $GLOBALS['terms'][$id] ?? null; }
     }
