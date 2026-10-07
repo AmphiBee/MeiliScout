@@ -40,7 +40,7 @@ class QueryIntegration
      */
     public function __construct(MeiliQueryBuilder $builder)
     {
-        $this->client = ClientFactory::getClient();
+        $this->client = ClientFactory::getReadClient();
 
         if (! $this->client) {
             return;

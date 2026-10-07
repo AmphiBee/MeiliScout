@@ -319,7 +319,7 @@ class PostSingleIndexer extends AbstractSingleIndexer
 
             // Send the documents in bounded requests, then drop the dependent documents no longer brought along
             if (! empty($documents)) {
-                $index = $this->client->index($indexable->getIndexName());
+                $index = $this->client()->index($indexable->getIndexName());
                 $this->writeWithDependentDocuments($index, $documents, $formattedIds);
                 $statistics['indexed'] = count($formattedIds);
             }

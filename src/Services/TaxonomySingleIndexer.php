@@ -250,7 +250,7 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
 
             // Send all documents in a single API call
             if (! empty($documents)) {
-                $index = $this->client->index($indexable->getIndexName());
+                $index = $this->client()->index($indexable->getIndexName());
                 $index->addDocuments($documents);
                 $statistics['indexed'] = count($documents);
             }

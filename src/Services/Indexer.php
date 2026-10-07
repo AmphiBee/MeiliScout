@@ -35,7 +35,7 @@ class Indexer
     /**
      * Meilisearch client instance.
      */
-    private Client $client;
+    private ?Client $client;
 
     /**
      * List of post meta keys to index.
@@ -97,6 +97,8 @@ class Indexer
      */
     public function index(bool $clearIndices = false): void
     {
+        $this->ensureClient();
+
         $this->initializeLog();
 
         try {
@@ -172,6 +174,18 @@ class Indexer
             $this->log('error', 'Error during indexing: ' . $e->getMessage(), true);
             $this->logger->complete('error');
             throw $e;
+        }
+    }
+
+    /**
+     * Fails early when Meilisearch could not be reached.
+     *
+     * @throws \RuntimeException
+     */
+    private function ensureClient(): void
+    {
+        if ($this->client === null) {
+            throw new \RuntimeException('Meilisearch is not reachable: check the host and the API key.');
         }
     }
 
@@ -267,6 +281,8 @@ class Indexer
      */
     public function indexChunk(int $offset, int $limit, bool $clearIndices = false): void
     {
+        $this->ensureClient();
+
         $this->initializeLog();
 
         try {
@@ -436,6 +452,8 @@ class Indexer
 
     public function purge(): void
     {
+        $this->ensureClient();
+
         $this->initializeLog();
 
         try {

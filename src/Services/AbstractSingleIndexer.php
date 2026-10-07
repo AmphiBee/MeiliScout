@@ -94,6 +94,23 @@ abstract class AbstractSingleIndexer
     }
 
     /**
+     * The Meilisearch client, or an exception when Meilisearch could not be reached.
+     *
+     * Throwing an Exception (not calling a method on null, which raises an Error)
+     * lets the hook handlers catch it, so a post still saves while Meilisearch is down.
+     *
+     * @throws \RuntimeException
+     */
+    protected function client(): Client
+    {
+        if ($this->client === null) {
+            throw new \RuntimeException('Meilisearch is not reachable: check the host and the API key.');
+        }
+
+        return $this->client;
+    }
+
+    /**
      * The indexable, resolved on first use rather than in the constructor.
      *
      * `resolveIndexable()` applies the `meiliscout/indexables` filter, and this
@@ -188,7 +205,7 @@ abstract class AbstractSingleIndexer
             $document = $this->indexable()->formatForIndexing($item);
 
             // Index the document and the documents it brings along, then drop the ones it no longer brings
-            $index = $this->client->index($this->indexable()->getIndexName());
+            $index = $this->client()->index($this->indexable()->getIndexName());
             $documents = $this->withDependentDocuments($document, $item);
             $this->writeWithDependentDocuments($index, $documents, [$this->getItemId($item)]);
 
@@ -216,7 +233,7 @@ abstract class AbstractSingleIndexer
     public function removeItem(int|string $itemId): bool
     {
         try {
-            $index = $this->client->index($this->indexable()->getIndexName());
+            $index = $this->client()->index($this->indexable()->getIndexName());
             $index->deleteDocument($itemId);
             $this->removeDependentDocuments($index, [$itemId]);
 
@@ -410,13 +427,13 @@ abstract class AbstractSingleIndexer
             // Check if index exists
             if (! $this->indexExists($indexName)) {
                 // Create the index
-                $this->client->createIndex($indexName, ['primaryKey' => $primaryKey]);
+                $this->client()->createIndex($indexName, ['primaryKey' => $primaryKey]);
                 // Update cache
                 $this->markIndexExists($indexName);
             }
 
             // Update settings (this is idempotent)
-            $index = $this->client->index($indexName);
+            $index = $this->client()->index($indexName);
             $index->updateSettings($settings);
 
         } catch (Exception $e) {
@@ -442,7 +459,7 @@ abstract class AbstractSingleIndexer
         }
 
         try {
-            $indexes = $this->client->getIndexes();
+            $indexes = $this->client()->getIndexes();
 
             // Handle case where results might be null
             if (isset($indexes['results']) && is_array($indexes['results'])) {
