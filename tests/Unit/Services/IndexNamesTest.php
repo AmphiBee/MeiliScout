@@ -36,6 +36,28 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
             ->and(IndexNames::mirrorOf('example_test_posts'))->toBeNull();
     });
 
+    test('the first indexation of a new site has no legacy index to migrate from nor to delete', function () {
+        IndexNames::adoptIfNew();
+        // What the indexation writes next, which a site indexed before 2.0 also has
+        update_option('meiliscout/last_indexing_structure', ['post_types' => ['post']]);
+
+        expect(IndexNames::active('posts'))->toBe('example_test_posts')
+            ->and(IndexNames::migrationPending())->toBeFalse();
+
+        IndexNames::activate();
+
+        expect(IndexNames::legacyIndexes())->toBe([]);
+    });
+
+    test('a site indexed before 2.0 is not taken for a new one', function () {
+        indexedBefore20();
+
+        IndexNames::adoptIfNew();
+
+        expect(IndexNames::active('posts'))->toBe('posts')
+            ->and(IndexNames::migrationPending())->toBeTrue();
+    });
+
     test('a site indexed before 2.0 keeps searching its legacy index until it migrates', function () {
         indexedBefore20();
 

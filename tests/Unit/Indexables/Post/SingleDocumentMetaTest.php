@@ -22,6 +22,7 @@ namespace {
 
 namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {
 
+    use Pollora\MeiliScout\Config\SearchableAttributes;
     use Pollora\MeiliScout\Indexables\PostIndexable;
 
     beforeEach(function () {
@@ -50,6 +51,24 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {
             ->and($protected)->not->toHaveKey('post_password')
             ->and($protected['post_title'])->toBe('Locked')
             ->and($protected['post_content'])->toBe('')
-            ->and($protected['post_excerpt'])->toBe('');
+            ->and($protected['post_excerpt'])->toBe('')
+            ->and($protected['content_text'])->toBe('');
+    });
+
+    test('a document carries its content as plain text, without block markup', function () {
+        $content = "<!-- wp:heading -->\n<h2>Boutique &amp; thé</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Une <strong>refonte</strong> [gallery ids=\"1,2\"] réussie.</p>\n<!-- /wp:paragraph -->";
+
+        $document = (new PostIndexable)->formatForIndexing(new \WP_Post(9, 'post', 'Title', 'publish', $content));
+
+        expect($document['content_text'])->toBe('Boutique & thé Une refonte réussie.')
+            ->and($document['post_content'])->toBe($content);
+    });
+
+    test('every field is searched until the admin orders them', function () {
+        expect((new PostIndexable)->getIndexSettings()['searchableAttributes'])->toBe(['*']);
+
+        SearchableAttributes::save(['post_title', 'content_text', 'guid', 'metas._price', 'post_title']);
+
+        expect((new PostIndexable)->getIndexSettings()['searchableAttributes'])->toBe(['post_title', 'content_text', 'metas._price']);
     });
 }

@@ -120,3 +120,20 @@ if (! function_exists('home_url')) {
 if (! function_exists('is_multisite')) {
     function is_multisite() { return false; }
 }
+
+if (! function_exists('wp_strip_all_tags')) {
+    function wp_strip_all_tags($text) { return trim(strip_tags((string) preg_replace('@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text))); }
+}
+
+if (! function_exists('strip_shortcodes')) {
+    function strip_shortcodes($content) { return (string) preg_replace('/\[[^\]]+\]/', '', (string) $content); }
+}
+
+// Same as the files that declared it first: hooks are recorded, never run
+if (! function_exists('add_action')) {
+    function add_action($hook, $callback, $priority = 10, $args = 1) { $GLOBALS['actions'][$hook][] = ['callback' => $callback, 'priority' => $priority]; return true; }
+}
+
+if (! function_exists('current_time')) {
+    function current_time($type, $gmt = 0) { return $type === 'mysql' ? gmdate('Y-m-d H:i:s') : time(); }
+}

@@ -37,15 +37,43 @@ final class IndexingTask
     }
 
     /**
-     * Runs a task.
+     * Runs a task, and records it in the activity log.
+     *
+     * Exceptions are recorded, then thrown again for the queue to log them.
      *
      * @param  array{type: string, action: string, id: int, extra: array<string, mixed>}  $task
      */
     public function run(array $task): void
     {
+        $this->postIndexer->clearLastError();
+        $this->taxonomyIndexer->clearLastError();
+        $label = $this->describe($task);
+        $start = microtime(true);
+
+        try {
+            $result = $this->dispatch($task);
+        } catch (\Throwable $e) {
+            ActivityLog::recordTask($task, $label, false, 0, $this->since($start), $e->getMessage());
+
+            throw $e;
+        }
+
+        $error = $this->postIndexer->lastError() ?? $this->taxonomyIndexer->lastError();
+        $succeeded = $result !== false && $error === null;
+        // Re-indexing a term's posts counts them; the other tasks are about one item
+        $items = is_int($result) ? $result : 1;
+
+        ActivityLog::recordTask($task, $label, $succeeded, $items, $this->since($start), $succeeded ? null : ($error ?? 'Meilisearch did not accept the change.'));
+    }
+
+    /**
+     * @param  array{type: string, action: string, id: int, extra: array<string, mixed>}  $task
+     */
+    private function dispatch(array $task): bool|int|null
+    {
         ['type' => $type, 'action' => $action, 'id' => $id, 'extra' => $extra] = $task;
 
-        match ($type) {
+        return match ($type) {
             'post' => match ($action) {
                 'index' => $this->postIndexer->indexPost($id),
                 'remove' => $this->postIndexer->removePost($id),
@@ -62,5 +90,39 @@ final class IndexingTask
             },
             default => null,
         };
+    }
+
+    /**
+     * The item a task is about, as the activity log shows it: a post's title, a term's name.
+     *
+     * A deleted item is gone when its task runs: the queue gives its label in `extra`.
+     *
+     * @param  array{type: string, action: string, id: int, extra: array<string, mixed>}  $task
+     */
+    private function describe(array $task): string
+    {
+        if (isset($task['extra']['label']) && is_string($task['extra']['label'])) {
+            return $task['extra']['label'];
+        }
+
+        $name = match ($task['type']) {
+            'post' => function_exists('get_post') ? get_post($task['id'])?->post_title : null,
+            'term', 'posts_for_term' => function_exists('get_term') ? $this->termName($task['id']) : null,
+            default => null,
+        };
+
+        return is_string($name) && $name !== '' ? $name : '#'.$task['id'];
+    }
+
+    private function termName(int $termId): ?string
+    {
+        $term = get_term($termId);
+
+        return $term instanceof \WP_Term ? $term->name : null;
+    }
+
+    private function since(float $start): float
+    {
+        return (microtime(true) - $start) * 1000;
     }
 }

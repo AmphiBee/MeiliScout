@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Services;
 
 use Meilisearch\Client;
 use Meilisearch\Exceptions\ApiException;
+use Pollora\MeiliScout\Config\SearchableAttributes;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Indexables\PostIndexable;
@@ -32,9 +33,16 @@ class Indexer
 
     /**
      * Default batch size for bulk indexing operations.
-     * Can be overridden via the 'meiliscout/bulk_batch_size' filter.
+     * Set in the admin, and overridden by the 'meiliscout/bulk_batch_size' filter.
      */
-    private int $defaultBulkBatchSize = 500;
+    public const DEFAULT_BATCH_SIZE = 500;
+
+    /**
+     * Where the current run is, as IndexingLogger::progress() records it.
+     *
+     * @var array{mode?: string, indexes?: array<string, array<string, mixed>>}
+     */
+    private array $progress = [];
 
     /**
      * Cache for index existence checks.
@@ -93,6 +101,11 @@ class Indexer
 
         $this->initializeLog();
 
+        $mode = $clearIndices ? 'rebuild' : 'update';
+        $start = microtime(true);
+        $totalIndexed = 0;
+        $this->startProgress($mode);
+
         try {
             // Save the current indexing structure
             $this->saveIndexingStructure();
@@ -104,6 +117,7 @@ class Indexer
                 $rebuildName = $clearIndices ? $this->startRebuild($indexable, $finalName) : null;
                 $indexName = $rebuildName ?? $finalName;
                 $this->log('info', sprintf('Starting indexation for %s', $finalName));
+                $this->updateProgress($finalName, 'running');
 
                 // An indexable naming its own index cannot be rebuilt aside: empty it first
                 if ($clearIndices && $rebuildName === null) {
@@ -128,7 +142,8 @@ class Indexer
                 }
 
                 // Document indexing with optimized batch size
-                $totalIndexed = 0;
+                $indexed = 0;
+                $processed = 0;
                 $batchSize = $this->getBulkBatchSize();
 
                 // Use single indexers for consistency and shared logic
@@ -138,20 +153,23 @@ class Indexer
 
                     if (count($items) >= $batchSize) {
                         $batchStats = $this->indexItemsBatch($indexable, $items);
-                        $totalIndexed += $batchStats['indexed'];
+                        $indexed += $batchStats['indexed'];
+                        $processed += count($items);
                         $this->log('info', sprintf(
                             'Batch of %d items processed (%d indexed, %d skipped)',
                             count($items),
                             $batchStats['indexed'],
                             $batchStats['skipped']
                         ));
+                        $this->updateProgress($finalName, 'running', $processed);
                         $items = [];
                     }
                 }
 
                 if (! empty($items)) {
                     $batchStats = $this->indexItemsBatch($indexable, $items);
-                    $totalIndexed += $batchStats['indexed'];
+                    $indexed += $batchStats['indexed'];
+                    $processed += count($items);
                     $this->log('info', sprintf(
                         'Last batch of %d items processed (%d indexed, %d skipped)',
                         count($items),
@@ -161,21 +179,91 @@ class Indexer
                 }
 
                 if ($rebuildName !== null) {
+                    $this->updateProgress($finalName, 'swapping', $processed);
                     $this->finishRebuild($indexable, $finalName, $rebuildName, $startedAt);
                 }
 
-                $this->log('success', sprintf('Total of %d items indexed for %s', $totalIndexed, $finalName));
+                $totalIndexed += $indexed;
+                $this->updateProgress($finalName, 'done', $processed);
+                $this->log('success', sprintf('Total of %d items indexed for %s', $indexed, $finalName));
             }
 
             $this->activate();
 
             $this->log('success', 'Indexing completed successfully', true);
             $this->logger->complete('completed');
+            ActivityLog::recordFullIndexation($mode, true, $totalIndexed, (microtime(true) - $start) * 1000, $this->indexNames());
         } catch (\Exception $e) {
             $this->log('error', 'Error during indexing: ' . $e->getMessage(), true);
             $this->logger->complete('error');
+            ActivityLog::recordFullIndexation($mode, false, $totalIndexed, (microtime(true) - $start) * 1000, $this->indexNames(), $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * The names of the indexes a full indexation writes.
+     *
+     * @return list<string>
+     */
+    private function indexNames(): array
+    {
+        return array_values(array_map(fn (Indexable $indexable) => $indexable->getIndexName(), $this->indexables));
+    }
+
+    /**
+     * Records the indexes about to be written, with the number of items each one will get.
+     */
+    private function startProgress(string $mode): void
+    {
+        $indexes = [];
+
+        foreach ($this->indexables as $indexable) {
+            $indexes[$indexable->getIndexName()] = [
+                'kind' => $this->kindOf($indexable),
+                'state' => 'pending',
+                'done' => 0,
+                'total' => $this->countItems($indexable),
+            ];
+        }
+
+        $this->progress = ['mode' => $mode, 'indexes' => $indexes];
+        $this->logger->progress($this->progress);
+    }
+
+    private function updateProgress(string $indexName, string $state, int $done = 0): void
+    {
+        if (! isset($this->progress['indexes'][$indexName])) {
+            return;
+        }
+
+        $this->progress['indexes'][$indexName]['state'] = $state;
+        $this->progress['indexes'][$indexName]['done'] = $done;
+        $this->logger->progress($this->progress);
+    }
+
+    /**
+     * What an index holds, for the admin: posts, terms, or another indexable's documents.
+     */
+    private function kindOf(Indexable $indexable): string
+    {
+        return match (true) {
+            $indexable instanceof PostIndexable => 'posts',
+            $indexable instanceof TaxonomyIndexable => 'terms',
+            default => 'other',
+        };
+    }
+
+    /**
+     * The number of items an indexable will send, or null when it cannot be told in advance.
+     */
+    private function countItems(Indexable $indexable): ?int
+    {
+        return match (true) {
+            $indexable instanceof PostIndexable => $this->countPosts(),
+            $indexable instanceof TaxonomyIndexable => $this->countTerms(),
+            default => null,
+        };
     }
 
     /**
@@ -337,7 +425,17 @@ class Indexer
      */
     private function getBulkBatchSize(): int
     {
-        return (int) apply_filters('meiliscout/bulk_batch_size', $this->defaultBulkBatchSize);
+        return (int) apply_filters('meiliscout/bulk_batch_size', self::batchSize());
+    }
+
+    /**
+     * Items sent per request by full indexations: the admin's setting, else the default.
+     */
+    public static function batchSize(): int
+    {
+        $size = (int) Settings::get('bulk_batch_size', self::DEFAULT_BATCH_SIZE);
+
+        return $size > 0 ? $size : self::DEFAULT_BATCH_SIZE;
     }
 
     /**
@@ -347,40 +445,55 @@ class Indexer
      */
     public function getTotalCount(): int
     {
+        return $this->countPosts() + $this->countTerms();
+    }
+
+    /**
+     * The number of posts a full indexation sends.
+     */
+    public function countPosts(): int
+    {
         global $wpdb;
-        $total = 0;
 
-        // Count posts directly from database without loading them
         $postTypes = Settings::get('indexed_post_types', []);
-        if (!empty($postTypes)) {
-            $statuses = PostIndexable::indexableStatuses();
-            $placeholders = implode(',', array_fill(0, count($postTypes), '%s'));
-            $statusPlaceholders = implode(',', array_fill(0, count($statuses), '%s'));
-            $query = $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->posts}
-                 WHERE post_type IN ($placeholders)
-                 AND post_status IN ($statusPlaceholders)",
-                ...$postTypes,
-                ...$statuses
-            );
-            $total += (int) $wpdb->get_var($query);
+        if (empty($postTypes)) {
+            return 0;
         }
 
-        // Count taxonomies directly from database
+        $statuses = PostIndexable::indexableStatuses();
+        $placeholders = implode(',', array_fill(0, count($postTypes), '%s'));
+        $statusPlaceholders = implode(',', array_fill(0, count($statuses), '%s'));
+
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->posts}
+             WHERE post_type IN ($placeholders)
+             AND post_status IN ($statusPlaceholders)",
+            ...$postTypes,
+            ...$statuses
+        ));
+    }
+
+    /**
+     * The number of terms a full indexation sends.
+     */
+    public function countTerms(): int
+    {
+        global $wpdb;
+
         $taxonomies = Settings::get('indexed_taxonomies', []);
-        if (!empty($taxonomies)) {
-            $placeholders = implode(',', array_fill(0, count($taxonomies), '%s'));
-            $query = $wpdb->prepare(
-                "SELECT COUNT(DISTINCT t.term_id)
-                 FROM {$wpdb->terms} t
-                 INNER JOIN {$wpdb->term_taxonomy} tt ON t.term_id = tt.term_id
-                 WHERE tt.taxonomy IN ($placeholders)",
-                ...$taxonomies
-            );
-            $total += (int) $wpdb->get_var($query);
+        if (empty($taxonomies)) {
+            return 0;
         }
 
-        return $total;
+        $placeholders = implode(',', array_fill(0, count($taxonomies), '%s'));
+
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(DISTINCT t.term_id)
+             FROM {$wpdb->terms} t
+             INNER JOIN {$wpdb->term_taxonomy} tt ON t.term_id = tt.term_id
+             WHERE tt.taxonomy IN ($placeholders)",
+            ...$taxonomies
+        ));
     }
 
     /**
@@ -505,10 +618,14 @@ class Indexer
      */
     private function saveIndexingStructure(): void
     {
+        // Before the option below, which marks a site as indexed
+        IndexNames::adoptIfNew();
+
         $structure = [
             'post_types' => Settings::get('indexed_post_types', []),
             'taxonomies' => Settings::get('indexed_taxonomies', []),
             'meta_keys' => Settings::get('indexed_meta_keys', []),
+            'searchable' => SearchableAttributes::configured(),
             'last_indexed' => current_time('mysql'),
         ];
 
@@ -518,7 +635,7 @@ class Indexer
     /**
      * Checks if the indexing structure has changed.
      *
-     * @return array{has_changed: bool, changes: array}
+     * @return array{has_changed: bool, changes: array<string, array{added: list<string>, removed: list<string>}>, last_indexed: string|null}
      */
     public function checkStructureChanges(): array
     {
@@ -568,6 +685,15 @@ class Indexer
             $changes['meta_keys'] = [
                 'added' => array_values($addedMetaKeys),
                 'removed' => array_values($removedMetaKeys),
+            ];
+        }
+
+        // In order: it ranks the fields. Sites indexed before it existed have none, as an unset order
+        if (($lastStructure['searchable'] ?? null) !== SearchableAttributes::configured()) {
+            $hasChanged = true;
+            $changes['searchable'] = [
+                'added' => array_values(array_diff(SearchableAttributes::configured() ?? [], $lastStructure['searchable'] ?? [])),
+                'removed' => array_values(array_diff($lastStructure['searchable'] ?? [], SearchableAttributes::configured() ?? [])),
             ];
         }
 

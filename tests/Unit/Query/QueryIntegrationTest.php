@@ -29,6 +29,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
     use Meilisearch\Search\SearchResult;
     use Pollora\MeiliScout\Query\MeiliQueryBuilder;
     use Pollora\MeiliScout\Query\QueryIntegration;
+    use Pollora\MeiliScout\Services\SearchFallbacks;
 
     function integrationWith(Client $client): QueryIntegration
     {
@@ -88,6 +89,20 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
         $integration = integrationWith(clientReturning(new \RuntimeException('Meilisearch is down'), $this));
 
         expect($integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true])))->toBeNull();
+    });
+
+    test('a query MySQL served instead is counted, once the request ends', function () {
+        SearchFallbacks::reset();
+        $integration = integrationWith(clientReturning(new \RuntimeException('Meilisearch is down'), $this));
+
+        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true]));
+        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true]));
+
+        expect(SearchFallbacks::lastDay()['total'])->toBe(0);
+
+        SearchFallbacks::flush();
+
+        expect(SearchFallbacks::lastDay())->toBe(['error' => 2, 'meta' => 0, 'total' => 2]);
     });
 
     test('post_count is the number of posts returned, found_posts the total', function () {

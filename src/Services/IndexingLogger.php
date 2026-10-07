@@ -170,6 +170,17 @@ class IndexingLogger
     }
 
     /**
+     * Records where the run is, for the admin's progress bar, and writes it.
+     *
+     * @param  array<string, mixed>  $progress
+     */
+    public function progress(array $progress): void
+    {
+        $this->logData['progress'] = $progress;
+        $this->flush();
+    }
+
+    /**
      * Flushes the buffer to the log file.
      */
     public function flush(): void

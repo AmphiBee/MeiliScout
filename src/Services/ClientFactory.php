@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Services;
 use Meilisearch\Client;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Pollora\MeiliScout\Config\Config;
+use Pollora\MeiliScout\Config\Settings;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpClient\Psr18Client;
 
@@ -116,6 +117,24 @@ class ClientFactory
     }
 
     /**
+     * Builds a client for a host and a key, without checking that Meilisearch answers.
+     *
+     * Used to test settings before they are saved.
+     *
+     * @throws \InvalidArgumentException When the host is not a URL
+     */
+    public static function build(string $host, string $key): Client
+    {
+        if (! self::isValidHost($host)) {
+            throw new \InvalidArgumentException("Invalid Meilisearch host: {$host}");
+        }
+
+        $http = self::httpClient();
+
+        return new Client($host, $key, $http, $http, [], $http);
+    }
+
+    /**
      * Forgets the clients built so far, so the next call reads the settings again.
      */
     public static function reset(): void
@@ -164,13 +183,23 @@ class ClientFactory
     private static function httpClient(): Psr18Client
     {
         if (self::$httpClient === null) {
-            $options = (array) apply_filters('meiliscout/http_client_options', ['timeout' => self::TIMEOUT]);
+            $options = (array) apply_filters('meiliscout/http_client_options', ['timeout' => self::timeout()]);
             $psr17 = new Psr17Factory;
 
             self::$httpClient = new Psr18Client(HttpClient::create($options), $psr17, $psr17);
         }
 
         return self::$httpClient;
+    }
+
+    /**
+     * Seconds to wait for Meilisearch: the admin's setting, else TIMEOUT.
+     */
+    public static function timeout(): int
+    {
+        $timeout = (int) Settings::get('http_timeout', self::TIMEOUT);
+
+        return $timeout > 0 ? $timeout : self::TIMEOUT;
     }
 
     /**

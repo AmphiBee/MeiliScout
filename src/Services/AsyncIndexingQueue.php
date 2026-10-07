@@ -91,6 +91,8 @@ class AsyncIndexingQueue
                 }
             }
         });
+
+        ActivityLog::flush();
     }
 
     /**

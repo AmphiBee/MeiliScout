@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Foundation;
 
-use Pollora\MeiliScout\Providers\Admin\ContentSelectionServiceProvider;
+use Pollora\MeiliScout\Providers\Admin\AdminServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\IndexationServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\MigrationServiceProvider;
-use Pollora\MeiliScout\Providers\Admin\SettingsServiceProvider;
-use Pollora\MeiliScout\Providers\AssetsServiceProvider;
 use Pollora\MeiliScout\Providers\CommandServiceProvider;
 use Pollora\MeiliScout\Providers\MeiliScoutServiceProvider;
 use Pollora\MeiliScout\Providers\QueryServiceProvider;
@@ -26,9 +24,7 @@ class Application
      */
     protected array $providers = [
         MeiliScoutServiceProvider::class,
-        AssetsServiceProvider::class,
-        SettingsServiceProvider::class,
-        ContentSelectionServiceProvider::class,
+        AdminServiceProvider::class,
         IndexationServiceProvider::class,
         MigrationServiceProvider::class,
         CommandServiceProvider::class,

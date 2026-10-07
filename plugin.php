@@ -4,8 +4,12 @@
  * Plugin Name: MeiliScout
  * Description: Meilisearch integration for WordPress with a modular approach
  * Version: 1.0.0
+ * Requires at least: 6.6
+ * Requires PHP: 8.2
  * Author: AmphiBee
  * License: MIT
+ * Text Domain: meiliscout
+ * Domain Path: /languages
  */
 if (! defined('ABSPATH')) {
     exit; // Security: prevent direct access
