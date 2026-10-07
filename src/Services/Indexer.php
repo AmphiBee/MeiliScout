@@ -126,6 +126,10 @@ class Indexer
                 $index = $this->client->index($indexName);
                 $index->updateSettings($indexable->getIndexSettings());
 
+                if (! $clearIndices) {
+                    $this->deleteNonIndexableStatuses($indexable);
+                }
+
                 // Document indexing with optimized batch size
                 $totalIndexed = 0;
                 $batchSize = $this->getBulkBatchSize();
@@ -168,6 +172,36 @@ class Indexer
             $this->log('error', 'Error during indexing: ' . $e->getMessage(), true);
             $this->logger->complete('error');
             throw $e;
+        }
+    }
+
+    /**
+     * Removes the posts whose status is no longer indexable from the index.
+     *
+     * A full run only adds documents, so a post indexed before it went private,
+     * draft or trash (or before only public statuses were indexed) would stay
+     * searchable. Deleting by filter cleans the index without emptying it.
+     *
+     * @param Indexable $indexable The indexable being indexed
+     */
+    private function deleteNonIndexableStatuses(Indexable $indexable): void
+    {
+        if (! $indexable instanceof PostIndexable) {
+            return;
+        }
+
+        $statuses = array_map(
+            fn (string $status) => sprintf("'%s'", addslashes($status)),
+            PostIndexable::indexableStatuses()
+        );
+
+        try {
+            $this->client->index($indexable->getIndexName())->deleteDocuments([
+                'filter' => sprintf('post_status NOT IN [%s]', implode(', ', $statuses)),
+            ]);
+            $this->log('info', 'Documents with a non-indexable status scheduled for deletion');
+        } catch (\Exception $e) {
+            $this->log('error', 'Failed to delete documents with a non-indexable status: ' . $e->getMessage());
         }
     }
 
@@ -261,6 +295,10 @@ class Indexer
 
                 $index = $this->client->index($indexName);
                 $index->updateSettings($indexable->getIndexSettings());
+
+                if (! $clearIndices && $offset === 0) {
+                    $this->deleteNonIndexableStatuses($indexable);
+                }
 
                 // Document indexing with offset/limit
                 $totalIndexed = 0;
