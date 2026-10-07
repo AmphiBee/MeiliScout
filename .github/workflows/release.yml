@@ -1,0 +1,37 @@
+name: Release
+
+# Publishing a GitHub release builds the installable zip, with the production
+# dependencies in vendor/, and attaches it to the release. Packagist needs
+# nothing: Composer installs the dependencies itself.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Install production dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --classmap-authoritative --no-interaction
+
+      - name: Build the zip
+        run: |
+          mkdir -p dist/meiliscout
+          git archive HEAD | tar -x -C dist/meiliscout
+          cp -R vendor dist/meiliscout/
+          cd dist && zip -qr "meiliscout-${{ github.event.release.tag_name }}.zip" meiliscout
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "dist/meiliscout-${{ github.event.release.tag_name }}.zip"

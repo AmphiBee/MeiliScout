@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Services;
 
 use Meilisearch\Client;
+use Nyholm\Psr7\Factory\Psr17Factory;
 use Pollora\MeiliScout\Config\Config;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpClient\Psr18Client;
 
+use function apply_filters;
 use function error_log;
 use function get_transient;
 use function set_transient;
@@ -31,6 +35,17 @@ class ClientFactory
      * window so a Meilisearch instance that comes back is picked up quickly.
      */
     private const PROBE_TTL_UNREACHABLE = 30;
+
+    /**
+     * Seconds to wait for Meilisearch before giving up on a request.
+     */
+    private const TIMEOUT = 10;
+
+    /**
+     * The HTTP client shared by every Meilisearch client, so that the
+     * connections it opens are reused across requests.
+     */
+    private static ?Psr18Client $httpClient = null;
 
     /**
      * The Meilisearch client instance, built with the admin key.
@@ -128,7 +143,8 @@ class ClientFactory
         }
 
         try {
-            $client = new Client($host, $key);
+            $http = self::httpClient();
+            $client = new Client($host, $key, $http, $http, [], $http);
         } catch (\Throwable $e) {
             self::logError('Failed to create the Meilisearch client: '.$e->getMessage());
 
@@ -136,6 +152,25 @@ class ClientFactory
         }
 
         return self::isAvailable($client, $host, $key) ? $client : null;
+    }
+
+    /**
+     * The PSR-18 client Meilisearch requests go through.
+     *
+     * Symfony HttpClient on curl when available: HTTP/2, kept-alive
+     * connections shared by the admin and the search clients. It doubles as
+     * the PSR-17 factory, backed by nyholm/psr7.
+     */
+    private static function httpClient(): Psr18Client
+    {
+        if (self::$httpClient === null) {
+            $options = (array) apply_filters('meiliscout/http_client_options', ['timeout' => self::TIMEOUT]);
+            $psr17 = new Psr17Factory;
+
+            self::$httpClient = new Psr18Client(HttpClient::create($options), $psr17, $psr17);
+        }
+
+        return self::$httpClient;
     }
 
     /**

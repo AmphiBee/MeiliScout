@@ -13,7 +13,9 @@
         "php": ">=8.2",
         "ext-json": "*",
         "meilisearch/meilisearch-php": "^v1.12.0",
-        "symfony/polyfill-mbstring": "^1.31"
+        "symfony/polyfill-mbstring": "^1.31",
+        "symfony/http-client": "^7.3",
+        "nyholm/psr7": "^1.8"
     },
     "autoload": {
         "psr-4": {
@@ -42,6 +44,9 @@
         "allow-plugins": {
             "php-http/discovery": true,
             "pestphp/pest-plugin": true
+        },
+        "platform": {
+            "php": "8.2.0"
         }
     },
     "require-dev": {
