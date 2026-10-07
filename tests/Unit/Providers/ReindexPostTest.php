@@ -37,7 +37,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
     function reindexing(RecordingPostIndexer $indexer): SingleIndexingServiceProvider
     {
         $provider = new SingleIndexingServiceProvider;
-        new ReflectionProperty($provider, 'postIndexer')->setValue($provider, $indexer);
+        (new ReflectionProperty($provider, 'postIndexer'))->setValue($provider, $indexer);
 
         return $provider;
     }

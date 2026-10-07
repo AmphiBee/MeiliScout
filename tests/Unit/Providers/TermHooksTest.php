@@ -17,7 +17,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
     {
         $GLOBALS['actions'] = [];
         $provider = new SingleIndexingServiceProvider;
-        new ReflectionMethod($provider, 'registerTaxonomyHooks')->invoke($provider);
+        (new ReflectionMethod($provider, 'registerTaxonomyHooks'))->invoke($provider);
 
         return $GLOBALS['actions'];
     }
