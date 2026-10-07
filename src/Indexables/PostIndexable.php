@@ -9,6 +9,7 @@ use Pollora\MeiliScout\Contracts\Indexable;
 use WP_Post;
 use WP_Term;
 
+use function apply_filters;
 use function get_object_taxonomies;
 use function get_permalink;
 use function get_post_meta;
@@ -23,6 +24,14 @@ use function wp_get_post_terms;
 class PostIndexable implements Indexable
 {
     private array $metaKeys = [];
+
+    /**
+     * @return string[]
+     */
+    public static function indexableStatuses(): array
+    {
+        return apply_filters('meiliscout/indexable_post_statuses', ['publish']);
+    }
 
     /**
      * Preloaded terms cache indexed by post ID.
@@ -116,7 +125,7 @@ class PostIndexable implements Indexable
                     'post_type' => $postType,
                     'posts_per_page' => $postsPerPage,
                     'paged' => $page,
-                    'post_status' => 'any',
+                    'post_status' => self::indexableStatuses(),
                     'orderby' => 'ID',
                     'order' => 'ASC',
                     'suppress_filters' => true,
@@ -350,13 +359,29 @@ class PostIndexable implements Indexable
             throw new \InvalidArgumentException('Item must be instance of WP_Post');
         }
 
-        $document = get_object_vars($item);
+        $document = $this->withoutProtectedText(get_object_vars($item));
 
         $document['url'] = get_permalink($item);
         $document['terms'] = $this->getFlattenedTerms($item);
         $document['metas'] = $this->getMetaData($item);
 
         return apply_filters('meiliscout/post/document', $document, $item);
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     * @return array<string, mixed>
+     */
+    private function withoutProtectedText(array $document): array
+    {
+        $isProtected = ($document['post_password'] ?? '') !== '';
+        unset($document['post_password']);
+
+        if (! $isProtected) {
+            return $document;
+        }
+
+        return [...$document, 'post_content' => '', 'post_content_filtered' => '', 'post_excerpt' => ''];
     }
 
     public function formatForSearch(array $hit): mixed

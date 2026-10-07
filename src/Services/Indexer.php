@@ -126,6 +126,10 @@ class Indexer
                 $index = $this->client->index($indexName);
                 $index->updateSettings($indexable->getIndexSettings());
 
+                if (! $clearIndices) {
+                    $this->deleteNonIndexableStatuses($indexable);
+                }
+
                 // Document indexing with optimized batch size
                 $totalIndexed = 0;
                 $batchSize = $this->getBulkBatchSize();
@@ -172,6 +176,36 @@ class Indexer
     }
 
     /**
+     * Removes the posts whose status is no longer indexable from the index.
+     *
+     * A full run only adds documents, so a post indexed before it went private,
+     * draft or trash (or before only public statuses were indexed) would stay
+     * searchable. Deleting by filter cleans the index without emptying it.
+     *
+     * @param Indexable $indexable The indexable being indexed
+     */
+    private function deleteNonIndexableStatuses(Indexable $indexable): void
+    {
+        if (! $indexable instanceof PostIndexable) {
+            return;
+        }
+
+        $statuses = array_map(
+            fn (string $status) => sprintf("'%s'", addslashes($status)),
+            PostIndexable::indexableStatuses()
+        );
+
+        try {
+            $this->client->index($indexable->getIndexName())->deleteDocuments([
+                'filter' => sprintf('post_status NOT IN [%s]', implode(', ', $statuses)),
+            ]);
+            $this->log('info', 'Documents with a non-indexable status scheduled for deletion');
+        } catch (\Exception $e) {
+            $this->log('error', 'Failed to delete documents with a non-indexable status: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Gets the bulk batch size, allowing override via filter.
      *
      * @return int Batch size for bulk indexing operations
@@ -194,12 +228,15 @@ class Indexer
         // Count posts directly from database without loading them
         $postTypes = Settings::get('indexed_post_types', []);
         if (!empty($postTypes)) {
+            $statuses = PostIndexable::indexableStatuses();
             $placeholders = implode(',', array_fill(0, count($postTypes), '%s'));
+            $statusPlaceholders = implode(',', array_fill(0, count($statuses), '%s'));
             $query = $wpdb->prepare(
                 "SELECT COUNT(*) FROM {$wpdb->posts}
                  WHERE post_type IN ($placeholders)
-                 AND post_status NOT IN ('trash', 'auto-draft')",
-                ...$postTypes
+                 AND post_status IN ($statusPlaceholders)",
+                ...$postTypes,
+                ...$statuses
             );
             $total += (int) $wpdb->get_var($query);
         }
@@ -258,6 +295,10 @@ class Indexer
 
                 $index = $this->client->index($indexName);
                 $index->updateSettings($indexable->getIndexSettings());
+
+                if (! $clearIndices && $offset === 0) {
+                    $this->deleteNonIndexableStatuses($indexable);
+                }
 
                 // Document indexing with offset/limit
                 $totalIndexed = 0;
