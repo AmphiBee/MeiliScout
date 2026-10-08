@@ -83,6 +83,11 @@ abstract class AbstractSingleIndexer
     protected int $logSaveInterval = 10;
 
     /**
+     * The message of the last error, kept for the activity log: some failures are only logged.
+     */
+    protected ?string $lastError = null;
+
+    /**
      * Creates a new AbstractSingleIndexer instance.
      *
      * Initializes the Meilisearch client and operation log.
@@ -554,6 +559,10 @@ abstract class AbstractSingleIndexer
      */
     protected function logOperation(string $type, string $message, bool $forceSave = false): void
     {
+        if ($type === 'error') {
+            $this->lastError = $message;
+        }
+
         $logEntry = [
             'type' => $type,
             'message' => $message,
@@ -605,6 +614,22 @@ abstract class AbstractSingleIndexer
             $this->saveOperationLog();
             $this->logOperationCount = 0;
         }
+    }
+
+    /**
+     * The message of the last error, or null.
+     */
+    public function lastError(): ?string
+    {
+        return $this->lastError;
+    }
+
+    /**
+     * Forgets the last error, before an operation whose outcome is checked.
+     */
+    public function clearLastError(): void
+    {
+        $this->lastError = null;
     }
 
     /**

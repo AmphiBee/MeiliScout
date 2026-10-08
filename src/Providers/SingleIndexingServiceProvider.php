@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Providers;
 
-use Pollora\MeiliScout\Config\Config;
+use Pollora\MeiliScout\Config\RealtimeIndexing;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
+use Pollora\MeiliScout\Services\ActivityLog;
 use Pollora\MeiliScout\Services\AsyncIndexingQueue;
 use Pollora\MeiliScout\Services\IndexingTask;
 use Pollora\MeiliScout\Services\ObjectCacheIsolation;
@@ -75,7 +76,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
      *
      * @var list<string>
      */
-    private const INTERNAL_META_KEYS = [
+    public const INTERNAL_META_KEYS = [
         '_edit_lock',
         '_edit_last',
         '_wp_old_slug',
@@ -101,13 +102,21 @@ class SingleIndexingServiceProvider extends ServiceProvider
         $this->postIndexer = new PostSingleIndexer();
         $this->taxonomyIndexer = new TaxonomySingleIndexer();
 
-        if ($this->isAsyncMode()) {
+        $mode = RealtimeIndexing::mode();
+
+        // Also when real-time indexing was turned off since: what was queued still goes out
+        if ($mode !== RealtimeIndexing::SHUTDOWN) {
             $this->asyncQueue = new AsyncIndexingQueue($this->postIndexer, $this->taxonomyIndexer);
             // A custom provider may have registered its own processor
             // with the correct indexer. In that case skip registering the default one.
             if (apply_filters('meiliscout/register_async_queue_processor', true)) {
                 add_action('meiliscout_process_async_queue', [$this->asyncQueue, 'process']);
             }
+        }
+
+        // Only full indexations update the indexes
+        if ($mode === RealtimeIndexing::OFF) {
+            return;
         }
 
         $this->registerPostHooks();
@@ -205,7 +214,9 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->queue('post', 'remove', $postId);
+        // The post is gone once the task runs: the activity log gets its title now
+        $title = get_post($postId)?->post_title;
+        $this->queue('post', 'remove', $postId, is_string($title) && $title !== '' ? ['label' => $title] : []);
     }
 
     /**
@@ -414,7 +425,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->queue('term', 'remove', $termId);
+        $this->queue('term', 'remove', $termId, ['label' => $deletedTerm->name]);
     }
 
     /**
@@ -540,6 +551,8 @@ class SingleIndexingServiceProvider extends ServiceProvider
                 }
             }
         });
+
+        ActivityLog::flush();
     }
 
     /**
@@ -558,12 +571,12 @@ class SingleIndexingServiceProvider extends ServiceProvider
     /**
      * Determines whether asynchronous indexing mode is enabled.
      *
-     * Reads the MEILISCOUT_ASYNC_INDEXING environment variable via Config.
+     * Set in the admin, or by MEILISCOUT_ASYNC_INDEXING (see RealtimeIndexing).
      *
      * @return bool True if async mode is active, false for synchronous (default)
      */
     private function isAsyncMode(): bool
     {
-        return filter_var(Config::get('meiliscout_async_indexing', false), FILTER_VALIDATE_BOOLEAN);
+        return RealtimeIndexing::mode() === RealtimeIndexing::ASYNC;
     }
 }

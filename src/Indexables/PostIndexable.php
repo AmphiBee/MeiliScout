@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Indexables;
 
+use Pollora\MeiliScout\Config\SearchableAttributes;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Services\IndexNames;
@@ -18,10 +19,12 @@ use function get_posts;
 use function get_term;
 use function is_wp_error;
 use function maybe_unserialize;
+use function strip_shortcodes;
 use function update_meta_cache;
 use function update_object_term_cache;
 use function wp_cache_get;
 use function wp_get_post_terms;
+use function wp_strip_all_tags;
 
 class PostIndexable implements Indexable
 {
@@ -80,6 +83,7 @@ class PostIndexable implements Indexable
         $filterableAttributes[] = 'taxonomies';
 
         return [
+            'searchableAttributes' => SearchableAttributes::forIndex(),
             'filterableAttributes' => array_values(array_unique($filterableAttributes)),
             'sortableAttributes' => array_values(array_unique([
                 'post_title',
@@ -356,6 +360,7 @@ class PostIndexable implements Indexable
         $document = $this->withoutProtectedText(get_object_vars($item));
 
         $document['url'] = get_permalink($item);
+        $document['content_text'] = $this->plainText((string) $document['post_content']);
         $document['terms'] = $this->getFlattenedTerms($item);
         $document['taxonomies'] = $this->groupedByTaxonomy($document['terms']);
         $document['metas'] = $this->getMetaData($item);
@@ -385,6 +390,16 @@ class PostIndexable implements Indexable
         }
 
         return $grouped;
+    }
+
+    /**
+     * The text of a post's content, without markup, block comments or shortcodes: what a search should match.
+     */
+    private function plainText(string $content): string
+    {
+        $text = wp_strip_all_tags(strip_shortcodes($content));
+
+        return trim((string) preg_replace('/\s+/u', ' ', html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
     }
 
     /**

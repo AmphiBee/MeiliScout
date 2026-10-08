@@ -180,6 +180,23 @@ final class IndexNames
     }
 
     /**
+     * Records the target indexes as the active ones on a site never indexed.
+     *
+     * Called before a full indexation writes its first option: that option is
+     * how a site indexed before 2.0 is told apart, and without this a new site
+     * would take the unprefixed names for legacy indexes to migrate from.
+     */
+    public static function adoptIfNew(): void
+    {
+        if (get_option(self::ACTIVE_OPTION, null) !== null || self::wasIndexedBefore()) {
+            return;
+        }
+
+        update_option(self::ACTIVE_OPTION, array_combine(self::BASES, array_map([self::class, 'name'], self::BASES)));
+        update_option(self::SCHEMA_OPTION, self::SCHEMA_VERSION);
+    }
+
+    /**
      * The indexes searches no longer read, left for the admin to delete.
      *
      * @return list<string>

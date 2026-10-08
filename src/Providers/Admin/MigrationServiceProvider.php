@@ -55,6 +55,11 @@ class MigrationServiceProvider extends ServiceProvider
             return;
         }
 
+        // The MeiliScout page shows its own
+        if (($_GET['page'] ?? null) === AdminServiceProvider::PAGE) {
+            return;
+        }
+
         if (isset($_GET['meiliscout_legacy_deleted'])) {
             $this->notice('success', esc_html__('The previous Meilisearch indexes were deleted.', 'meiliscout'));
         }
@@ -114,7 +119,7 @@ class MigrationServiceProvider extends ServiceProvider
                 esc_html__('If your search API key is restricted to some indexes, give it access to %s first.', 'meiliscout'),
                 '<code>'.esc_html(implode(', ', $next)).'</code>'
             ),
-            esc_url(admin_url('admin.php?page=meiliscout-indexation')),
+            esc_url(admin_url('admin.php?page='.AdminServiceProvider::PAGE.'#/indexation')),
             esc_html__('Go to the indexation', 'meiliscout')
         ));
     }

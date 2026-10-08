@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Query;
 use Meilisearch\Client;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\SearchFallbacks;
 use WP_Query;
 
 /**
@@ -42,6 +43,9 @@ class QueryIntegration
         $this->client = ClientFactory::getReadClient();
 
         if (! $this->client) {
+            // Meilisearch is down: the queries asking for it run on MySQL, and are counted
+            add_filter('posts_pre_query', [$this, 'countUnservedQuery'], PHP_INT_MAX, 2);
+
             return;
         }
 
@@ -67,6 +71,8 @@ class QueryIntegration
         // If non-indexable meta keys are found, fall back to classic WP_Query mode
         if ($this->builder->hasNonIndexableMetaKeys()) {
             $query->query_vars['use_meilisearch'] = false;
+            SearchFallbacks::record(SearchFallbacks::UNINDEXED_META);
+
             return $posts;
         }
 
@@ -83,6 +89,7 @@ class QueryIntegration
         } catch (\Throwable $e) {
             // Let WordPress run the query on MySQL rather than break the page
             error_log('MeiliScout: search failed, falling back to MySQL: '.$e->getMessage());
+            SearchFallbacks::record(SearchFallbacks::ERROR);
 
             return $posts;
         }
@@ -105,6 +112,21 @@ class QueryIntegration
         $query->post_count = count($query->posts);
 
         return $query->posts;
+    }
+
+    /**
+     * Counts a query asking for Meilisearch while it cannot be reached; WordPress runs it.
+     *
+     * @param array|null $posts
+     * @return array|null
+     */
+    public function countUnservedQuery($posts, WP_Query $query): ?array
+    {
+        if (! empty($query->query_vars['use_meilisearch'])) {
+            SearchFallbacks::record(SearchFallbacks::ERROR);
+        }
+
+        return $posts;
     }
 
     /**

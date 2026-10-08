@@ -13,7 +13,7 @@ remove_filter('meiliscout/skip_indexing', '__return_true');
 ```
 
 ### meiliscout/bulk_batch_size
-Configure batch size for bulk indexing (default: 500).
+Configure batch size for bulk indexing (default: the "Contents per batch" setting, 500).
 
 ```php
 // Increase for servers with more RAM
@@ -92,7 +92,7 @@ queue when `MEILISCOUT_ASYNC_INDEXING` is on), however many hooks they fire.
 
 ### meiliscout/http_client_options
 Options of the Symfony HttpClient that sends the Meilisearch requests
-(defaults to `['timeout' => 10]`).
+(defaults to `['timeout' => 10]`, the timeout being the admin's setting).
 
 ```php
 add_filter('meiliscout/http_client_options', fn (array $options) => [
@@ -115,12 +115,61 @@ add_filter('meiliscout/index_prefix', fn () => 'shop');
 Changing the prefix calls for a full indexation: until then, searches keep
 reading the previous indexes (see "Upgrading to 2.0").
 
+## Actions
+
+### meiliscout/reindex_post
+Re-indexes a post whose document changed while the post itself was not saved,
+such as a product whose variations changed. Runs at the end of the request, or
+on the async queue, like any real-time task.
+
+```php
+do_action('meiliscout/reindex_post', $productId);
+```
+
+### meiliscout/schedule_indexation
+Schedules one full indexation on WP-Cron, in place (the indexes are not
+emptied). A second call while one is waiting does nothing.
+
+```php
+do_action('meiliscout/schedule_indexation');
+```
+
+## Dependent documents
+
+An indexable can bring documents of its own along with each item, such as one
+document per product variant: implement `Pollora\MeiliScout\Contracts\HasDependentDocuments`.
+
+- `dependentDocuments(array $document, mixed $item): array` returns them, given
+  the item's finished document.
+- `dependentDocumentsFilter(array $itemIds): ?string` returns a Meilisearch filter
+  matching every dependent document of these items (null when none can have any).
+
+They are written with the item's document, and the ones the item no longer
+brings are deleted. Dependent documents must carry the `taxonomies` field like
+any post document, and the attributes the filter uses (`ID` included) must be
+filterable, or stale ones are never deleted.
+
 ## Query Variables
 
 | Variable | Description |
 |----------|-------------|
 | `use_meilisearch` | Run this `WP_Query` on Meilisearch |
 | `meilisearch_facets` | Facets to compute, e.g. `['taxonomies.category.slug']`; the distribution lands in `$query->facet_distribution`. None by default: facets cost on every search |
+
+## Admin settings
+
+Set in MeiliScout › Settings and Content, stored as `meiliscout/<name>` options:
+
+| Option | Description |
+|--------|-------------|
+| `realtime_indexing` | `shutdown` (default), `async` or `off`: only full indexations update the indexes |
+| `http_timeout` | Seconds to wait for Meilisearch (default: 10) |
+| `bulk_batch_size` | Contents sent per request by full indexations (default: 500) |
+| `searchable_attributes` | Fields searched, most important first. Unset: every field (`*`) |
+| `meili_index_prefix` | Prefix of the index names, unless `MEILI_INDEX_PREFIX` is set |
+
+Documents carry `content_text`, the post content without markup, block
+comments or shortcodes: the field to search rather than `post_content`.
 
 ## Upgrading to 2.0
 
@@ -148,7 +197,8 @@ Facets are no longer computed on every query: ask for them with
 
 | Variable | Description |
 |----------|-------------|
-| `MEILISCOUT_ASYNC_INDEXING` | Enable async mode (`true`/`false`) |
+| `MEILISCOUT_ASYNC_INDEXING` | Real-time indexing on the async queue (`true`) or at the end of the request (`false`); locks the admin's setting |
+| `MEILI_HOST`, `MEILI_KEY`, `MEILI_SEARCH_KEY` | Connection; each one locks its admin field |
 | `MEILI_INDEX_PREFIX` | Prefix of the index names (default: the site's domain) |
 
 ## WP-CLI Commands

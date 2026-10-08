@@ -6,16 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Admin Assets Development
 ```bash
-# Start development server with hot reload
-npm run start
-
-# Build for production
-npm run build
-
-# Linting and formatting
+npm run start      # watch
+npm run build      # build/app.js, build/app.css
 npm run lint:js
 npm run lint:css
 npm run format
+npm run i18n       # needs WP-CLI: .pot, merges into the .po files, .mo and the JSON of the script
 ```
 
 ### PHP Development
@@ -48,9 +44,8 @@ ddev exec --dir /var/www/html/public/content/plugins/meiliscout composer test:ty
 ```
 
 ### Build System
-- Uses WordPress Scripts (@wordpress/scripts) for modern build pipeline
-- Webpack configuration extends WordPress defaults for admin assets
-- TailwindCSS integration via PostCSS for admin UI
+- @wordpress/scripts, one entry: `resources/admin/index.js` → `build/app.js` and `build/app.css`
+- The entry is not named `admin`: `wp i18n make-json` turns a file name ending in `min.js` into a wrong one, and the translations of the script are never loaded
 
 ## Architecture Overview
 
@@ -85,10 +80,14 @@ ddev exec --dir /var/www/html/public/content/plugins/meiliscout composer test:ty
 - `PostSingleIndexer`: Real-time single post indexing
 - `TaxonomySingleIndexer`: Real-time single taxonomy indexing
 - `AsyncIndexingQueue`: WP-Cron based async indexing queue (opt-in)
-- `IndexingLogger`: Secure file-based logging for indexation operations
+- `IndexingLogger`: Secure file-based log of the running full indexation, with its progress
+- `ActivityLog`: Last 100 operations (full indexations, real-time tasks), failed tasks kept to retry them
+- `SearchFallbacks`: Queries asking for Meilisearch that MySQL served, per hour, for 24 h
+- `MetaKeyCatalog`: Meta keys of the indexable posts, with a type guessed from their values
 
 ### Configuration
-- **Config System**: `src/Config/Config.php` and `src/Config/Settings.php`
+- **Config System**: `src/Config/Config.php` (environment, constant, then option) and `src/Config/Settings.php`
+- `RealtimeIndexing` (shutdown / async / off) and `SearchableAttributes` (fields searched, in order)
 - **Plugin Constants**: Defined in `plugin.php`
 - **Default Index**: Configured in `config/meiliscout.php`
 
@@ -106,10 +105,12 @@ ddev exec --dir /var/www/html/public/content/plugins/meiliscout composer test:ty
 - **Validators**: Type validation in `src/Domain/Search/Validators/`
 - **Service Providers**: Modular service registration pattern
 
-### Admin Assets
-- **Build Process**: Webpack with WordPress Scripts integration
-- **Modern CSS**: TailwindCSS with PostCSS processing
-- **Entry Point**: `resources/assets/main.js`
+### Admin
+- One page (`admin.php?page=meiliscout`, `Providers/Admin/AdminServiceProvider`) where a React app (`resources/admin/`) renders five screens from the hash: Overview, Content, Indexation, Search preview, Settings
+- REST endpoints under `meiliscout/v1`, one controller per screen in `src/Admin/Rest/`, all for `manage_options`
+- API keys never go to the browser: the app only learns whether one is set
+- Plain CSS scoped to `.meiliscout-admin`, design tokens as custom properties (look of the Meilisearch Cloud dashboard)
+- UI strings in English through `@wordpress/i18n`; French in `languages/`
 
 ## Testing Strategy
 
@@ -158,7 +159,7 @@ The plugin provides several filters for customization:
 
 ## Environment Variables
 
-- `MEILISCOUT_ASYNC_INDEXING`: Enable async indexing mode (`true`/`false`)
+- `MEILISCOUT_ASYNC_INDEXING`: Async (`true`) or end-of-request (`false`) real-time indexing; overrides the admin's setting
 - `MEILI_INDEX_PREFIX`: Prefix of the index names
 
 ## Index Names and Migrations

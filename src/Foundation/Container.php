@@ -7,12 +7,12 @@ namespace Pollora\MeiliScout\Foundation;
 use Closure;
 use Meilisearch\Client;
 use Pollora\MeiliScout\Config\Config;
+use Pollora\MeiliScout\Providers\Admin\AdminServiceProvider;
 use Pollora\MeiliScout\Query\MeiliQueryBuilder;
 use Pollora\MeiliScout\Query\QueryIntegration;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Psr\Container\ContainerInterface;
 
-use function Pollora\MeiliScout\get_template_part;
 
 /**
  * PSR-11 compliant dependency injection container implementation.
@@ -111,7 +111,8 @@ class Container implements ContainerInterface
     private function register(): void
     {
         add_action('admin_notices', function () {
-            if (! current_user_can('manage_options')) {
+            // The MeiliScout page shows the connection state itself
+            if (! current_user_can('manage_options') || ($_GET['page'] ?? null) === AdminServiceProvider::PAGE) {
                 return;
             }
 
@@ -128,7 +129,12 @@ class Container implements ContainerInterface
             }
 
             foreach ($errors as $message) {
-                get_template_part('components/alert', ['message' => $message, 'type' => 'error']);
+                printf(
+                    '<div class="notice notice-error"><p>%s <a href="%s">%s</a></p></div>',
+                    esc_html($message),
+                    esc_url(admin_url('admin.php?page='.AdminServiceProvider::PAGE.'#/settings')),
+                    esc_html__('Open the settings', 'meiliscout')
+                );
             }
         });
 
