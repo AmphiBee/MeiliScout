@@ -5,6 +5,9 @@ import { post, errorMessage } from '../api';
 import { Banner, Pill } from '../components';
 import { number } from '../format';
 
+const DOCS_URL =
+	'https://github.com/AmphiBee/MeiliScout/blob/main/docs/WP_QUERY.md';
+
 const EXAMPLE = `{
   "post_type": "post",
   "category_name": "news",
@@ -130,7 +133,13 @@ const WpQueryTester = () => {
 						{ __(
 							'Runs the query on MySQL, then with use_meilisearch, as you, and compares the two.',
 							'meiliscout'
-						) }
+						) }{ ' ' }
+						<a href={ DOCS_URL } target="_blank" rel="noreferrer">
+							{ __(
+								'What is translated, and why a query runs on MySQL',
+								'meiliscout'
+							) }
+						</a>
 					</p>
 				</div>
 				<div className="ms-card__body">

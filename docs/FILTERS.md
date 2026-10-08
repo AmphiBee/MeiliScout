@@ -115,6 +115,85 @@ add_filter('meiliscout/index_prefix', fn () => 'shop');
 Changing the prefix calls for a full indexation: until then, searches keep
 reading the previous indexes (see "Upgrading to 2.0").
 
+## Queries
+
+How a `WP_Query` is translated, and when it runs on MySQL instead: [WP_QUERY.md](WP_QUERY.md).
+
+### meiliscout/skip_query_integration
+Keeps a query the settings cover on MySQL (`use_meilisearch` wins either way).
+
+```php
+add_filter('meiliscout/skip_query_integration', fn ($skip, WP_Query $query) => $skip || $query->get('post_type') === 'event', 10, 2);
+```
+
+### meiliscout/integrate_query
+The last word on whether Meilisearch serves a query that did not ask (default: Settings › Queries).
+
+```php
+add_filter('meiliscout/integrate_query', fn ($integrate, WP_Query $query) => $integrate || $query->is_author(), 10, 2);
+```
+
+### meiliscout/supported_query_vars
+Query vars Meilisearch can serve a query with. A query var MeiliScout does not
+know sends the query to MySQL; add a plugin's var when the plugin only uses it
+to build a `tax_query` or a `meta_query`.
+
+```php
+add_filter('meiliscout/supported_query_vars', fn (array $vars) => [...$vars, 'lang']);
+```
+
+### meiliscout/search_params
+The parameters of the Meilisearch search a query becomes.
+
+```php
+add_filter('meiliscout/search_params', function (array $params) {
+    $params['showRankingScore'] = true;
+
+    return $params;
+});
+```
+
+### meiliscout/hydrate_from_documents
+Builds the `WP_Post` objects from the documents instead of loading them from the
+database (default: false). Saves a query on the primary key, but the posts are
+as fresh as the index, protected posts lose their content, and only displayed
+attributes are there.
+
+```php
+add_filter('meiliscout/hydrate_from_documents', '__return_true');
+```
+
+### meiliscout/max_total_hits
+Results a search can reach (default: Settings › Advanced › Maximum results per
+query, 10,000). Sent with the index settings: changed by the next indexation.
+
+### meiliscout/php_order_limit
+Results put in order in PHP for `orderby` `rand`, `post__in`, `post_name__in` and
+`post_parent__in` (default: 1000). Beyond, the query runs on MySQL.
+
+### meiliscout/post/ranking_rules
+Ranking rules of the posts index (default: `sort` first, then Meilisearch's
+own). With `sort` first, a search with an explicit `orderby` follows it
+strictly; a search without one is ranked by relevance as before.
+
+```php
+// Sorts only break ties between equally relevant posts
+add_filter('meiliscout/post/ranking_rules', fn () => ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness']);
+```
+
+### meiliscout/debug_header
+Whether the `X-MeiliScout: served | fallback:<reason>` header is sent with the
+main query (default: `WP_DEBUG`, or an administrator).
+
+```php
+add_filter('meiliscout/debug_header', '__return_false');
+```
+
+### meiliscout/indexable_post_statuses
+Statuses of the posts sent to the index (default: `publish`, plus `private` with
+Content › Index private content). A status added here is used by queries once a
+full indexation sent its posts.
+
 ## Actions
 
 ### meiliscout/reindex_post
@@ -153,7 +232,7 @@ filterable, or stale ones are never deleted.
 
 | Variable | Description |
 |----------|-------------|
-| `use_meilisearch` | Run this `WP_Query` on Meilisearch |
+| `use_meilisearch` | Run this `WP_Query` on Meilisearch (`true`), or keep it on MySQL whatever the settings (`false`). What happened is in `$query->meiliscout` |
 | `meilisearch_facets` | Facets to compute, e.g. `['taxonomies.category.slug']`; the distribution lands in `$query->facet_distribution`. None by default: facets cost on every search |
 
 ## Admin settings
@@ -167,6 +246,10 @@ Set in MeiliScout › Settings and Content, stored as `meiliscout/<name>` option
 | `bulk_batch_size` | Contents sent per request by full indexations (default: 500) |
 | `searchable_attributes` | Fields searched, most important first. Unset: every field (`*`) |
 | `meili_index_prefix` | Prefix of the index names, unless `MEILI_INDEX_PREFIX` is set |
+| `query_integration` | Queries served without asking: `search`, `archives`, `rest_search`, `admin` (all off by default) |
+| `max_total_hits` | Results a search can reach (default: 10,000) |
+| `contains_filter` | Whether `meta_query` `LIKE` uses Meilisearch's `CONTAINS` (follows the instance's experimental feature) |
+| `index_private` | Whether private posts are indexed (default: off) |
 
 Documents carry `content_text`, the post content without markup, block
 comments or shortcodes: the field to search rather than `post_content`.
@@ -192,6 +275,13 @@ give it access to the new names first.
 
 Facets are no longer computed on every query: ask for them with
 `meilisearch_facets`.
+
+Documents also carry fields for `WP_Query` arguments (schema 3: ids, authors,
+parents, dates as timestamps and parts, `post_title_sort`). Queries using them
+run on MySQL until the full indexation is done. A query Meilisearch cannot
+answer as MySQL would now runs on MySQL instead of returning other posts: see
+[WP_QUERY.md](WP_QUERY.md). Posts are loaded from the database rather than
+built from the documents (`meiliscout/hydrate_from_documents` to go back).
 
 ## Environment Variables
 
@@ -221,6 +311,11 @@ wp meiliscout index --chunk-size=50000 --clear
 
 # Purge indices
 wp meiliscout index --purge
+
+# Run queries on MySQL and on Meilisearch, and compare (exit code 1 on a difference)
+wp meiliscout check-queries
+wp meiliscout check-queries --case=tax_query
+wp meiliscout check-queries --args='{"post_type":"page","orderby":"menu_order"}'
 ```
 
 ## High-Volume Site Configuration
