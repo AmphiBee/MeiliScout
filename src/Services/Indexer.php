@@ -130,8 +130,9 @@ class Indexer
                     $this->client->createIndex($indexName, [
                         'primaryKey' => $indexable->getPrimaryKey(),
                     ]);
-                    // Update cache
+                    // Update cache; the single indexers writing the batches must not create it again
                     $this->indexExistsCache[$indexName] = true;
+                    AbstractSingleIndexer::indexCreated($indexName);
                 }
 
                 $index = $this->client->index($indexName);
@@ -269,18 +270,44 @@ class Indexer
     /**
      * Moves searches to the indexes just built, in the current format.
      *
-     * Called once every indexable was indexed. The indexes searches leave are
-     * listed for deletion in the admin.
+     * Called once every indexable was indexed. Only the indexes of the
+     * indexables that ran move: the indexables filter may leave one out. The
+     * indexes searches leave are listed for deletion in the admin.
      */
     public function activate(): void
     {
-        $migrating = IndexNames::migrationPending();
+        $bases = $this->builtBases();
+        $migrating = array_intersect(IndexNames::pendingBases(), $bases);
 
-        IndexNames::activate();
+        IndexNames::activate($bases);
 
-        if ($migrating) {
-            $this->log('success', sprintf('Searches now use %s', implode(', ', array_map([IndexNames::class, 'name'], IndexNames::BASES))));
+        if ($migrating !== []) {
+            $this->log('success', sprintf('Searches now use %s', implode(', ', array_map([IndexNames::class, 'name'], $migrating))));
         }
+    }
+
+    /**
+     * The plugin's indexes the indexables write, by base name.
+     *
+     * @return list<string>
+     */
+    private function builtBases(): array
+    {
+        $bases = [];
+
+        foreach ($this->indexables as $indexable) {
+            $base = match ($this->kindOf($indexable)) {
+                'posts' => 'posts',
+                'terms' => 'taxonomies',
+                default => null,
+            };
+
+            if ($base !== null) {
+                $bases[] = $base;
+            }
+        }
+
+        return array_values(array_unique($bases));
     }
 
     /**
@@ -319,8 +346,10 @@ class Indexer
             return null;
         }
 
-        // Left over by an interrupted rebuild
-        $this->client->deleteIndex($rebuildName);
+        // Left over by an interrupted rebuild; a deletion of no index would be a failed task
+        if ($this->indexExists($rebuildName)) {
+            $this->client->deleteIndex($rebuildName);
+        }
         unset($this->indexExistsCache[$rebuildName]);
 
         return $rebuildName;
@@ -339,6 +368,7 @@ class Indexer
         // A swap needs both indexes
         if (! $this->indexExists($indexName)) {
             $this->client->createIndex($indexName, ['primaryKey' => $indexable->getPrimaryKey()]);
+            AbstractSingleIndexer::indexCreated($indexName);
         }
 
         // Meilisearch runs tasks in order: the swap waits for the documents written to the rebuild
@@ -544,6 +574,7 @@ class Indexer
                         'primaryKey' => $indexable->getPrimaryKey(),
                     ]);
                     $this->indexExistsCache[$indexName] = true;
+                    AbstractSingleIndexer::indexCreated($indexName);
                 }
 
                 $index = $this->client->index($indexName);
@@ -625,6 +656,7 @@ class Indexer
             'post_types' => Settings::get('indexed_post_types', []),
             'taxonomies' => Settings::get('indexed_taxonomies', []),
             'meta_keys' => Settings::get('indexed_meta_keys', []),
+            'term_meta_keys' => Settings::get(TaxonomyIndexable::META_KEYS_SETTING, []),
             'searchable' => SearchableAttributes::configured(),
             'statuses' => PostIndexable::indexableStatuses(),
             'last_indexed' => current_time('mysql'),
@@ -686,6 +718,17 @@ class Indexer
             $changes['meta_keys'] = [
                 'added' => array_values($addedMetaKeys),
                 'removed' => array_values($removedMetaKeys),
+            ];
+        }
+
+        // Sites indexed before term meta keys were chosen apart had none
+        $termMetaKeys = (array) Settings::get(TaxonomyIndexable::META_KEYS_SETTING, []);
+        $lastTermMetaKeys = (array) ($lastStructure['term_meta_keys'] ?? []);
+        if (array_diff($termMetaKeys, $lastTermMetaKeys) !== [] || array_diff($lastTermMetaKeys, $termMetaKeys) !== []) {
+            $hasChanged = true;
+            $changes['term_meta_keys'] = [
+                'added' => array_values(array_diff($termMetaKeys, $lastTermMetaKeys)),
+                'removed' => array_values(array_diff($lastTermMetaKeys, $termMetaKeys)),
             ];
         }
 

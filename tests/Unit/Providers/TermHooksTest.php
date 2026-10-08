@@ -29,4 +29,8 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
         expect($termEdit['priority'])->toBe(SingleIndexingServiceProvider::EDITED_TERM_PRIORITY);
         expect(SingleIndexingServiceProvider::EDITED_TERM_PRIORITY)->toBeGreaterThan($defaultPriority);
     });
+
+    test('a term is indexed again when its post count changes', function () {
+        expect(termHooks())->toHaveKey('edited_term_taxonomy');
+    });
 }

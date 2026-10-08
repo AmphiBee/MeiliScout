@@ -18,6 +18,7 @@ use function add_action;
 use function apply_filters;
 use function get_post;
 use function get_term;
+use function get_term_by;
 
 /**
  * Service provider for managing automatic single-item indexing operations.
@@ -165,6 +166,9 @@ class SingleIndexingServiceProvider extends ServiceProvider
         add_action('created_term', [$this, 'handleTermCreate'], 10, 3);
         add_action('edit_terms', [$this, 'rememberTermBeforeEdit'], 10, 2);
         add_action('edited_term', [$this, 'handleTermSave'], self::EDITED_TERM_PRIORITY, 3);
+
+        // Hook for term counts, updated when a post gets or loses the term (wp_update_term_count_now())
+        add_action('edited_term_taxonomy', [$this, 'handleTermCountUpdate'], 10, 2);
 
         // Hook for term deletions
         add_action('delete_term', [$this, 'handleTermDelete'], 10, 4);
@@ -404,6 +408,30 @@ class SingleIndexingServiceProvider extends ServiceProvider
             'slug' => $term->slug,
             'parent' => (int) $term->parent,
         ];
+    }
+
+    /**
+     * Re-indexes a term whose post count changed: term queries filter (hide_empty) and sort on it.
+     *
+     * Fired for each term of a post that is published, unpublished or gets
+     * other terms, and by wp_update_term() too. The tasks wait for the end of
+     * the request, where a term changed several times is indexed once.
+     *
+     * @param int $ttId The term taxonomy ID
+     * @param string $taxonomy The taxonomy name
+     * @return void
+     */
+    public function handleTermCountUpdate(int $ttId, string $taxonomy): void
+    {
+        if ($this->shouldSkipIndexing() || ! in_array($taxonomy, (array) Settings::get('indexed_taxonomies', []), true)) {
+            return;
+        }
+
+        $term = get_term_by('term_taxonomy_id', $ttId, $taxonomy);
+
+        if ($term instanceof \WP_Term) {
+            $this->queue('term', 'index', (int) $term->term_id);
+        }
     }
 
     /**

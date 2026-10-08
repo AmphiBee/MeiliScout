@@ -21,22 +21,27 @@ use function update_option;
  * can share a Meilisearch instance. The prefix comes from MEILI_INDEX_PREFIX,
  * or from the site's domain.
  *
- * The documents' format has a version. Searches read the *active* indexes
- * recorded by the last full indexation, in the format they were built with,
- * until a full indexation builds the *target* indexes in the current format
- * and activates them. A site indexed before 2.0 keeps searching its legacy
- * `posts` index in the meantime.
+ * Each index's documents have a format, with its own version. Searches read
+ * the *active* indexes recorded by the last full indexation, in the format
+ * they were built with, until a full indexation builds the *target* indexes
+ * in the current format and activates them. A site indexed before 2.0 keeps
+ * searching its legacy `posts` index in the meantime.
  */
 final class IndexNames
 {
     /**
-     * Version of the documents' format.
+     * Version of the documents' format, by index.
      *
-     * 1: terms in a flat `terms` list. 2: terms grouped in `taxonomies.<taxonomy>`.
-     * 3: fields for WP_Query arguments (ids and counts as numbers, has_password,
-     * date timestamps and parts, post_title_sort).
+     * Posts: 1, terms in a flat `terms` list. 2, terms grouped in
+     * `taxonomies.<taxonomy>`. 3, fields for WP_Query arguments (ids and
+     * counts as numbers, has_password, date timestamps and parts, post_title_sort).
+     *
+     * Terms: up to 3, the term's fields as WordPress gives them.
+     *
+     * Versions were shared by every index up to 3: an index moves to the next
+     * one on its own, and only its own indexation is needed.
      */
-    public const SCHEMA_VERSION = 3;
+    public const SCHEMA_VERSIONS = ['posts' => 3, 'taxonomies' => 3];
 
     /**
      * The indexes of the plugin, by base name.
@@ -109,17 +114,48 @@ final class IndexNames
     }
 
     /**
-     * The version of the format the active indexes were built with.
+     * The current version of an index's format.
      */
-    public static function activeSchema(): int
+    public static function schemaVersion(string $base): int
     {
-        $version = get_option(self::SCHEMA_OPTION, null);
+        return self::SCHEMA_VERSIONS[$base] ?? 1;
+    }
 
-        if ($version !== null && $version !== false) {
-            return (int) $version;
+    /**
+     * The version of the format an active index was built with.
+     */
+    public static function activeSchema(string $base = 'posts'): int
+    {
+        $versions = get_option(self::SCHEMA_OPTION, null);
+
+        // One version for every index, as recorded up to schema 3
+        if (is_numeric($versions)) {
+            return (int) $versions;
         }
 
-        return self::wasIndexedBefore() ? 1 : self::SCHEMA_VERSION;
+        if (is_array($versions) && isset($versions[$base])) {
+            return (int) $versions[$base];
+        }
+
+        if (is_array($versions) || self::wasIndexedBefore()) {
+            // An index added since, or a site indexed before 2.0
+            return is_array($versions) ? 0 : 1;
+        }
+
+        return self::schemaVersion($base);
+    }
+
+    /**
+     * The indexes a full indexation needs to build to move searches to their target, in the current format.
+     *
+     * @return list<string> Base names
+     */
+    public static function pendingBases(): array
+    {
+        return array_values(array_filter(
+            self::BASES,
+            static fn (string $base) => self::activeSchema($base) < self::schemaVersion($base) || self::active($base) !== self::name($base)
+        ));
     }
 
     /**
@@ -127,17 +163,7 @@ final class IndexNames
      */
     public static function migrationPending(): bool
     {
-        if (self::activeSchema() < self::SCHEMA_VERSION) {
-            return true;
-        }
-
-        foreach (self::BASES as $base) {
-            if (self::active($base) !== self::name($base)) {
-                return true;
-            }
-        }
-
-        return false;
+        return self::pendingBases() !== [];
     }
 
     /**
@@ -158,18 +184,24 @@ final class IndexNames
     }
 
     /**
-     * Moves searches to the target indexes, once a full indexation built them.
+     * Moves searches to the target indexes a full indexation built, in the current format.
      *
-     * The indexes searches leave are recorded, for the admin to delete them.
+     * The other indexes stay as they are. The indexes searches leave are
+     * recorded, for the admin to delete them.
+     *
+     * @param  list<string>  $bases  The indexes built, by base name
      */
-    public static function activate(): void
+    public static function activate(array $bases = self::BASES): void
     {
         $legacy = self::legacyIndexes();
         $active = [];
+        $versions = [];
 
         foreach (self::BASES as $base) {
             $previous = self::active($base);
-            $active[$base] = self::name($base);
+            $built = in_array($base, $bases, true);
+            $active[$base] = $built ? self::name($base) : $previous;
+            $versions[$base] = $built ? self::schemaVersion($base) : self::activeSchema($base);
 
             if ($previous !== $active[$base]) {
                 $legacy[] = $previous;
@@ -177,7 +209,7 @@ final class IndexNames
         }
 
         update_option(self::ACTIVE_OPTION, $active);
-        update_option(self::SCHEMA_OPTION, self::SCHEMA_VERSION);
+        update_option(self::SCHEMA_OPTION, $versions);
         update_option(self::LEGACY_OPTION, array_values(array_unique(array_diff($legacy, $active))), false);
     }
 
@@ -195,7 +227,7 @@ final class IndexNames
         }
 
         update_option(self::ACTIVE_OPTION, array_combine(self::BASES, array_map([self::class, 'name'], self::BASES)));
-        update_option(self::SCHEMA_OPTION, self::SCHEMA_VERSION);
+        update_option(self::SCHEMA_OPTION, self::SCHEMA_VERSIONS);
     }
 
     /**

@@ -7,6 +7,8 @@ namespace Pollora\MeiliScout\Admin\Rest;
 use Pollora\MeiliScout\Config\SearchableAttributes;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Indexables\PostIndexable;
+use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
+use Pollora\MeiliScout\Services\MissedMetaKeys;
 use Pollora\MeiliScout\Services\Indexer;
 use Pollora\MeiliScout\Services\MetaKeyCatalog;
 use WP_REST_Request;
@@ -18,7 +20,7 @@ use function wp_count_posts;
 use function wp_count_terms;
 
 /**
- * What gets indexed: post types, taxonomies, meta keys, and the fields searches look into.
+ * What gets indexed: post types, taxonomies, meta keys of posts and of terms, and the fields searches look into.
  */
 final class ContentController extends Controller
 {
@@ -53,16 +55,17 @@ final class ContentController extends Controller
         Settings::save('indexed_taxonomies', $taxonomies);
         Settings::save('indexed_meta_keys', $metaKeys);
 
+        if ($request->has_param('term_meta_keys')) {
+            $termMetaKeys = array_values(array_unique($this->strings($request, 'term_meta_keys')));
+            Settings::save(TaxonomyIndexable::META_KEYS_SETTING, $termMetaKeys);
+            $this->forgetMissed(MissedMetaKeys::TERM_SETTING, $termMetaKeys);
+        }
+
         if ($request->has_param('index_private')) {
             Settings::save(PostIndexable::INDEX_PRIVATE, (bool) $request->get_param('index_private'));
         }
 
-        // Keys now indexed are no longer missed by queries
-        $missed = (array) Settings::get('non_indexable_meta_keys', []);
-        $stillMissed = array_values(array_diff($missed, $metaKeys));
-        if ($stillMissed !== $missed) {
-            Settings::save('non_indexable_meta_keys', $stillMissed);
-        }
+        $this->forgetMissed(MissedMetaKeys::SETTING, $metaKeys);
 
         // After the meta keys: a meta key can be searched once it is indexed
         if ($request->has_param('searchable')) {
@@ -73,22 +76,43 @@ final class ContentController extends Controller
     }
 
     /**
+     * Keys now indexed are no longer missed by queries.
+     *
+     * @param  list<string>  $indexed
+     */
+    private function forgetMissed(string $setting, array $indexed): void
+    {
+        $missed = (array) Settings::get($setting, []);
+        $stillMissed = array_values(array_diff($missed, $indexed));
+
+        if ($stillMissed !== $missed) {
+            Settings::save($setting, $stillMissed);
+        }
+    }
+
+    /**
      * The meta keys of the posts of the given types (the saved ones by default), matching a search.
+     *
+     * With kind=term, the meta keys of the terms of the given taxonomies.
      */
     public function metaKeys(WP_REST_Request $request): WP_REST_Response
     {
-        $postTypes = $this->strings($request, 'post_types') ?: (array) Settings::get('indexed_post_types', []);
+        $isTerm = $request->get_param('kind') === 'term';
         $search = strtolower(sanitize_text_field((string) $request->get_param('search')));
         $exclude = $this->strings($request, 'exclude');
 
+        $catalog = $isTerm
+            ? $this->catalog->termKeys($this->strings($request, 'taxonomies') ?: (array) Settings::get('indexed_taxonomies', []))
+            : $this->catalog->keys($this->strings($request, 'post_types') ?: (array) Settings::get('indexed_post_types', []));
+
         $keys = array_values(array_filter(
-            $this->catalog->keys($postTypes),
+            $catalog,
             static fn (array $key) => ! in_array($key['key'], $exclude, true)
                 && ($search === '' || str_contains(strtolower($key['key']), $search))
         ));
 
         $listed = array_slice($keys, 0, self::META_KEYS_LISTED);
-        $types = $this->catalog->types(array_column($listed, 'key'));
+        $types = $this->catalog->types(array_column($listed, 'key'), $isTerm ? 'term' : 'post');
 
         return $this->respond([
             'total' => count($keys),
@@ -109,6 +133,11 @@ final class ContentController extends Controller
         $presence = array_column($catalog, null, 'key');
         $types = $this->catalog->types($selectedKeys);
 
+        $selectedTermKeys = array_values(array_filter((array) Settings::get(TaxonomyIndexable::META_KEYS_SETTING, []), 'is_string'));
+        $termCatalog = $this->catalog->termKeys($selectedTaxonomies);
+        $termPresence = array_column($termCatalog, null, 'key');
+        $termTypes = $this->catalog->types($selectedTermKeys, 'term');
+
         $structure = (new Indexer)->checkStructureChanges();
 
         return [
@@ -128,7 +157,15 @@ final class ContentController extends Controller
             ], $selectedKeys),
             'meta_key_total' => count($catalog),
             // Keys queries filtered on, which MySQL served because they are not indexed
-            'missed_meta_keys' => array_values(array_diff((array) Settings::get('non_indexable_meta_keys', []), $selectedKeys)),
+            'missed_meta_keys' => array_values(array_diff((array) Settings::get(MissedMetaKeys::SETTING, []), $selectedKeys)),
+            'term_meta_keys' => array_map(static fn (string $key) => [
+                'key' => $key,
+                'type' => $termTypes[$key],
+                'terms' => $termPresence[$key]['terms'] ?? 0,
+                'taxonomies' => $termPresence[$key]['taxonomies'] ?? [],
+            ], $selectedTermKeys),
+            'term_meta_key_total' => count($termCatalog),
+            'missed_term_meta_keys' => array_values(array_diff((array) Settings::get(MissedMetaKeys::TERM_SETTING, []), $selectedTermKeys)),
             'searchable' => [
                 'configured' => SearchableAttributes::configured(),
                 'suggested' => SearchableAttributes::SUGGESTED,

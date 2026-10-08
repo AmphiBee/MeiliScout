@@ -12,12 +12,18 @@ use WP_Term;
 use function get_term_link;
 use function get_term_meta;
 use function get_terms;
+use function is_wp_error;
 use function maybe_unserialize;
 use function update_termmeta_cache;
 use function wp_cache_get;
 
 class TaxonomyIndexable implements Indexable
 {
+    /**
+     * Setting holding the term meta keys to index, apart from the posts' (Content screen).
+     */
+    public const META_KEYS_SETTING = 'indexed_term_meta_keys';
+
     private array $metaKeys = [];
 
     /**
@@ -52,41 +58,49 @@ class TaxonomyIndexable implements Indexable
 
     public function getItems(?int $offset = null, ?int $limit = null): iterable
     {
-        $taxonomies = Settings::get('indexed_taxonomies', []);
+        $taxonomies = array_values((array) Settings::get('indexed_taxonomies', []));
+        $this->metaKeys = self::resolveMetaKeys($taxonomies);
 
-        // Fallback intelligent: use configured meta keys if set, otherwise gather from DB
-        $configuredMetaKeys = Settings::get('indexed_meta_keys', []);
-        $this->metaKeys = !empty($configuredMetaKeys)
-            ? $configuredMetaKeys
-            : $this->gatherMetaKeysFromTaxonomies($taxonomies);
-
-        $totalYielded = 0;
-        $maxItems = $limit ?? PHP_INT_MAX;
-
-        foreach ($taxonomies as $taxonomy) {
-            $terms = get_terms([
-                'taxonomy' => $taxonomy,
-                'hide_empty' => false,
-                'offset' => $offset ?? 0,
-                'number' => $limit ?? 0, // 0 means no limit in get_terms
-            ]);
-
-            foreach ($terms as $term) {
-                // Stop if we've reached the limit
-                if ($totalYielded >= $maxItems) {
-                    return;
-                }
-
-                yield $term;
-                $totalYielded++;
-            }
+        if ($taxonomies === []) {
+            return;
         }
+
+        // One list across the taxonomies: an offset is a position in the whole run, not in each taxonomy
+        $terms = get_terms([
+            'taxonomy' => $taxonomies,
+            'hide_empty' => false,
+            'orderby' => 'term_id',
+            'order' => 'ASC',
+            'offset' => $offset ?? 0,
+            'number' => $limit ?? 0, // 0 means no limit in get_terms
+            'update_term_meta_cache' => false,
+            'use_meilisearch' => false,
+        ]);
+
+        if (is_wp_error($terms)) {
+            return;
+        }
+
+        yield from $terms;
+    }
+
+    /**
+     * The term meta keys documents carry: the ones selected for terms, else every key of these taxonomies' terms.
+     *
+     * @param  list<string>  $taxonomies
+     * @return list<string>
+     */
+    public static function resolveMetaKeys(array $taxonomies): array
+    {
+        $configured = array_values(array_filter((array) Settings::get(self::META_KEYS_SETTING, []), 'is_string'));
+
+        return $configured !== [] ? $configured : self::gatherMetaKeysFromTaxonomies($taxonomies);
     }
 
     /**
      * Gathers meta keys from taxonomies (renamed to avoid conflict).
      */
-    private function gatherMetaKeysFromTaxonomies(array $taxonomies): array
+    private static function gatherMetaKeysFromTaxonomies(array $taxonomies): array
     {
         global $wpdb;
 
@@ -134,7 +148,11 @@ class TaxonomyIndexable implements Indexable
             return $this->preloadedMeta[$term->term_id];
         }
 
-        // Fallback to individual queries (single item mode)
+        // Fallback to individual queries (single item mode), which no getItems() precedes
+        if ($this->metaKeys === []) {
+            $this->metaKeys = self::resolveMetaKeys([$term->taxonomy]);
+        }
+
         $meta = [];
         foreach ($this->metaKeys as $key) {
             $value = get_term_meta($term->term_id, $key, true);
@@ -190,10 +208,7 @@ class TaxonomyIndexable implements Indexable
 
         // Ensure meta keys are set from settings or gathered from DB
         if (empty($this->metaKeys)) {
-            $configuredMetaKeys = Settings::get('indexed_meta_keys', []);
-            $this->metaKeys = !empty($configuredMetaKeys)
-                ? $configuredMetaKeys
-                : $this->gatherMetaKeysFromTaxonomies($taxonomies);
+            $this->metaKeys = self::resolveMetaKeys(array_values($taxonomies));
         }
 
         // Preload meta cache using WordPress core function

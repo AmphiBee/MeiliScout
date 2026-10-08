@@ -19,19 +19,27 @@ final class MissedMetaKeys
     public const SETTING = 'non_indexable_meta_keys';
 
     /**
-     * Keys missed during this request.
+     * The term meta keys term queries missed.
+     */
+    public const TERM_SETTING = 'non_indexable_term_meta_keys';
+
+    /**
+     * Keys missed during this request, by setting.
      *
-     * @var array<string, true>
+     * @var array<string, array<string, true>>
      */
     private static array $pending = [];
 
-    public static function record(string $key): void
+    /**
+     * @param  'post'|'term'  $objectType  Whose meta key
+     */
+    public static function record(string $key, string $objectType = 'post'): void
     {
         if (self::$pending === []) {
             add_action('shutdown', [self::class, 'flush']);
         }
 
-        self::$pending[$key] = true;
+        self::$pending[$objectType === 'term' ? self::TERM_SETTING : self::SETTING][$key] = true;
     }
 
     /**
@@ -39,27 +47,28 @@ final class MissedMetaKeys
      */
     public static function flush(): void
     {
-        if (self::$pending === []) {
-            return;
-        }
-
-        $saved = (array) Settings::get(self::SETTING, []);
-        $all = array_values(array_unique([...$saved, ...array_keys(self::$pending)]));
+        $pending = self::$pending;
         self::$pending = [];
 
-        if (count($all) !== count($saved)) {
-            Settings::save(self::SETTING, $all);
+        foreach ($pending as $setting => $keys) {
+            $saved = (array) Settings::get($setting, []);
+            $all = array_values(array_unique([...$saved, ...array_keys($keys)]));
+
+            if (count($all) !== count($saved)) {
+                Settings::save($setting, $all);
+            }
         }
     }
 
     /**
      * The keys missed during this request, not written yet. For tests.
      *
+     * @param  'post'|'term'  $objectType
      * @return list<string>
      */
-    public static function pending(): array
+    public static function pending(string $objectType = 'post'): array
     {
-        return array_keys(self::$pending);
+        return array_keys(self::$pending[$objectType === 'term' ? self::TERM_SETTING : self::SETTING] ?? []);
     }
 
     /**
