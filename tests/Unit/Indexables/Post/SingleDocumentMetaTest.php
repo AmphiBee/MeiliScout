@@ -16,7 +16,12 @@ namespace {
         function maybe_unserialize($value) { return $value; }
     }
     if (! function_exists('get_post_meta')) {
-        function get_post_meta($id, $key, $single = false) { return $GLOBALS['meta'][$key] ?? ''; }
+        function get_post_meta($id, $key, $single = false)
+        {
+            $values = (array) ($GLOBALS['meta'][$key] ?? []);
+
+            return $single ? ($values[0] ?? '') : $values;
+        }
     }
 }
 
@@ -40,6 +45,20 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {
         $document = (new PostIndexable)->formatForIndexing(new \WP_Post(116, 'product', 'A product'));
 
         expect($document['metas'])->toBe(['_price' => 25.5]);
+    });
+
+    test('a document carries every value of a meta key, the empty ones too, and notes what they are like', function () {
+        update_option('meiliscout/indexed_meta_keys', ['color', 'note', 'size']);
+        $GLOBALS['meta'] = ['color' => ['red', 'blue'], 'note' => [''], 'size' => ['12']];
+        \Pollora\MeiliScout\Services\MetaValueFlags::reset();
+
+        $document = (new PostIndexable)->formatForIndexing(new \WP_Post(7, 'post', 'Colors'));
+        \Pollora\MeiliScout\Services\MetaValueFlags::flush();
+
+        expect($document['metas'])->toBe(['color' => ['red', 'blue'], 'note' => '', 'size' => 12])
+            ->and(\Pollora\MeiliScout\Services\MetaValueFlags::of('color'))->toBe(['multiple' => true, 'non_numeric' => true])
+            ->and(\Pollora\MeiliScout\Services\MetaValueFlags::of('note'))->toBe(['non_numeric' => true])
+            ->and(\Pollora\MeiliScout\Services\MetaValueFlags::of('size'))->toBe(['numeric' => true]);
     });
 
     test('a document never carries a password, nor the text it protects', function () {

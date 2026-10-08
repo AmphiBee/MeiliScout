@@ -142,6 +142,14 @@ to build a `tax_query` or a `meta_query`.
 add_filter('meiliscout/supported_query_vars', fn (array $vars) => [...$vars, 'lang']);
 ```
 
+### meiliscout/ignored_sql_filters
+
+The SQL filters of `WP_Query` that do not stop Meilisearch from serving a query. A plugin changing a query's SQL through `posts_where`, `posts_clauses`... sends it to MySQL (`sql_filter:<hook>`), unless its callback is listed here: a hook name (every callback on it), a callback's name (`'my_function'`, `'My_Class::method'`) or the closure itself. List a callback whose change the site translates in `meiliscout/search_params`. Default: empty.
+
+```php
+add_filter('meiliscout/ignored_sql_filters', fn (array $ignored) => [...$ignored, 'My_Plugin::posts_where']);
+```
+
 ### meiliscout/search_params
 The parameters of the Meilisearch search a query becomes.
 
@@ -276,9 +284,12 @@ give it access to the new names first.
 Facets are no longer computed on every query: ask for them with
 `meilisearch_facets`.
 
-Documents also carry fields for `WP_Query` arguments (schema 3: ids, authors,
-parents, dates as timestamps and parts, `post_title_sort`). Queries using them
-run on MySQL until the full indexation is done. A query Meilisearch cannot
+Documents also carry fields for `WP_Query` arguments (posts schema 3: ids,
+authors, parents, dates as timestamps and parts, `post_title_sort`; schema 4:
+every value of a meta key, empty ones included, and the title and comment
+statuses filterable). Queries using them run on MySQL until the full
+indexation is done. Each index has its own format version: `wp meiliscout
+status` shows them, and a full indexation moves only the indexes it rebuilt. A query Meilisearch cannot
 answer as MySQL would now runs on MySQL instead of returning other posts: see
 [WP_QUERY.md](WP_QUERY.md). Posts are loaded from the database rather than
 built from the documents (`meiliscout/hydrate_from_documents` to go back).

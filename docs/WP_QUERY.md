@@ -33,7 +33,7 @@ All four settings are off on a new install. Filters: `meiliscout/skip_query_inte
 
 ## Coverage
 
-Arguments marked *v3* need documents in schema 3: until a full indexation has rebuilt the indexes after the update to 2.0, queries using them run on MySQL (`schema_too_old`).
+Arguments marked *v3* (*v4*) need the posts index in schema 3 (4): until a full indexation has rebuilt it after the update, queries using them run on MySQL (`schema_too_old`). `wp meiliscout status` shows each index's format.
 
 ### Types and statuses
 
@@ -41,7 +41,9 @@ Arguments marked *v3* need documents in schema 3: until a full indexation has re
 |---|---|---|
 | `post_type` (string, array, `any`) | ✅ | Empty: as WordPress (posts; the types of a custom taxonomy on its archive; every searchable type for a search). `any`: every type not excluded from search. A type that is not indexed and has posts → MySQL (`unindexed_type:<type>`) |
 | `post_status` | ✅ | Indexed statuses only: `publish`, and `private` when Content › Index private content is on. Drafts, pending and scheduled posts → MySQL (`unindexed_status:<status>`). Default statuses as WordPress works them out: a logged-in user who can see private posts gets them, the admin's "All" list gets drafts; when the index lacks them and the site has some, MySQL |
-| `perm`, `post_password`, `post_mime_type`, `comment_status`, `ping_status`, `title` | ❌ | MySQL |
+| `comment_status`, `ping_status` | ✅ *(v4)* | |
+| `title` | ✅ *(v4)* | The whole title, case and accents aside, as MySQL's collation compares it |
+| `perm`, `post_password`, `post_mime_type` | ❌ | MySQL |
 
 ### Posts, slugs, parents, authors *(v3)*
 
@@ -52,7 +54,8 @@ Arguments marked *v3* need documents in schema 3: until a full indexation has re
 | `post_parent` (0 included), `post_parent__in`, `post_parent__not_in` | ✅ | |
 | `author` (list, negative ids), `author__in`, `author__not_in`, `author_name` | ✅ | `author__not_in` wins over `author__in`, as in WordPress |
 | `has_password`, `comment_count` (number or `value`/`compare`), `menu_order` | ✅ | |
-| `attachment`, `attachment_id`, `subpost` | ❌ | MySQL |
+| `attachment`, `attachment_id`, `subpost`, `subpost_id` | ❌ | MySQL: attachments are not indexed |
+| `withcomments` (a comment feed of several posts) | ❌ | MySQL |
 
 ### Taxonomies
 
@@ -73,6 +76,17 @@ Only meta keys selected in Content › Custom fields are in the documents. A que
 | `LIKE`, `NOT LIKE` | ⚙️ | With Settings › Advanced › Partial filters on fields (Meilisearch's experimental `CONTAINS`); otherwise MySQL (`unsupported_compare:LIKE`) |
 | `REGEXP`, `NOT REGEXP`, `RLIKE` | ❌ | MySQL |
 | `type` `BINARY`, `compare_key`, `type_key`, a list of keys | ❌ | MySQL |
+
+From schema 4, documents hold every value of a key: a list when a post has several, and empty values too. What the values of each key are like is noted while posts are indexed, and the comparisons Meilisearch would make otherwise run on MySQL:
+
+| Values of the key | On MySQL | Reason |
+|---|---|---|
+| Several per post | `!=`, `NOT IN`, `NOT LIKE`, `BETWEEN` on text, `= ''`, and any order on the key | `multivalued_meta:<key>`, `unsupported_orderby:<field>` |
+| Serialized (arrays) | Every comparison but `EXISTS` and `NOT EXISTS`, and any order: MySQL compares the serialized text | `structured_meta:<key>` |
+| Some are no numbers (`''` included) | A numeric `type` (MySQL casts text to 0), `>`/`<`/`BETWEEN` against a number | `meta_not_numeric:<key>` |
+| Numbers and text mixed | Any order on the key: MySQL orders them all as text | `unsupported_orderby:<field>` |
+
+`BETWEEN` on numbers with several values per post matches a post one of whose values is in the range, as MySQL does.
 
 ### Dates *(v3)*
 
@@ -119,13 +133,21 @@ A query var MeiliScout does not know runs the query on MySQL (`unsupported_arg:<
 add_filter('meiliscout/supported_query_vars', fn (array $vars) => [...$vars, 'lang']);
 ```
 
-`posts_where`, `posts_join`, `posts_clauses` and the other SQL filters do not apply to a query Meilisearch serves.
+### Plugins changing the SQL
+
+`posts_where`, `posts_join`, `posts_clauses`, `posts_request` and the other SQL filters of `WP_Query` run before Meilisearch is asked. A multilingual, membership or shop plugin restricting the posts there would be ignored: so MeiliScout compares what each of these filters returns with what it was given, and when a plugin changed it, the query runs on MySQL (`sql_filter:<hook>`). A plugin hooked on them that changes nothing for a query costs nothing. Queries with `suppress_filters` (`get_posts()`) are not concerned.
+
+When the site translates a plugin's change itself (adding the language to the filter in `meiliscout/search_params`, for instance), declare the callback:
+
+```php
+add_filter('meiliscout/ignored_sql_filters', fn (array $ignored) => [...$ignored, 'My_Plugin::posts_where']);
+```
 
 ## Known differences with MySQL
 
 - **Numbers.** Numeric meta values are indexed as numbers: a comparison or an order without `type` (`CHAR` for MySQL) compares them as numbers where MySQL compares text (`'9' > '10'`). Meilisearch's answer is usually the one meant.
 - **Casts.** `SIGNED` truncates the value compared to; MySQL truncates the stored values too (`10.7` is `10` for MySQL, `10.7` for Meilisearch).
-- **Empty and repeated metas.** Empty values are not indexed: a post with an empty value does not have the key for `EXISTS`. Only the first value of a key repeated on a post is indexed.
+- **Empty and repeated metas.** Until the posts index is in schema 4, empty values are not indexed (a post with an empty value does not have the key for `EXISTS`), and only the first value of a key repeated on a post is.
 - **Ties.** Posts that tie on the order come in any order, on MySQL too: a page boundary inside a tie may hold other posts.
 - **Weeks.** Documents carry the week for each first day of the week WordPress can be set to: changing it needs no indexation.
 - **Freshness.** Posts are loaded from the database, so they are always fresh; but which posts match is as fresh as the index (immediate at the end of the request, up to 5 minutes with the async queue). A post deleted or unpublished since it was indexed is not returned.
@@ -142,6 +164,8 @@ Every fallback has a reason, recorded on the query (`$query->meiliscout['reason'
 | `unindexed_status:singular` | A single post that exists with another status | Nothing: WordPress shows it to whoever may read it |
 | `unindexed_type:<type>` | A post type that is not indexed, with posts | Content › Post types |
 | `unsupported_compare:<op>` | `LIKE` (setting off), `REGEXP` | Settings › Advanced › Partial filters |
+| `multivalued_meta:<key>`, `structured_meta:<key>`, `meta_not_numeric:<key>` | A comparison Meilisearch makes otherwise on the values of this key (see Custom fields) | |
+| `sql_filter:<hook>` | A plugin changed the query's SQL through this filter | `meiliscout/ignored_sql_filters`, when the site translates the change |
 | `unsupported_orderby:<field>` | An order the index cannot give, or `rand`/`post__in` over more than 1000 results | |
 | `unsupported_date_column:<column>` | Parts of a GMT column, another table | |
 | `schema_too_old` | The indexes predate the fields the query needs | Run a full indexation |
@@ -149,7 +173,7 @@ Every fallback has a reason, recorded on the query (`$query->meiliscout['reason'
 | `unreachable` | Meilisearch could not be reached | Settings › Connection |
 | `build_error` | The query could not be translated (a bug: please report it) | PHP error log |
 
-To try a query: Search preview › WP_Query arguments runs it on both engines, side by side. On the command line, `wp meiliscout check-queries` runs a set of queries picked in the site's data, and `--args='{"cat": 3}'` one of yours.
+To try a query: Search preview › WP_Query arguments runs it on both engines, side by side. On the command line, `wp meiliscout check-queries` runs a set of queries picked in the site's data, and `--args='{"cat": 3}'` one of yours. The integration suite checks that every argument WordPress knows is either translated or listed as falling back, with a case of its own.
 
 ## Coming from ElasticPress
 

@@ -32,7 +32,7 @@ class CheckQueriesCommand
      * : Runs this WP_Query instead of the built-in cases, e.g. '{"cat":3}'.
      *
      * [--mode=<mode>]
-     * : With --args: order (same posts in the same order), set, count or search.
+     * : With --args: order (same posts in the same order), set, count, search, sorted or fallback (must fall back).
      * ---
      * default: order
      * options:
@@ -40,6 +40,8 @@ class CheckQueriesCommand
      *   - set
      *   - count
      *   - search
+     *   - sorted
+     *   - fallback
      * ---
      *
      * [--format=<format>]

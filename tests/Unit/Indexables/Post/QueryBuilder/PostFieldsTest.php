@@ -80,4 +80,15 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder {
         expect(fn () => fieldFilter(['post__in' => [1]]))->toThrow(UnsupportedQuery::class, 'schema_too_old')
             ->and(fieldFilter(['post__in' => []]))->toBe('');
     });
+
+    test('title, comment_status and ping_status, from schema 4', function () {
+        expect(fieldFilter(['title' => 'Hello World ']))->toBe(" AND post_title_sort = 'hello world'")
+            ->and(fieldFilter(['title' => "L\\'ete"]))->toBe(" AND post_title_sort = 'l\\'ete'")
+            ->and(fieldFilter(['comment_status' => 'open']))->toBe(" AND comment_status = 'open'")
+            ->and(fieldFilter(['ping_status' => 'closed']))->toBe(" AND ping_status = 'closed'");
+
+        update_option('meiliscout/schema_version', 3);
+
+        expect(fn () => fieldFilter(['title' => 'Hello']))->toThrow(UnsupportedQuery::class, 'schema_too_old');
+    });
 }

@@ -75,7 +75,8 @@ ddev exec --dir /var/www/html/public/content/plugins/meiliscout composer test:ty
 **Translate or fall back**: an argument is either translated faithfully or the whole query runs on MySQL, with a reason (`unsupported_arg:author`, `unindexed_meta:price`, `schema_too_old`...). Never drop a clause. Coverage and reasons: `docs/WP_QUERY.md`.
 - `QueryIntegration`: `posts_pre_query`; check, build (in the `try`), search, load the posts from the database (ids only from Meilisearch), set `found_posts` as `set_found_posts()` does; `$query->meiliscout` says what happened
 - `AutoIntegration`: which queries are served without `use_meilisearch` (Settings › Queries, all off by default)
-- `QuerySupport`: whitelist of query vars; statuses and types the index lacks, counted against the site's posts
+- `QuerySupport`: whitelist of query vars (`UNTRANSLATED` lists the ones falling back, each a harness case); statuses and types the index lacks, counted against the site's posts
+- `SqlFilters`: a plugin changing the SQL through `posts_where`, `posts_clauses`... sends the query to MySQL
 - `QueryVars`: what WordPress parsed (`$query->tax_query->queries`, `meta_query->queries`, implied post types): read that, not the raw vars
 - `MeiliQueryBuilder` + `Builders/`: pure (never modify the query); a clause that cannot be translated throws `UnsupportedQuery`
 - `PhpOrder`: `rand` and list orders, applied in PHP over every result
@@ -169,7 +170,7 @@ The plugin provides several filters for customization:
 - `meiliscout/reindex_on_meta_change`: Whether a changed meta key re-indexes the post (default: selected meta keys only)
 - `meiliscout/http_client_options`: Options of the Symfony HttpClient used for Meilisearch (default: `['timeout' => 10]`)
 - `meiliscout/index_prefix`: Prefix of the index names (default: `MEILI_INDEX_PREFIX`, else the site's domain)
-- `meiliscout/supported_query_vars`, `meiliscout/skip_query_integration`, `meiliscout/integrate_query`, `meiliscout/search_params`, `meiliscout/hydrate_from_documents`, `meiliscout/max_total_hits`, `meiliscout/php_order_limit`, `meiliscout/post/ranking_rules`, `meiliscout/debug_header`, `meiliscout/indexable_post_statuses`: see `docs/FILTERS.md`
+- `meiliscout/supported_query_vars`, `meiliscout/ignored_sql_filters`, `meiliscout/skip_query_integration`, `meiliscout/integrate_query`, `meiliscout/search_params`, `meiliscout/hydrate_from_documents`, `meiliscout/max_total_hits`, `meiliscout/php_order_limit`, `meiliscout/post/ranking_rules`, `meiliscout/debug_header`, `meiliscout/indexable_post_statuses`: see `docs/FILTERS.md`
 
 ## Environment Variables
 
@@ -178,6 +179,6 @@ The plugin provides several filters for customization:
 
 ## Index Names and Migrations
 
-`Services/IndexNames` names the indexes and records the *active* ones searches read, with the document format (`SCHEMA_VERSION`) they were built in. Writes go to the *target* names, and are mirrored to the active index while a migration is pending. A full indexation builds the targets and activates them. Bump `SCHEMA_VERSION` whenever the documents change in a way searches depend on, and keep a read path for the previous version (see `TaxQueryBuilder::buildLegacyFilter()`), or fall back with `schema_too_old` (see `PostFieldsBuilder`, `DateQueryBuilder`). Schema 3 added the `WP_Query` fields (ids as numbers, `has_password`, `*_ts`, `date_parts`, `post_title_sort`).
+`Services/IndexNames` names the indexes and records the *active* ones searches read, with the document format each was built in (`SCHEMA_VERSIONS`, one version per index). Writes go to the *target* names, and are mirrored to the active index while a migration is pending. A full indexation builds the targets and activates them. Bump an index's version in `SCHEMA_VERSIONS` whenever the documents change in a way searches depend on, and keep a read path for the previous version (see `TaxQueryBuilder::buildLegacyFilter()`), or fall back with `schema_too_old` (see `PostFieldsBuilder`, `DateQueryBuilder`). Posts schema 3 added the `WP_Query` fields (ids as numbers, `has_password`, `*_ts`, `date_parts`, `post_title_sort`); schema 4 every value of a meta key, with `Services/MetaValueFlags` noting what each key's values are like for the meta builders. A full indexation activates only the indexes it built.
 
 Queries rely on `PostIndexable::queryableStatuses()`: the indexable statuses the last full indexation sent, not the setting alone.

@@ -110,6 +110,7 @@ class Indexer
             // Save the current indexing structure
             $this->saveIndexingStructure();
             $startedAt = current_time('mysql', true);
+            MetaValueFlags::startRun();
 
             foreach ($this->indexables as $indexable) {
                 $finalName = $indexable->getIndexName();
@@ -280,6 +281,7 @@ class Indexer
         $migrating = array_intersect(IndexNames::pendingBases(), $bases);
 
         IndexNames::activate($bases);
+        MetaValueFlags::finishRun();
 
         if ($migrating !== []) {
             $this->log('success', sprintf('Searches now use %s', implode(', ', array_map([IndexNames::class, 'name'], $migrating))));
@@ -556,6 +558,7 @@ class Indexer
             // Save the current indexing structure only on first chunk
             if ($offset === 0) {
                 $this->saveIndexingStructure();
+                MetaValueFlags::startRun();
             }
 
             foreach ($this->indexables as $indexable) {
@@ -794,7 +797,10 @@ class Indexer
     private function indexItemsBatch(Indexable $indexable, array $items): array
     {
         if ($indexable instanceof PostIndexable) {
-            return $this->postSingleIndexer->indexPosts($items, $indexable);
+            $statistics = $this->postSingleIndexer->indexPosts($items, $indexable);
+            MetaValueFlags::flush();
+
+            return $statistics;
         }
         
         if ($indexable instanceof TaxonomyIndexable) {

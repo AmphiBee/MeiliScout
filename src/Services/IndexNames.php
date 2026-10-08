@@ -35,13 +35,15 @@ final class IndexNames
      * Posts: 1, terms in a flat `terms` list. 2, terms grouped in
      * `taxonomies.<taxonomy>`. 3, fields for WP_Query arguments (ids and
      * counts as numbers, has_password, date timestamps and parts, post_title_sort).
+     * 4, every value of a meta key (a list when there are several, '' kept),
+     * title and comment statuses filterable.
      *
      * Terms: up to 3, the term's fields as WordPress gives them.
      *
      * Versions were shared by every index up to 3: an index moves to the next
      * one on its own, and only its own indexation is needed.
      */
-    public const SCHEMA_VERSIONS = ['posts' => 3, 'taxonomies' => 3];
+    public const SCHEMA_VERSIONS = ['posts' => 4, 'taxonomies' => 3];
 
     /**
      * The indexes of the plugin, by base name.

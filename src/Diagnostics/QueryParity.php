@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Diagnostics;
 
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Query\QuerySupport;
 use Pollora\MeiliScout\Services\SearchFallbacks;
 use WP_Post;
 use WP_Query;
@@ -19,7 +20,7 @@ use WP_Query;
  *
  * Outcomes:
  *   OK        served by Meilisearch, same result
- *   DIFF      served by Meilisearch, different result
+ *   DIFF      served by Meilisearch, different result; or served, where it must fall back
  *   FALLBACK  served by MySQL although use_meilisearch was set; the reason is given
  *   INFO      a search: the two engines rank differently by nature, the overlap is reported
  *   SKIP      the site lacks the data the case needs
@@ -65,6 +66,11 @@ final class QueryParity
     public const MODE_SORTED = 'sorted';
 
     /**
+     * A query Meilisearch cannot answer as MySQL would: it must fall back, with a reason.
+     */
+    public const MODE_FALLBACK = 'fallback';
+
+    /**
      * Ids of each engine's posts given back, at most.
      */
     private const IDS_KEPT = 50;
@@ -103,6 +109,9 @@ final class QueryParity
         $date = $d['date_meta'];
         $year = $d['year'];
         $month = $d['month'];
+        $multi = $d['multivalued_meta'];
+        $structured = $d['structured_meta'];
+        $fallback = static fn (string $label, ?array $args): array => $case($label, $args, self::MODE_FALLBACK);
 
         return [
             // Types and statuses
@@ -274,6 +283,44 @@ final class QueryParity
             $case('has_password true', ['has_password' => true]),
             $case('comment_count arg', ['comment_count' => ['value' => 2, 'compare' => '>=']]),
             $case('page beyond the results', ['posts_per_page' => 10, 'paged' => 999]),
+
+            // Fields of schema 4
+            $case('title', $when($d['title'] !== null, ['title' => $d['title']])),
+            $case('title, in capitals', $when($d['title'] !== null, ['title' => mb_strtoupper((string) $d['title'])])),
+            $case('title unknown', ['title' => 'No such title '.md5('x')]),
+            $case('comment_status closed', ['comment_status' => 'closed']),
+            $case('comment_status open', ['comment_status' => 'open', 'posts_per_page' => -1]),
+            $case('ping_status closed', ['ping_status' => 'closed']),
+
+            // Metas with several values, an empty one, serialized ones (schema 4)
+            $case('meta with several values =', $when($multi !== null, ['post_type' => $multi['type'] ?? 'post', 'meta_query' => [['key' => $multi['key'] ?? '', 'value' => $multi['value'] ?? '']]]), self::MODE_SET),
+            $case('meta with several values IN', $when($multi !== null, ['post_type' => $multi['type'] ?? 'post', 'meta_query' => [['key' => $multi['key'] ?? '', 'value' => [$multi['value'] ?? '', $multi['other'] ?? ''], 'compare' => 'IN']]]), self::MODE_SET),
+            $case('meta with several values EXISTS (empty values included)', $when($multi !== null, ['post_type' => $multi['type'] ?? 'post', 'meta_query' => [['key' => $multi['key'] ?? '', 'compare' => 'EXISTS']]]), self::MODE_SET),
+            $case('meta with several values NOT EXISTS', $when($multi !== null, ['post_type' => $multi['type'] ?? 'post', 'posts_per_page' => -1, 'meta_query' => [['key' => $multi['key'] ?? '', 'compare' => 'NOT EXISTS']]]), self::MODE_SET),
+            $case('meta empty value =', $when($d['empty_meta'] !== null, ['post_type' => $d['empty_meta']['type'] ?? 'post', 'meta_query' => [['key' => $d['empty_meta']['key'] ?? '', 'value' => '']]]), self::MODE_SET),
+            $case('meta empty value !=', $when($d['empty_meta'] !== null, ['post_type' => $d['empty_meta']['type'] ?? 'post', 'meta_query' => [['key' => $d['empty_meta']['key'] ?? '', 'value' => '', 'compare' => '!=']]]), self::MODE_SET),
+            $case('meta empty value IN', $when($d['empty_meta'] !== null && $date !== null, ['post_type' => $d['empty_meta']['type'] ?? 'post', 'meta_query' => [['key' => $d['empty_meta']['key'] ?? '', 'value' => ['', $date['median'] ?? ''], 'compare' => 'IN']]]), self::MODE_SET),
+            $fallback('meta with several values, empty value', $when($multi !== null && $multi['has_empty'], ['post_type' => $multi['type'] ?? 'post', 'meta_query' => [['key' => $multi['key'] ?? '', 'value' => '']]])),
+            $fallback('meta with several values !=', $when($multi !== null, ['post_type' => $multi['type'] ?? 'post', 'meta_query' => [['key' => $multi['key'] ?? '', 'value' => $multi['value'] ?? '', 'compare' => '!=']]])),
+            $fallback('meta with several values, orderby', $when($multi !== null, ['post_type' => $multi['type'] ?? 'post', 'meta_key' => $multi['key'] ?? '', 'orderby' => 'meta_value'])),
+            $fallback('meta serialized =', $when($structured !== null, ['post_type' => $structured['type'] ?? 'post', 'meta_query' => [['key' => $structured['key'] ?? '', 'value' => '1']]])),
+            $case('meta serialized EXISTS', $when($structured !== null, ['post_type' => $structured['type'] ?? 'post', 'meta_query' => [['key' => $structured['key'] ?? '', 'compare' => 'EXISTS']]]), self::MODE_SET),
+
+            // Clauses nothing translates
+            $fallback('tax_query without a taxonomy', $when($cat !== null, ['tax_query' => [['field' => 'term_taxonomy_id', 'terms' => [$cat['tt_id'] ?? 0]]]])),
+            $fallback('date_query on a GMT column, by parts', $when($year > 0, ['date_query' => [['column' => 'post_date_gmt', 'year' => $year]]])),
+            $fallback('meta_query compare_key', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => [['key' => '_pri', 'compare_key' => 'LIKE']]])),
+
+            // A plugin's SQL filters
+            $fallback('posts_where of a plugin', ['_posts_where' => 'ID % 2 = 0']),
+            $case('posts_where of a plugin that changes nothing', ['_posts_where' => '']),
+
+            // The arguments nothing translates
+            ...array_map(
+                static fn (string $var, array $args): array => $fallback('untranslated '.$var, $args),
+                array_keys(QuerySupport::UNTRANSLATED),
+                QuerySupport::UNTRANSLATED
+            ),
         ];
     }
 
@@ -338,6 +385,10 @@ final class QueryParity
 
         if (! $meili['served']) {
             return ['outcome' => self::FALLBACK, ...$base, 'notes' => [$meili['reason'] ?? 'not intercepted']];
+        }
+
+        if ($mode === self::MODE_FALLBACK) {
+            return ['outcome' => self::DIFF, ...$base, 'notes' => ['served by Meilisearch, where it cannot answer as MySQL']];
         }
 
         if ($mode === self::MODE_SEARCH) {
@@ -428,7 +479,21 @@ final class QueryParity
         wp_set_current_user((int) ($args['_user'] ?? 0));
         unset($args['_user']);
 
-        $query = new WP_Query(['use_meilisearch' => $meilisearch, 'suppress_filters' => false] + $args);
+        // A plugin restricting the posts in SQL; '' changes nothing
+        $where = $args['_posts_where'] ?? null;
+        unset($args['_posts_where']);
+        $filter = static fn (string $sql): string => is_string($where) && $where !== '' ? $sql." AND ({$where})" : $sql;
+
+        if ($where !== null) {
+            add_filter('posts_where', $filter);
+        }
+
+        try {
+            $query = new WP_Query(['use_meilisearch' => $meilisearch, 'suppress_filters' => false] + $args);
+        } finally {
+            remove_filter('posts_where', $filter);
+        }
+
         $posts = $query->posts;
         $info = $query->meiliscout ?? null;
 

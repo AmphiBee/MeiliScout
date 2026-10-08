@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Query\Builders\Concerns\FormatsValues;
 use Pollora\MeiliScout\Query\QueryVars;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\IndexNames;
 
 /**
- * Filters on the post's own fields: id, slug, parent, author, password, comment count, menu order.
+ * Filters on the post's own fields: id, slug, title, parent, author, password, comments, menu order.
  *
  * The arguments are read as WP_Query::get_posts() reads them, precedence
  * included: p wins over post__in, which wins over post__not_in; name over
@@ -32,7 +33,13 @@ class PostFieldsBuilder implements QueryBuilderInterface
         'post_parent', 'post_parent__in', 'post_parent__not_in',
         'author', 'author__in', 'author__not_in', 'author_name',
         'has_password', 'comment_count', 'menu_order',
+        ...self::V4_VARS,
     ];
+
+    /**
+     * The arguments that need the posts index in schema 4, where their fields are filterable.
+     */
+    private const V4_VARS = ['title', 'comment_status', 'ping_status'];
 
     /**
      * @param  array<string, mixed>  $searchParams
@@ -48,18 +55,54 @@ class PostFieldsBuilder implements QueryBuilderInterface
             $this->commentCount($query),
             $this->menuOrder($query),
         ]));
+        $v4Filters = array_values(array_filter([
+            $this->title($query),
+            $this->status($query, 'comment_status'),
+            $this->status($query, 'ping_status'),
+        ]));
+
+        if ($v4Filters !== [] && IndexNames::activeSchema('posts') < 4) {
+            throw new UnsupportedQuery('schema_too_old');
+        }
+
+        $filters = [...$filters, ...$v4Filters];
 
         if ($filters === []) {
             return;
         }
 
-        if (IndexNames::activeSchema() < 3) {
+        if (IndexNames::activeSchema('posts') < 3) {
             throw new UnsupportedQuery('schema_too_old');
         }
 
         foreach ($filters as $filter) {
             $searchParams['filter'][] = $filter;
         }
+    }
+
+    /**
+     * title: the title as a whole, compared as MySQL's collation compares it (case and accents aside).
+     */
+    private function title(QueryInterface $query): ?string
+    {
+        $title = $this->string($query->get('title'));
+
+        if ($title === '') {
+            return null;
+        }
+
+        // WP_Query compares the title unslashed
+        return 'post_title_sort = '.$this->quote(PostIndexable::titleSortKey(stripslashes($title)));
+    }
+
+    /**
+     * comment_status or ping_status: open or closed.
+     */
+    private function status(QueryInterface $query, string $field): ?string
+    {
+        $status = $this->string($query->get($field));
+
+        return $status === '' ? null : "{$field} = ".$this->quote($status);
     }
 
     private function slug(QueryInterface $query): ?string

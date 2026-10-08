@@ -58,6 +58,9 @@ class QueryIntegration
 
         add_filter('posts_pre_query', [$this, 'interceptQuery'], PHP_INT_MAX, 2);
 
+        // Plugins restricting the posts in SQL: their queries run on MySQL
+        SqlFilters::watch();
+
         // WP_Query counts the posts of a query for ids itself, after posts_pre_query
         add_filter('found_posts_query', [$this, 'skipFoundRowsQuery'], PHP_INT_MAX, 2);
         add_filter('found_posts', [$this, 'foundPosts'], PHP_INT_MIN, 2);
