@@ -44,6 +44,14 @@ class WPQueryAdapter implements QueryInterface
     }
 
     /**
+     * The adapted WP_Query, with the state WordPress parsed.
+     */
+    public function wpQuery(): WP_Query
+    {
+        return $this->wpQuery;
+    }
+
+    /**
      * Sets a query parameter value.
      *
      * @param string $key The parameter key

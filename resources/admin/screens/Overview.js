@@ -24,6 +24,59 @@ const REALTIME_LABELS = {
 	off: __( 'Off', 'meiliscout' ),
 };
 
+/**
+ * A reason a query ran on MySQL, as the plugin records it, in a few words.
+ *
+ * @param {string} reason e.g. unsupported_arg:author, unindexed_meta:price.
+ * @return {string} The words.
+ */
+const fallbackReason = ( reason ) => {
+	const [ kind, detail ] = reason.split( ':' );
+
+	switch ( kind ) {
+		case 'unsupported_arg':
+		case 'unsupported_orderby':
+		case 'unsupported_compare':
+			return detail;
+		case 'unindexed_meta':
+			return detail
+				? /* translators: %s: a meta key */
+				  sprintf( __( 'field %s', 'meiliscout' ), detail )
+				: __( 'fields not indexed', 'meiliscout' );
+		case 'unindexed_status':
+			/* translators: %s: a post status */
+			return sprintf( __( 'status %s', 'meiliscout' ), detail );
+		case 'unindexed_type':
+			/* translators: %s: a post type */
+			return sprintf( __( 'type %s', 'meiliscout' ), detail );
+		case 'engine_error':
+			return __( 'Meilisearch error', 'meiliscout' );
+		case 'unreachable':
+			return __( 'Meilisearch unreachable', 'meiliscout' );
+		default:
+			return reason;
+	}
+};
+
+const FallbackReasons = ( { reasons } ) => {
+	const entries = Object.entries( reasons ?? {} ).slice( 0, 3 );
+
+	if ( ! entries.length ) {
+		return null;
+	}
+
+	return (
+		<span className="ms-health__detail">
+			{ entries
+				.map(
+					( [ reason, count ] ) =>
+						`${ number( count ) } ${ fallbackReason( reason ) }`
+				)
+				.join( ' · ' ) }
+		</span>
+	);
+};
+
 const IndexState = ( { index, running } ) => {
 	if ( index.error ) {
 		return <Pill tone="error">{ __( 'Error', 'meiliscout' ) }</Pill>;
@@ -355,6 +408,7 @@ const Overview = ( { overview } ) => {
 							number( fallbacks.total )
 						) }
 					</span>
+					<FallbackReasons reasons={ fallbacks.reasons } />
 					{ fallbacks.meta > 0 ? (
 						<a href={ href( 'content', 'fields' ) }>
 							{ sprintf(

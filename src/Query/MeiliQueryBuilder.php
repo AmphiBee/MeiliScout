@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Query;
 
-use Meilisearch\Client;
 use Pollora\MeiliScout\Contracts\QueryInterface;
-use Pollora\MeiliScout\Domain\Search\Enums\ComparisonOperator;
-use Pollora\MeiliScout\Domain\Search\Enums\MetaType;
-use Pollora\MeiliScout\Query\Builders\DateQueryBuilder;
+use Pollora\MeiliScout\Query\Builders\FieldsBuilder;
 use Pollora\MeiliScout\Query\Builders\MetaQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\OrderBuilder;
 use Pollora\MeiliScout\Query\Builders\PaginationBuilder;
@@ -26,16 +23,9 @@ class MeiliQueryBuilder
     /**
      * Collection of query builders.
      *
-     * @var array
+     * @var list<Builders\QueryBuilderInterface>
      */
     private array $builders;
-
-    /**
-     * Meta query builder instance.
-     *
-     * @var MetaQueryBuilder|null
-     */
-    private ?MetaQueryBuilder $metaQueryBuilder = null;
 
     /**
      * Constructor.
@@ -49,35 +39,24 @@ class MeiliQueryBuilder
             new SearchQueryBuilder,
             new TypeStatusBuilder,
             new TaxQueryBuilder,
-            $this->metaQueryBuilder = new MetaQueryBuilder,
-            new DateQueryBuilder,
+            new MetaQueryBuilder,
             new OrderBuilder,
+            new FieldsBuilder,
         ];
     }
 
     /**
      * Builds search parameters from a query.
      *
+     * The query is only read: building it twice gives the same parameters.
+     *
      * @param QueryInterface $query The query to build parameters from
-     * @return array The constructed search parameters for MeiliSearch
+     * @return array<string, mixed> The constructed search parameters for MeiliSearch
+     *
+     * @throws UnsupportedQuery When Meilisearch cannot answer it as MySQL would
      */
     public function build(QueryInterface $query): array
     {
-        if ($query->get('meta_key') !== null && $query->get('meta_key') !== '') {
-            $clause = [
-                'key' => $query->get('meta_key'),
-                'value' => $query->get('meta_value') ?? $query->get('meta_value_num') ?? null,
-                'compare' => $query->get('meta_compare') ?? ComparisonOperator::getDefault()->value,
-                'type' => $query->get('meta_type') ?? MetaType::getDefault()->value,
-            ];
-            $metaQuery = $query->get('meta_query');
-
-            // meta_key narrows the meta_query, as in WordPress: it must not replace it
-            $query->set('meta_query', empty($metaQuery) || ! is_array($metaQuery)
-                ? [$clause]
-                : ['relation' => 'AND', $metaQuery, $clause]);
-        }
-
         /** @var array<string, mixed> $params */
         $params = [];
 
@@ -100,15 +79,5 @@ class MeiliQueryBuilder
          * @param  QueryInterface  $query
          */
         return apply_filters('meiliscout/search_params', $params, $query);
-    }
-
-    /**
-     * Checks if the query contains meta keys that are not indexed.
-     *
-     * @return bool True if there are non-indexable meta keys, false otherwise
-     */
-    public function hasNonIndexableMetaKeys(): bool
-    {
-        return $this->metaQueryBuilder?->hasNonIndexableMetaKeys() ?? false;
     }
 }

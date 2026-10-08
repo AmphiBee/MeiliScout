@@ -428,6 +428,12 @@
 	font-weight: 700;
 }
 
+.ms-health__detail {
+	font-size: 12px;
+	color: var(--ms-muted);
+	overflow-wrap: anywhere;
+}
+
 .ms-health a {
 	font-size: 13px;
 }

@@ -8,6 +8,7 @@ use Pollora\MeiliScout\Config\SearchableAttributes;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\IndexSettings;
 use WP_Post;
 use WP_Term;
 
@@ -95,7 +96,26 @@ class PostIndexable implements Indexable
                 ['*'],
                 $filterableMetaKeys
             ),
+            'rankingRules' => self::rankingRules(),
+            'pagination' => ['maxTotalHits' => IndexSettings::maxTotalHits()],
         ];
+    }
+
+    /**
+     * The ranking rules of the posts index: `sort` first.
+     *
+     * A search without a sort is ranked by relevance as before. With one (an
+     * explicit orderby), the order asked for is followed strictly, as on
+     * MySQL, rather than only breaking ties between equally relevant posts.
+     *
+     * @return list<string>
+     */
+    public static function rankingRules(): array
+    {
+        return array_values((array) apply_filters(
+            'meiliscout/post/ranking_rules',
+            ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness']
+        ));
     }
 
     public function getItems(?int $offset = null, ?int $limit = null): iterable

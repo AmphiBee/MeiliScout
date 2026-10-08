@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Query\Builders;
 
+use Pollora\MeiliScout\Contracts\QueryInterface;
 use Pollora\MeiliScout\Domain\Search\Enums\ComparisonOperator;
 use Pollora\MeiliScout\Domain\Search\Enums\TaxonomyFields;
 use Pollora\MeiliScout\Domain\Search\Validators\EnumValidator;
+use Pollora\MeiliScout\Query\QueryVars;
+use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\IndexNames;
 
 /**
@@ -16,89 +19,147 @@ use Pollora\MeiliScout\Services\IndexNames;
  */
 class TaxQueryBuilder extends AbstractFilterBuilder
 {
+    private const OPERATORS = ['IN', 'NOT IN', 'AND', 'EXISTS', 'NOT EXISTS'];
+
     /**
-     * {@inheritdoc}
+     * The clauses WordPress parsed, cat, tag and taxonomy query vars included.
      */
-    protected function getQueryKey(): string
+    protected function queries(QueryInterface $query): array
     {
-        return 'tax_query';
+        return QueryVars::taxQuery($query);
+    }
+
+    /**
+     * As WP_Tax_Query::is_first_order_clause().
+     */
+    protected function isClause(array $entry): bool
+    {
+        return $entry === []
+            || array_key_exists('terms', $entry)
+            || array_key_exists('taxonomy', $entry)
+            || array_key_exists('include_children', $entry)
+            || array_key_exists('field', $entry)
+            || array_key_exists('operator', $entry);
     }
 
     /**
      * {@inheritdoc}
-     * 
-     * Builds a filter expression for a taxonomy query clause.
-     * 
+     *
+     * Builds a filter expression for a taxonomy query clause, with the
+     * outcomes of WP_Tax_Query::get_sql_for_clause(): no term to look for
+     * is no post for IN, and no restriction for NOT IN and AND.
+     *
      * @param array $query The taxonomy query clause
      * @return string The MeiliSearch filter expression
      */
     protected function buildSingleFilter(array $query): string
     {
+        $operator = strtoupper(trim((string) ($query['operator'] ?? 'IN')));
+
+        if (! in_array($operator, self::OPERATORS, true)) {
+            throw new UnsupportedQuery('unsupported_tax_operator:'.$operator);
+        }
+
         // Indexes built before 2.0 only have the flat `terms` list
         if (IndexNames::activeSchema() < 2) {
-            return $this->buildLegacyFilter($query);
+            return $this->buildLegacyFilter([...$query, 'operator' => $operator]);
         }
 
         $taxonomy = $query['taxonomy'] ?? '';
 
+        if ($taxonomy === '') {
+            // WordPress accepts term_taxonomy_ids of any taxonomy; the documents have them per taxonomy
+            throw new UnsupportedQuery('unsupported_tax_query:no_taxonomy');
+        }
+
         // The taxonomy becomes part of an attribute name: keep to the characters taxonomy names use
         if (! is_string($taxonomy) || ! preg_match('/^[a-zA-Z0-9_-]+$/', $taxonomy)) {
-            return '';
+            throw new UnsupportedQuery('unsupported_tax_query:taxonomy');
+        }
+
+        // An unknown taxonomy is an error WordPress answers with no post
+        if (function_exists('taxonomy_exists') && ! taxonomy_exists($taxonomy)) {
+            return self::MATCH_NOTHING;
         }
 
         $field = EnumValidator::getValidValueOrDefault(
             TaxonomyFields::class,
-            $query['field'] ?? TaxonomyFields::getDefault()->value,
+            is_string($query['field'] ?? null) ? $query['field'] : TaxonomyFields::getDefault()->value,
             TaxonomyFields::getDefault()
         )->value;
 
-        $operator = EnumValidator::getValidValueOrDefault(
-            ComparisonOperator::class,
-            $query['operator'] ?? ComparisonOperator::getTaxonomyDefault()->value,
-            ComparisonOperator::getTaxonomyDefault()
-        );
-
-        if (! in_array($operator, ComparisonOperator::getTaxonomyOperators(), true)) {
-            return '';
-        }
-
         // A post has a term of the taxonomy when it has a term id there
-        if ($operator === ComparisonOperator::EXISTS) {
+        if ($operator === 'EXISTS') {
             return "taxonomies.{$taxonomy}.term_id EXISTS";
         }
 
-        if ($operator === ComparisonOperator::NOT_EXISTS) {
+        if ($operator === 'NOT EXISTS') {
             return "taxonomies.{$taxonomy}.term_id NOT EXISTS";
         }
 
-        if (! array_key_exists('terms', $query)) {
-            return '';
-        }
-
-        $values = array_values(array_filter((array) $query['terms'], fn ($value) => $value !== '' && $value !== null));
-
-        if ($values === []) {
-            return '';
-        }
+        $values = $this->terms($query['terms'] ?? [], $field);
 
         // As in WordPress, a term of a hierarchical taxonomy brings its children along
-        if ($operator !== ComparisonOperator::AND && ($query['include_children'] ?? true)) {
-            $withChildren = $this->withChildren($taxonomy, $field, $values);
+        if ($values !== [] && ($query['include_children'] ?? true)) {
+            $missing = 0;
+            $withChildren = $this->withChildren($taxonomy, $field, $values, $missing);
+
+            // AND on a term that does not exist is an error WordPress answers with no post
+            if ($operator === 'AND' && $missing > 0) {
+                return self::MATCH_NOTHING;
+            }
 
             if ($withChildren !== null) {
                 [$field, $values] = ['term_id', $withChildren];
             }
         }
 
+        if ($values === []) {
+            return $operator === 'IN' ? self::MATCH_NOTHING : '';
+        }
+
         $key = "taxonomies.{$taxonomy}.{$field}";
 
         return match ($operator) {
-            ComparisonOperator::IN => "{$key} IN [{$this->formatArrayValues($values)}]",
-            ComparisonOperator::NOT_IN => "{$key} NOT IN [{$this->formatArrayValues($values)}]",
+            'IN' => "{$key} IN [{$this->formatArrayValues($values)}]",
+            'NOT IN' => "{$key} NOT IN [{$this->formatArrayValues($values)}]",
             // AND: the post carries every one of the terms
-            ComparisonOperator::AND => '('.implode(' AND ', array_map(fn ($value) => "{$key} = {$this->formatValue($value)}", $values)).')',
-            default => '',
+            'AND' => '('.implode(' AND ', array_map(fn ($value) => "{$key} = {$this->formatValue($value)}", $values)).')',
         };
+    }
+
+    /**
+     * The terms of a clause, as WP_Tax_Query::clean_query() reads them.
+     *
+     * @return list<int|string>
+     */
+    private function terms(mixed $terms, string $field): array
+    {
+        $terms = is_array($terms) ? $terms : [$terms];
+
+        if (in_array($field, ['slug', 'name'], true)) {
+            $terms = array_filter($terms, static fn ($term) => is_scalar($term) && (string) $term !== '');
+
+            // WP_Term_Query sanitizes the slugs it looks for
+            if ($field === 'slug' && function_exists('sanitize_title')) {
+                $terms = array_map(static fn ($term) => sanitize_title((string) $term), $terms);
+            }
+
+            return array_values(array_unique(array_map('strval', $terms)));
+        }
+
+        // Ids, as wp_parse_id_list() reads them
+        $ids = [];
+
+        foreach ($terms as $term) {
+            foreach (is_string($term) ? (preg_split('/[\s,]+/', $term) ?: []) : [$term] as $id) {
+                if (is_scalar($id) && (string) $id !== '') {
+                    $ids[] = abs((int) $id);
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -106,10 +167,13 @@ class TaxQueryBuilder extends AbstractFilterBuilder
      * taxonomy is flat or WordPress is not there to tell.
      *
      * @param  list<int|string>  $values  Term ids, slugs, names or term_taxonomy_ids
+     * @param  int  $missing  Set to the number of values no term has
      * @return list<int>|null
      */
-    private function withChildren(string $taxonomy, string $field, array $values): ?array
+    private function withChildren(string $taxonomy, string $field, array $values, int &$missing): ?array
     {
+        $missing = 0;
+
         if (! function_exists('is_taxonomy_hierarchical') || ! is_taxonomy_hierarchical($taxonomy)) {
             return null;
         }
@@ -120,6 +184,8 @@ class TaxQueryBuilder extends AbstractFilterBuilder
             $term = get_term_by($field, $value, $taxonomy);
 
             if (! $term instanceof \WP_Term) {
+                $missing++;
+
                 continue;
             }
 

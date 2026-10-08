@@ -5,71 +5,61 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Indexables\PostIndexable;
+use Pollora\MeiliScout\Query\Builders\Concerns\FormatsValues;
+use Pollora\MeiliScout\Query\QuerySupport;
+use Pollora\MeiliScout\Query\QueryVars;
+use Pollora\MeiliScout\Query\UnsupportedQuery;
 
 /**
- * Builder for post type and status filters.
- * 
- * Handles the conversion of WordPress post_type and post_status parameters to MeiliSearch filter syntax.
+ * Filters on the post types and statuses the query is about.
+ *
+ * The types are the ones WordPress works out (posts by default, the types of
+ * a custom taxonomy on its archive, every searchable type for 'any'); the
+ * statuses the ones it would include, among those the index holds. That a
+ * status the index lacks has no post is checked by QuerySupport.
  */
 class TypeStatusBuilder implements QueryBuilderInterface
 {
+    use FormatsValues;
+
     /**
-     * Builds the post type and status filters for MeiliSearch.
-     * 
-     * @param QueryInterface $query The WordPress query
-     * @param array $searchParams The MeiliSearch search parameters to modify
-     * @return void
+     * @param  array<string, mixed>  $searchParams
      */
     public function build(QueryInterface $query, array &$searchParams): void
     {
         $searchParams['filter'] = $searchParams['filter'] ?? [];
 
-        $postType = $query->get('post_type');
-        if ($postType === null || $postType === '' || $postType === []) {
-            // As in WordPress: posts, unless a search or a taxonomy query widens it to every type
-            $postType = (! empty($query->get('s')) || ! empty($query->get('tax_query'))) ? 'any' : 'post';
+        $types = QueryVars::postTypes($query);
+
+        // 'any' without WordPress to list the types: the index only holds indexed ones
+        if ($types !== 'any') {
+            $searchParams['filter'][] = $this->filter('post_type', $types);
         }
 
-        // 'any' leaves the type open: only indexed post types are in the index
-        if (! $this->isAny($postType)) {
-            $this->addFilter($searchParams['filter'], 'post_type', $postType);
+        $requested = QuerySupport::requestedStatuses($query);
+        $indexed = PostIndexable::indexableStatuses();
+
+        if ($requested['explicit']) {
+            foreach ($requested['statuses'] as $status) {
+                if (! in_array($status, $indexed, true)) {
+                    throw new UnsupportedQuery('unindexed_status:'.$status);
+                }
+            }
         }
 
-        $postStatus = $query->get('post_status');
-        if ($postStatus === null || $postStatus === '' || $postStatus === []) {
-            $postStatus = 'publish';
-        }
-
-        if (! $this->isAny($postStatus)) {
-            $this->addFilter($searchParams['filter'], 'post_status', $postStatus);
-        }
+        $searchParams['filter'][] = $this->filter('post_status', array_values(array_intersect($requested['statuses'], $indexed)));
     }
 
     /**
-     * Whether a post_type or post_status query var asks for any value.
-     *
-     * @param  array|string  $value  The query var
+     * @param  list<string>  $values
      */
-    private function isAny(array|string $value): bool
+    private function filter(string $attribute, array $values): string
     {
-        return $value === 'any' || $value === ['any'];
-    }
+        $values = array_values(array_unique($values));
 
-    /**
-     * Adds a filter to the filter array.
-     * 
-     * @param array $filters The filter array to modify
-     * @param string $key The filter key
-     * @param array|string $value The filter value(s)
-     * @return void
-     */
-    private function addFilter(array &$filters, string $key, array|string $value): void
-    {
-        if (is_array($value)) {
-            $escapedValues = array_map(fn ($val) => sprintf("'%s'", addslashes($val)), $value);
-            $filters[] = sprintf('%s IN [%s]', $key, implode(', ', $escapedValues));
-        } else {
-            $filters[] = sprintf("%s = '%s'", $key, addslashes($value));
-        }
+        return count($values) === 1
+            ? "{$attribute} = {$this->quote($values[0])}"
+            : "{$attribute} IN [".implode(', ', array_map(fn (string $value) => $this->quote($value), $values)).']';
     }
 }

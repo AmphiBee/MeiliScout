@@ -96,13 +96,13 @@ final class SiteData
     }
 
     /**
-     * A category that has children.
+     * A category that has children with posts.
      */
     private static function parentCategory(): int
     {
-        $children = get_terms(['taxonomy' => 'category', 'hide_empty' => false, 'parent__not_in' => [0], 'orderby' => 'count', 'order' => 'DESC', 'number' => 1]);
+        global $wpdb;
 
-        return is_array($children) && isset($children[0]) ? (int) $children[0]->parent : 0;
+        return (int) $wpdb->get_var("SELECT parent FROM {$wpdb->term_taxonomy} WHERE taxonomy = 'category' AND parent > 0 AND count > 0 ORDER BY count DESC LIMIT 1");
     }
 
     /**

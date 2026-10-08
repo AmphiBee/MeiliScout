@@ -6,210 +6,190 @@ namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\QueryInterface;
-use Pollora\MeiliScout\Domain\Search\Enums\ComparisonOperator;
-use Pollora\MeiliScout\Domain\Search\Enums\MetaType;
-use Pollora\MeiliScout\Domain\Search\Validators\EnumValidator;
+use Pollora\MeiliScout\Query\QueryVars;
+use Pollora\MeiliScout\Query\UnsupportedQuery;
+use Pollora\MeiliScout\Services\MissedMetaKeys;
 
 /**
- * Builder for meta query filters.
- * 
- * Handles the conversion of WordPress meta_query parameters to MeiliSearch filter syntax.
+ * Translates meta_query, meta_key and meta_value into a Meilisearch filter.
+ *
+ * Clauses are read as WP_Meta_Query reads them: operators and types in any
+ * case, '=' (or IN for a list) by default, a clause with a key and no value
+ * asks for the key to exist, and '!=' or NOT IN for a key the post must have.
+ *
+ * Only indexed meta keys can be filtered on: any other key, and the
+ * operators Meilisearch has no equivalent for (LIKE, REGEXP), send the
+ * query to MySQL.
  */
 class MetaQueryBuilder extends AbstractFilterBuilder
 {
     /**
-     * List of meta keys that were found to be non-indexable during query building.
-     *
-     * @var array
+     * WordPress operators, and whether they compare values as numbers.
      */
-    private array $nonIndexableMetaKeys = [];
+    private const OPERATORS = [
+        '=' => false, '!=' => false, 'IN' => false, 'NOT IN' => false, 'EXISTS' => false, 'NOT EXISTS' => false,
+        'LIKE' => false, 'NOT LIKE' => false, 'REGEXP' => false, 'NOT REGEXP' => false, 'RLIKE' => false,
+        '>' => true, '>=' => true, '<' => true, '<=' => true, 'BETWEEN' => true, 'NOT BETWEEN' => true,
+    ];
 
     /**
-     * {@inheritdoc}
+     * Casts whose values are numbers.
      */
-    protected function getQueryKey(): string
+    private const NUMERIC_CASTS = ['SIGNED', 'UNSIGNED', 'DECIMAL'];
+
+    protected function queries(QueryInterface $query): array
     {
-        return 'meta_query';
+        return QueryVars::metaQuery($query);
     }
 
     /**
-     * Builds the meta filters of one query.
-     *
-     * The builder is shared by every query of the request: the non-indexable
-     * keys found for a previous query must not send this one to MySQL.
-     *
-     * @param  QueryInterface  $query  The query to read the meta_query from
-     * @param  array  $searchParams  The search parameters to add the filters to
+     * As WP_Meta_Query::is_first_order_clause().
      */
-    public function build(QueryInterface $query, array &$searchParams): void
+    protected function isClause(array $entry): bool
     {
-        $this->nonIndexableMetaKeys = [];
-
-        parent::build($query, $searchParams);
+        return isset($entry['key']) || isset($entry['value']);
     }
 
-    /**
-     * {@inheritdoc}
-     * 
-     * Builds a filter expression for a meta query clause.
-     */
-    protected function buildSingleFilter(array $query): string
+    protected function buildSingleFilter(array $clause): string
     {
-        // Handle simple queries (meta_key, meta_value)
-        if (isset($query['meta_key'])) {
-            $query['key'] = $query['meta_key'];
-            $query['value'] = $query['meta_value'] ?? $query['meta_value_num'] ?? null;
-            $query['compare'] = $query['meta_compare'] ?? '=';
+        if (! empty($clause['compare_key']) || ! empty($clause['type_key'])) {
+            throw new UnsupportedQuery('unsupported_meta_compare_key');
         }
 
-        // Check required parameters
-        if (empty($query['key'])) {
-            return '';
+        $key = $clause['key'] ?? null;
+
+        if (! is_string($key) || trim($key) === '') {
+            // A list of keys, or a value under any key
+            throw new UnsupportedQuery('unsupported_meta_key');
         }
 
-        // Check if the meta key is indexable
-        if (! $this->isMetaKeyIndexable($query['key'])) {
-            return '';
+        $key = trim($key);
+        $this->assertIndexed($key);
+
+        $attribute = "metas.{$key}";
+        $compare = $this->compare($clause);
+
+        if ($compare === 'NOT EXISTS') {
+            return "{$attribute} NOT EXISTS";
         }
 
-        $key = "metas.{$query['key']}";
-
-        // Handle EXISTS and NOT EXISTS operators
-        /** @var ComparisonOperator $operator */
-        $operator = EnumValidator::getValidValueOrDefault(
-            ComparisonOperator::class,
-            $query['compare'] ?? ComparisonOperator::getDefault()->value,
-            ComparisonOperator::getDefault()
-        );
-
-        // Check if the operator is allowed for meta queries
-        if (! in_array($operator, ComparisonOperator::getMetaOperators(), true)) {
-            return '';
+        // No value: the post has the key, whatever the operator
+        if (! array_key_exists('value', $clause) || $clause['value'] === [] || $clause['value'] === null) {
+            return "{$attribute} EXISTS";
         }
 
-        // Handle EXISTS and NOT EXISTS operators
-        if (in_array($operator, [ComparisonOperator::EXISTS, ComparisonOperator::NOT_EXISTS], true)) {
-            return "$key {$operator->value}";
+        if (in_array($compare, ['LIKE', 'NOT LIKE', 'REGEXP', 'NOT REGEXP', 'RLIKE'], true)) {
+            throw new UnsupportedQuery('unsupported_compare:'.$compare);
         }
 
-        // Check for value presence for other operators
-        if (! isset($query['value'])) {
-            return '';
+        $cast = $this->cast($clause['type'] ?? '');
+        $value = $clause['value'];
+
+        if (in_array($compare, ['IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN'], true)) {
+            $value = is_array($value) ? array_values($value) : (preg_split('/[,\s]+/', (string) $value) ?: []);
+        } elseif (is_array($value)) {
+            throw new UnsupportedQuery('unsupported_meta_value');
+        } elseif (is_string($value)) {
+            $value = trim($value);
         }
 
-        // Format value based on type
-        $value = $this->formatMetaValue($query['value'], $query['type'] ?? MetaType::getDefault()->value);
+        $literal = fn (mixed $v): string => $this->literal($v, $cast);
 
-        return match ($operator) {
-            ComparisonOperator::EQUALS,
-            ComparisonOperator::NOT_EQUALS,
-            ComparisonOperator::GREATER_THAN,
-            ComparisonOperator::GREATER_THAN_OR_EQUALS,
-            ComparisonOperator::LESS_THAN,
-            ComparisonOperator::LESS_THAN_OR_EQUALS,
-            ComparisonOperator::LIKE,
-            ComparisonOperator::NOT_LIKE,
-            ComparisonOperator::REGEXP,
-            ComparisonOperator::NOT_REGEXP,
-            ComparisonOperator::RLIKE => "$key {$operator->value} $value",
-
-            ComparisonOperator::IN,
-            ComparisonOperator::NOT_IN => is_array($query['value'])
-                ? "$key {$operator->value} [{$this->formatArrayValues($query['value'])}]"
-                : '',
-
-            ComparisonOperator::BETWEEN => is_array($query['value']) && count($query['value']) === 2
-                ? "($key >= {$this->formatMetaValue($query['value'][0], $query['type'] ?? MetaType::getDefault()->value)} AND $key <= {$this->formatMetaValue($query['value'][1], $query['type'] ?? MetaType::getDefault()->value)})"
-                : '',
-
-            ComparisonOperator::NOT_BETWEEN => is_array($query['value']) && count($query['value']) === 2
-                ? "($key < {$this->formatMetaValue($query['value'][0], $query['type'] ?? MetaType::getDefault()->value)} OR $key > {$this->formatMetaValue($query['value'][1], $query['type'] ?? MetaType::getDefault()->value)})"
-                : '',
-
-            default => '',
+        return match ($compare) {
+            // EXISTS with a value is '=' in WordPress
+            '=', 'EXISTS' => "{$attribute} = {$literal($value)}",
+            // The post must have the key, with another value
+            '!=' => "({$attribute} EXISTS AND {$attribute} != {$literal($value)})",
+            '>', '>=', '<', '<=' => "{$attribute} {$compare} {$literal($value)}",
+            'IN' => "{$attribute} IN [".implode(', ', array_map($literal, $value)).']',
+            'NOT IN' => "({$attribute} EXISTS AND {$attribute} NOT IN [".implode(', ', array_map($literal, $value)).'])',
+            'BETWEEN' => "({$attribute} >= {$literal($value[0] ?? '')} AND {$attribute} <= {$literal($value[1] ?? '')})",
+            'NOT BETWEEN' => "({$attribute} < {$literal($value[0] ?? '')} OR {$attribute} > {$literal($value[1] ?? '')})",
+            default => throw new UnsupportedQuery('unsupported_compare:'.$compare),
         };
     }
 
     /**
-     * Formats a meta value based on its type.
+     * The operator, as WP_Meta_Query::get_sql_for_clause() works it out.
      *
-     * @param mixed $value The value to format
-     * @param string $type The meta type
-     * @return string The formatted value
+     * @param  array<string, mixed>  $clause
      */
-    private function formatMetaValue(mixed $value, string $type): string
+    private function compare(array $clause): string
     {
-        /** @var MetaType $metaType */
-        $metaType = EnumValidator::getValidValueOrDefault(
-            MetaType::class,
-            $type,
-            MetaType::getDefault()
-        );
+        if (! isset($clause['compare'])) {
+            return isset($clause['value']) && is_array($clause['value']) ? 'IN' : '=';
+        }
 
-        return match ($metaType) {
-            MetaType::NUMERIC,
-            MetaType::DECIMAL,
-            MetaType::SIGNED,
-            MetaType::UNSIGNED => is_array($value) ? implode(', ', $value) : (string) $value,
+        if (! is_string($clause['compare'])) {
+            throw new UnsupportedQuery('unsupported_compare');
+        }
 
-            MetaType::DATE,
-            MetaType::DATETIME,
-            MetaType::TIME => is_array($value)
-                ? $this->formatArrayValues($value)
-                : $this->formatValue($value),
+        $compare = strtoupper(trim($clause['compare']));
 
-            default => $this->formatValue($value),
+        // An operator WordPress does not know is '='
+        return isset(self::OPERATORS[$compare]) ? $compare : '=';
+    }
+
+    /**
+     * The cast of a type, as WP_Meta_Query::get_cast_for_type() works it out.
+     */
+    private function cast(mixed $type): string
+    {
+        $type = is_string($type) ? strtoupper(trim($type)) : '';
+
+        if ($type === '' || ! preg_match('/^(?:BINARY|CHAR|DATE|DATETIME|SIGNED|UNSIGNED|TIME|NUMERIC(?:\(\d+(?:,\s?\d+)?\))?|DECIMAL(?:\(\d+(?:,\s?\d+)?\))?)$/', $type)) {
+            return 'CHAR';
+        }
+
+        if ($type === 'BINARY') {
+            // Case-sensitive comparisons: Meilisearch filters ignore case
+            throw new UnsupportedQuery('unsupported_meta_type:BINARY');
+        }
+
+        return match (true) {
+            str_starts_with($type, 'NUMERIC') => 'SIGNED',
+            str_starts_with($type, 'DECIMAL') => 'DECIMAL',
+            default => $type,
         };
-
     }
 
     /**
-     * Checks if a meta key is indexable.
-     *
-     * @param string $key The meta key to check
-     * @return bool True if the meta key is indexable, false otherwise
+     * A value as a filter literal: a number for numeric casts, else what it is.
      */
-    private function isMetaKeyIndexable(string $key): bool
+    private function literal(mixed $value, string $cast): string
     {
-        $indexableMetaKeys = Settings::get('indexed_meta_keys', []);
+        if (in_array($cast, self::NUMERIC_CASTS, true)) {
+            if (is_bool($value)) {
+                return $value ? '1' : '0';
+            }
 
-        if (! in_array($key, $indexableMetaKeys, true)) {
-            $this->nonIndexableMetaKeys[] = $key;
-            $this->updateNonIndexableMetaKeys();
+            // MySQL casts anything to a number; Meilisearch compares numbers to numbers only
+            if (! is_numeric($value)) {
+                throw new UnsupportedQuery('invalid_number');
+            }
 
-            return false;
+            $number = $this->formatNumber(is_string($value) ? $value : (float) $value);
+
+            return $cast === 'UNSIGNED' || $cast === 'SIGNED' ? (string) (int) $number : $number;
         }
 
-        return true;
+        return $this->formatValue($value);
     }
 
     /**
-     * Updates the list of non-indexable meta keys in the settings.
-     *
-     * @return void
+     * Only indexed keys are in the documents; a missed key is remembered for the admin.
      */
-    private function updateNonIndexableMetaKeys(): void
+    private function assertIndexed(string $key): void
     {
-        if (empty($this->nonIndexableMetaKeys)) {
-            return;
+        if (! in_array($key, (array) Settings::get('indexed_meta_keys', []), true)) {
+            MissedMetaKeys::record($key);
+
+            throw new UnsupportedQuery('unindexed_meta:'.$key);
         }
 
-        $existingKeys = Settings::get('non_indexable_meta_keys', []);
-        $updatedKeys = array_values(array_unique(array_merge($existingKeys, $this->nonIndexableMetaKeys)));
-
-        // Front-end queries run this on every page view: write only when a key is new
-        if (count($updatedKeys) !== count($existingKeys)) {
-            Settings::save('non_indexable_meta_keys', $updatedKeys);
+        // The key becomes part of an attribute name: a dot would make it a nested one
+        if (! preg_match('/^[A-Za-z0-9_-]+$/', $key)) {
+            throw new UnsupportedQuery('unsupported_meta_key');
         }
-    }
-
-    /**
-     * Checks if the query contains meta keys that are not indexed.
-     *
-     * @return bool True if there are non-indexable meta keys, false otherwise
-     */
-    public function hasNonIndexableMetaKeys(): bool
-    {
-        return ! empty($this->nonIndexableMetaKeys);
     }
 }

@@ -11,6 +11,7 @@ use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\Indexer;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\IndexSettings;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -83,7 +84,17 @@ final class SettingsController extends Controller
             }
         }
 
+        $maxTotalHits = $request->get_param('max_total_hits');
+        $previousMaxTotalHits = IndexSettings::maxTotalHits();
+        if (is_numeric($maxTotalHits) && (int) $maxTotalHits > 0) {
+            Settings::save('max_total_hits', (int) $maxTotalHits);
+        }
+
         ClientFactory::reset();
+
+        if (IndexSettings::maxTotalHits() !== $previousMaxTotalHits) {
+            $this->pushMaxTotalHits();
+        }
 
         return $this->respond($this->payload());
     }
@@ -147,6 +158,19 @@ final class SettingsController extends Controller
         return ['readable' => $readable, 'total' => count(IndexNames::BASES)];
     }
 
+    /**
+     * Applies the maximum number of results to the index searches read, without waiting for an indexation.
+     */
+    private function pushMaxTotalHits(): void
+    {
+        try {
+            ClientFactory::getClient()?->index(IndexNames::active('posts'))->updatePagination(['maxTotalHits' => IndexSettings::maxTotalHits()]);
+        } catch (\Throwable $e) {
+            // The next indexation sends it with the other settings
+            error_log('MeiliScout: could not update the maximum number of results: '.$e->getMessage());
+        }
+    }
+
     private function typedOrSaved(WP_REST_Request $request, string $param, string $setting): string
     {
         $typed = $request->get_param($param);
@@ -179,6 +203,7 @@ final class SettingsController extends Controller
             'realtime' => ['value' => RealtimeIndexing::mode(), 'locked' => RealtimeIndexing::isLocked()],
             'timeout' => ClientFactory::timeout(),
             'batch_size' => Indexer::batchSize(),
+            'max_total_hits' => IndexSettings::maxTotalHits(),
         ];
     }
 }

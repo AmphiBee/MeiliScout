@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Diagnostics;
 
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Services\SearchFallbacks;
 use WP_Post;
 use WP_Query;
 
@@ -230,13 +231,16 @@ final class QueryParity
             $case('orderby parent', ['post_type' => 'page', 'orderby' => 'parent', 'order' => 'ASC']),
             $case('orderby comment_count', ['orderby' => 'comment_count']),
             $case('orderby type', ['post_type' => 'any', 'orderby' => 'type']),
-            $case('orderby rand', ['orderby' => 'rand'], self::MODE_COUNT),
+            $case('orderby rand', ['orderby' => 'rand', 'ignore_sticky_posts' => true], self::MODE_COUNT),
             $case('orderby rand, all on one page', ['orderby' => 'rand', 'post_type' => 'page', 'posts_per_page' => -1], self::MODE_SET),
             $case('orderby array', ['orderby' => ['menu_order' => 'ASC', 'title' => 'DESC'], 'post_type' => 'page']),
             $case('orderby meta_value_num', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_key' => $num['key'] ?? '', 'orderby' => 'meta_value_num', 'order' => 'ASC'])),
             $case('orderby meta_value', $when($str !== null, ['post_type' => $str['type'] ?? 'post', 'meta_key' => $str['key'] ?? '', 'orderby' => 'meta_value', 'order' => 'ASC']), self::MODE_SET),
-            $case('orderby named meta clause', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => ['num_clause' => ['key' => $num['key'] ?? '', 'compare' => 'EXISTS']], 'orderby' => 'num_clause', 'order' => 'DESC'])),
-            $case('orderby none', ['orderby' => 'none'], self::MODE_COUNT),
+            $case('orderby named meta clause', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => ['num_clause' => ['key' => $num['key'] ?? '', 'compare' => 'EXISTS', 'type' => 'NUMERIC']], 'orderby' => 'num_clause', 'order' => 'DESC'])),
+            // Without a type, MySQL sorts numbers as text; Meilisearch sorts them as numbers
+            $case('orderby named meta clause, no type', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => ['num_clause' => ['key' => $num['key'] ?? '', 'compare' => 'EXISTS']], 'orderby' => 'num_clause', 'order' => 'DESC', 'posts_per_page' => -1]), self::MODE_SET),
+            // Unordered: which sticky posts are already on the page varies, and with it post_count
+            $case('orderby none', ['orderby' => 'none', 'ignore_sticky_posts' => true], self::MODE_COUNT),
             $case('orderby relevance without s', ['orderby' => 'relevance']),
 
             // Paging and shape
@@ -294,7 +298,7 @@ final class QueryParity
 
         try {
             $mysql = self::run($args, false);
-            $meili = self::run($args, true);
+            $meili = SearchFallbacks::withoutRecording(static fn () => self::run($args, true));
         } catch (\Throwable $e) {
             return ['outcome' => self::ERROR, 'notes' => [get_class($e).': '.$e->getMessage()]];
         } finally {

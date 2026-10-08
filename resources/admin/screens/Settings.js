@@ -54,6 +54,7 @@ const fromData = ( data ) => ( {
 	realtime: data.realtime.value,
 	timeout: data.timeout,
 	batch_size: data.batch_size,
+	max_total_hits: data.max_total_hits,
 } );
 
 const ConnectionTest = ( { result } ) => {
@@ -533,6 +534,33 @@ const Settings = ( { refreshOverview, overview } ) => {
 									value={ form.batch_size }
 									onChange={ set( 'batch_size' ) }
 								/>
+							</div>
+							<div className="ms-field">
+								<label htmlFor="ms-max-hits">
+									{ __(
+										'Maximum results per query',
+										'meiliscout'
+									) }
+								</label>
+								<input
+									id="ms-max-hits"
+									className="ms-input"
+									type="number"
+									min="100"
+									step="100"
+									value={ form.max_total_hits }
+									onChange={ set( 'max_total_hits' ) }
+									aria-describedby="ms-max-hits-help"
+								/>
+								<span
+									id="ms-max-hits-help"
+									className="ms-field__help"
+								>
+									{ __(
+										'A query for all posts (posts_per_page -1) stops there, and so does paging. Higher values cost memory on large sites.',
+										'meiliscout'
+									) }
+								</span>
 							</div>
 						</div>
 					</div>

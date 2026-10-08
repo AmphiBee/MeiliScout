@@ -14,7 +14,7 @@ test('search parameter is correctly set', function () {
 
     expect($params)->toMatchArray([
         'q' => 'test search',
-        'limit' => 10,
+        'hitsPerPage' => 10,
         'filter' => 'post_type = \'post\' AND post_status = \'publish\'',
     ]);
 });
@@ -29,7 +29,16 @@ test('empty search parameter is handled correctly', function () {
 
     expect($params)->not->toHaveKey('q')
         ->and($params)->toMatchArray([
-            'limit' => 10,
+            'hitsPerPage' => 10,
             'filter' => 'post_type = \'post\' AND post_status = \'publish\'',
         ]);
+});
+
+test('0 is a search too', function () {
+    expect((new MeiliQueryBuilder)->build(new MockWPQuery(['s' => '0'])))->toMatchArray(['q' => '0']);
+});
+
+test('without a post type, a search is on every type', function () {
+    expect((new MeiliQueryBuilder)->build(new MockWPQuery(['s' => 'hello', 'post_type' => '']))['filter'])
+        ->toBe(anyTypeFilter()."post_status = 'publish'");
 });

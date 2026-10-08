@@ -5,42 +5,49 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query;
 
 use Meilisearch\Client;
+use Meilisearch\Search\SearchResult;
+use Pollora\MeiliScout\Indexables\PostIndexable;
+use Pollora\MeiliScout\Query\Builders\FieldsBuilder;
+use Pollora\MeiliScout\Query\Builders\PaginationBuilder;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\IndexNames;
 use Pollora\MeiliScout\Services\SearchFallbacks;
+use WP_Post;
 use WP_Query;
 
 /**
- * WordPress query integration with MeiliSearch.
- * 
- * Intercepts WP_Query requests and redirects them to MeiliSearch when appropriate.
+ * Serves the WP_Query that ask for it (use_meilisearch) from Meilisearch.
+ *
+ * Translate or fall back: a query is answered by Meilisearch only when every
+ * argument it has is translated faithfully. Otherwise MySQL runs it, and the
+ * reason is recorded, rather than Meilisearch returning other posts than
+ * MySQL would. Meilisearch returns ids; the posts are loaded from the
+ * database, so that they are the very objects MySQL would have given.
+ *
+ * What happened is on the query, in $query->meiliscout: served or not, why
+ * not, the search parameters, the index and the time taken.
  */
 class QueryIntegration
 {
     /**
      * MeiliSearch client instance.
-     *
-     * @var Client|null
      */
     private ?Client $client;
 
     /**
      * MeiliSearch query builder.
-     *
-     * @var MeiliQueryBuilder
      */
     private MeiliQueryBuilder $builder;
 
     /**
-     * Constructor.
-     * 
-     * Initializes the MeiliSearch client and sets up the WordPress filter hook.
+     * Initializes the MeiliSearch client and sets up the WordPress filter hooks.
      *
-     * @param MeiliQueryBuilder $builder The query builder instance
+     * @param  MeiliQueryBuilder  $builder  The query builder instance
      */
     public function __construct(MeiliQueryBuilder $builder)
     {
         $this->client = ClientFactory::getReadClient();
+        $this->builder = $builder;
 
         if (! $this->client) {
             // Meilisearch is down: the queries asking for it run on MySQL, and are counted
@@ -49,111 +56,246 @@ class QueryIntegration
             return;
         }
 
-        $this->builder = $builder;
         add_filter('posts_pre_query', [$this, 'interceptQuery'], PHP_INT_MAX, 2);
+
+        // WP_Query counts the posts of a query for ids itself, after posts_pre_query
+        add_filter('found_posts_query', [$this, 'skipFoundRowsQuery'], PHP_INT_MAX, 2);
+        add_filter('found_posts', [$this, 'foundPosts'], PHP_INT_MIN, 2);
     }
 
     /**
-     * Intercepts WordPress queries and processes them with MeiliSearch.
+     * Answers a query from Meilisearch, or leaves it to MySQL.
      *
-     * @param array|null $posts The posts array (usually null at this point)
-     * @param WP_Query $query The WordPress query object
-     * @return array|null The posts array or null to let WordPress handle the query
+     * @param  array<int, mixed>|null  $posts  The posts array (null unless another plugin answered)
+     * @param  WP_Query  $query  The WordPress query object
+     * @return array<int, mixed>|null The posts, or null to let WordPress run the query
      */
     public function interceptQuery($posts, WP_Query $query): ?array
     {
-        if (! isset($query->query_vars['use_meilisearch']) || ! $query->query_vars['use_meilisearch']) {
+        // A WP_Query object can run several queries
+        unset($query->meiliscout);
+
+        if ($posts !== null || empty($query->query_vars['use_meilisearch'])) {
             return $posts;
         }
 
-        $searchParams = $this->buildSearchParams($query);
-        $query->meiliscout = ['served' => false, 'reason' => null, 'params' => $searchParams];
+        $started = microtime(true);
+        $adapter = new WPQueryAdapter($query);
+        $index = IndexNames::active('posts');
+        $query->meiliscout = ['served' => false, 'reason' => null, 'params' => null, 'index' => $index, 'time' => null];
 
-        // If non-indexable meta keys are found, fall back to classic WP_Query mode
-        if ($this->builder->hasNonIndexableMetaKeys()) {
-            $query->query_vars['use_meilisearch'] = false;
-            $query->meiliscout['reason'] = 'unindexed_meta';
-            SearchFallbacks::record(SearchFallbacks::UNINDEXED_META);
+        try {
+            $reason = QuerySupport::check($adapter);
 
-            return $posts;
+            if ($reason !== null) {
+                throw new UnsupportedQuery($reason);
+            }
+
+            $params = $this->builder->build($adapter);
+        } catch (UnsupportedQuery $e) {
+            return $this->fallBack($query, $e->reason);
+        } catch (\Throwable $e) {
+            error_log('MeiliScout: could not translate the query, falling back to MySQL: '.$e->getMessage());
+
+            return $this->fallBack($query, 'build_error');
         }
 
         // Facets cost on every search: computed only for the queries that ask for them,
         // e.g. 'meilisearch_facets' => ['taxonomies.category.slug']
         $facets = $query->get('meilisearch_facets');
         if (is_array($facets) && $facets !== []) {
-            $searchParams['facets'] = array_values($facets);
+            $params['facets'] = array_values($facets);
         }
 
+        $query->meiliscout['params'] = $params;
+
         try {
-            // The index searches read: the previous one until a full indexation migrates them
-            $results = $this->client->index(IndexNames::active('posts'))->search('', $searchParams);
+            $results = $this->search($index, $params);
+            $total = $this->total($results, $index, $params, $query);
         } catch (\Throwable $e) {
             // Let WordPress run the query on MySQL rather than break the page
             error_log('MeiliScout: search failed, falling back to MySQL: '.$e->getMessage());
-            SearchFallbacks::record(SearchFallbacks::ERROR);
-            $query->meiliscout['reason'] = 'engine_error';
 
-            return $posts;
+            return $this->fallBack($query, 'engine_error');
         }
 
-        $query->meiliscout['served'] = true;
-        $hits = $results->getHits();
-        $limit = $results->getLimit();
+        $posts = $this->posts($results->getHits(), $query, FieldsBuilder::hydrateFromDocuments($adapter));
+        $this->setFoundPosts($query, $adapter, $posts, $total);
 
-        // getHitsCount() is the size of this page: the total is (estimated)TotalHits
-        $query->found_posts = $results->getTotalHits() ?? $results->getEstimatedTotalHits() ?? $results->getHitsCount();
-        $query->max_num_pages = $limit > 0 ? (int) ceil($query->found_posts / $limit) : 1;
         $query->facet_distribution = $results->getFacetDistribution();
         $query->facet_raw = $results->getRaw();
+        $query->meiliscout['served'] = true;
+        $query->meiliscout['time'] = round((microtime(true) - $started) * 1000, 2);
 
-        if ($query->get('fields') === 'ids') {
-            $query->posts = array_map(fn (array $hit) => (int) $hit['ID'], $hits);
-        } else {
-            $query->posts = $this->convertToWpPosts($hits);
-        }
-
-        $query->post_count = count($query->posts);
-
-        return $query->posts;
+        return $posts;
     }
 
     /**
      * Counts a query asking for Meilisearch while it cannot be reached; WordPress runs it.
      *
-     * @param array|null $posts
-     * @return array|null
+     * @param  array<int, mixed>|null  $posts
+     * @return array<int, mixed>|null
      */
     public function countUnservedQuery($posts, WP_Query $query): ?array
     {
-        if (! empty($query->query_vars['use_meilisearch'])) {
-            SearchFallbacks::record(SearchFallbacks::ERROR);
+        unset($query->meiliscout);
+
+        if ($posts === null && ! empty($query->query_vars['use_meilisearch'])) {
+            $query->meiliscout = ['served' => false, 'reason' => SearchFallbacks::UNREACHABLE, 'params' => null, 'index' => null, 'time' => null];
+            SearchFallbacks::record(SearchFallbacks::UNREACHABLE);
         }
 
         return $posts;
     }
 
     /**
+     * No SELECT FOUND_ROWS() after a query for ids Meilisearch answered: it gave the total.
+     */
+    public function skipFoundRowsQuery(string $sql, WP_Query $query): string
+    {
+        return isset($query->meiliscout['found_posts']) ? '' : $sql;
+    }
+
+    /**
+     * The total of a query for ids Meilisearch answered, for the other found_posts filters to start from.
+     */
+    public function foundPosts(int|string $found, WP_Query $query): int|string
+    {
+        return $query->meiliscout['found_posts'] ?? $found;
+    }
+
+    /**
      * Builds search parameters from a WordPress query.
      *
-     * @param WP_Query $query The WordPress query object
-     * @return array The search parameters for MeiliSearch
+     * @param  WP_Query  $query  The WordPress query object
+     * @return array<string, mixed> The search parameters for MeiliSearch
+     *
+     * @throws UnsupportedQuery
      */
     public function buildSearchParams(WP_Query $query): array
     {
         return $this->builder->build(new WPQueryAdapter($query));
     }
 
-    /**
-     * Converts MeiliSearch hits to WordPress post objects.
-     *
-     * @param array $hits The search result hits from MeiliSearch
-     * @return array Array of WP_Post objects
-     */
-    private function convertToWpPosts(array $hits): array
+    private function fallBack(WP_Query $query, string $reason): null
     {
-        return array_map(function ($hit) {
-            return new \WP_Post((object) $hit);
-        }, $hits);
+        $query->meiliscout['reason'] = $reason;
+        SearchFallbacks::record($reason);
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    private function search(string $index, array $params): SearchResult
+    {
+        $q = $params['q'] ?? '';
+        unset($params['q']);
+
+        return $this->client->index($index)->search($q, $params);
+    }
+
+    /**
+     * The exact number of results; counted apart when paging by offset gave an estimate.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function total(SearchResult $results, string $index, array $params, WP_Query $query): int
+    {
+        if (isset($params['hitsPerPage'])) {
+            return (int) $results->getTotalHits();
+        }
+
+        if (! empty($query->get('no_found_rows'))) {
+            return 0;
+        }
+
+        $count = array_diff_key($params, array_flip(['limit', 'offset', 'sort', 'attributesToRetrieve', 'facets']));
+
+        return (int) $this->search($index, [...$count, 'hitsPerPage' => 0, 'page' => 1])->getTotalHits();
+    }
+
+    /**
+     * The posts, in the shape the query asked for.
+     *
+     * @param  list<array<string, mixed>>  $hits
+     * @return array<int, mixed>
+     */
+    private function posts(array $hits, WP_Query $query, bool $fromDocuments): array
+    {
+        $fields = $query->get('fields');
+
+        if ($fields === 'ids') {
+            return array_map(static fn (array $hit) => (int) $hit['ID'], $hits);
+        }
+
+        if ($fields === 'id=>parent') {
+            return array_map(static fn (array $hit) => (object) ['ID' => (int) $hit['ID'], 'post_parent' => (int) ($hit['post_parent'] ?? 0)], $hits);
+        }
+
+        if ($fromDocuments) {
+            return array_map(static fn (array $hit) => new WP_Post((object) $hit), $hits);
+        }
+
+        $ids = array_map(static fn (array $hit) => (int) $hit['ID'], $hits);
+
+        if ($ids === []) {
+            return [];
+        }
+
+        _prime_post_caches($ids, (bool) $query->get('update_post_term_cache', true), (bool) $query->get('update_post_meta_cache', true));
+
+        $statuses = PostIndexable::indexableStatuses();
+        $posts = [];
+
+        foreach ($ids as $id) {
+            $post = get_post($id);
+
+            // The index may lag behind: a post deleted or unpublished since is not returned
+            if ($post instanceof WP_Post && in_array($post->post_status, $statuses, true)) {
+                $posts[] = $post;
+            }
+        }
+
+        return $posts;
+    }
+
+    /**
+     * found_posts and max_num_pages, as WP_Query::set_found_posts() sets them.
+     *
+     * For a query for ids, WordPress calls set_found_posts() itself after
+     * posts_pre_query: the total is handed to it through the found_posts filter.
+     *
+     * @param  array<int, mixed>  $posts
+     */
+    private function setFoundPosts(WP_Query $query, WPQueryAdapter $adapter, array $posts, int $total): void
+    {
+        $query->found_posts = 0;
+        $query->max_num_pages = 0;
+
+        if (! empty($query->get('no_found_rows')) || $posts === []) {
+            return;
+        }
+
+        $hasLimits = ! QueryVars::isUnpaged($adapter);
+
+        if (! $hasLimits && $total > count($posts)) {
+            error_log(sprintf('MeiliScout: a query for all posts stopped at %d of %d results: raise the maximum number of results per query.', count($posts), $total));
+        }
+
+        $found = $hasLimits ? $total : count($posts);
+
+        if (in_array($query->get('fields'), ['ids', 'id=>parent'], true)) {
+            $query->meiliscout['found_posts'] = $found;
+
+            return;
+        }
+
+        $query->found_posts = (int) apply_filters_ref_array('found_posts', [$found, &$query]);
+
+        if ($hasLimits) {
+            $query->max_num_pages = (int) ceil($query->found_posts / PaginationBuilder::postsPerPage($adapter));
+        }
     }
 }
