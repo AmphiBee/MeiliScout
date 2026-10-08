@@ -55,6 +55,26 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {
             ->and($protected['content_text'])->toBe('');
     });
 
+    test('a document says whether the post has a password, and carries a title to sort on', function () {
+        $open = (new PostIndexable)->formatForIndexing(new \WP_Post(7, 'post', 'Éclat'));
+        $protected = (new PostIndexable)->formatForIndexing(new \WP_Post(8, 'post', 'Locked', 'publish', 'Body', 'Summary', 'secret'));
+
+        expect($open['has_password'])->toBeFalse()
+            ->and($protected['has_password'])->toBeTrue()
+            ->and($open['ID'])->toBe(7)
+            ->and($open['post_title_sort'])->toBe(PostIndexable::titleSortKey('Éclat'))
+            ->and(PostIndexable::titleSortKey(' Abc '))->toBe('abc');
+    });
+
+    test('the posts index sorts strictly first, and can reach the maximum number of results', function () {
+        $settings = (new PostIndexable)->getIndexSettings();
+
+        expect($settings['rankingRules'][0])->toBe('sort')
+            ->and($settings['pagination'])->toBe(['maxTotalHits' => 10000])
+            ->and($settings['filterableAttributes'])->toContain('ID', 'post_author', 'date_parts', 'post_date_ts')
+            ->and($settings['sortableAttributes'])->toContain('post_title_sort', 'menu_order', 'ID');
+    });
+
     test('a document carries its content as plain text, without block markup', function () {
         $content = "<!-- wp:heading -->\n<h2>Boutique &amp; thé</h2>\n<!-- /wp:heading -->\n\n<!-- wp:paragraph -->\n<p>Une <strong>refonte</strong> [gallery ids=\"1,2\"] réussie.</p>\n<!-- /wp:paragraph -->";
 

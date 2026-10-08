@@ -24,6 +24,59 @@ const REALTIME_LABELS = {
 	off: __( 'Off', 'meiliscout' ),
 };
 
+/**
+ * A reason a query ran on MySQL, as the plugin records it, in a few words.
+ *
+ * @param {string} reason e.g. unsupported_arg:author, unindexed_meta:price.
+ * @return {string} The words.
+ */
+const fallbackReason = ( reason ) => {
+	const [ kind, detail ] = reason.split( ':' );
+
+	switch ( kind ) {
+		case 'unsupported_arg':
+		case 'unsupported_orderby':
+		case 'unsupported_compare':
+			return detail;
+		case 'unindexed_meta':
+			return detail
+				? /* translators: %s: a meta key */
+				  sprintf( __( 'field %s', 'meiliscout' ), detail )
+				: __( 'fields not indexed', 'meiliscout' );
+		case 'unindexed_status':
+			/* translators: %s: a post status */
+			return sprintf( __( 'status %s', 'meiliscout' ), detail );
+		case 'unindexed_type':
+			/* translators: %s: a post type */
+			return sprintf( __( 'type %s', 'meiliscout' ), detail );
+		case 'engine_error':
+			return __( 'Meilisearch error', 'meiliscout' );
+		case 'unreachable':
+			return __( 'Meilisearch unreachable', 'meiliscout' );
+		default:
+			return reason;
+	}
+};
+
+const FallbackReasons = ( { reasons } ) => {
+	const entries = Object.entries( reasons ?? {} ).slice( 0, 3 );
+
+	if ( ! entries.length ) {
+		return null;
+	}
+
+	return (
+		<span className="ms-health__detail">
+			{ entries
+				.map(
+					( [ reason, count ] ) =>
+						`${ number( count ) } ${ fallbackReason( reason ) }`
+				)
+				.join( ' · ' ) }
+		</span>
+	);
+};
+
 const IndexState = ( { index, running } ) => {
 	if ( index.error ) {
 		return <Pill tone="error">{ __( 'Error', 'meiliscout' ) }</Pill>;
@@ -262,6 +315,36 @@ const Overview = ( { overview } ) => {
 				</Banner>
 			) }
 
+			{ data.integration.indexed &&
+				! data.integration.search &&
+				! migration.pending &&
+				! data.needs_indexation &&
+				! running && (
+					<Banner
+						tone="info"
+						icon="search"
+						title={ __(
+							'Serve the site search with Meilisearch',
+							'meiliscout'
+						) }
+						actions={
+							<a
+								className="ms-button ms-button--primary"
+								href={ href( 'settings', 'queries' ) }
+							>
+								{ __( 'Choose the queries', 'meiliscout' ) }
+							</a>
+						}
+					>
+						<p>
+							{ __(
+								'The content is indexed. The site search, archives, REST searches and admin lists can be served by Meilisearch, each on its own; any query can also ask with use_meilisearch.',
+								'meiliscout'
+							) }
+						</p>
+					</Banner>
+				) }
+
 			{ ! migration.pending && data.needs_indexation && ! running && (
 				<Banner
 					title={ __( 'The indexed content changed', 'meiliscout' ) }
@@ -355,6 +438,7 @@ const Overview = ( { overview } ) => {
 							number( fallbacks.total )
 						) }
 					</span>
+					<FallbackReasons reasons={ fallbacks.reasons } />
 					{ fallbacks.meta > 0 ? (
 						<a href={ href( 'content', 'fields' ) }>
 							{ sprintf(

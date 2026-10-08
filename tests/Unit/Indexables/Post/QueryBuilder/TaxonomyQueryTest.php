@@ -26,6 +26,7 @@ namespace {
 namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder {
 
     use Pollora\MeiliScout\Query\MeiliQueryBuilder;
+    use Pollora\MeiliScout\Query\UnsupportedQuery;
 
     function taxFilter(array $taxQuery): string
     {
@@ -84,8 +85,40 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder {
             ->toBe("(taxonomies.category.slug IN ['news'])");
     });
 
-    test('a taxonomy name that could not be an attribute name is ignored', function () {
-        expect((new MeiliQueryBuilder)->build(new MockWPQuery(['tax_query' => [['taxonomy' => "category = 1 OR x", 'terms' => [1]]]]))['filter'])
+    test('a taxonomy name that could not be an attribute name sends the query to MySQL', function () {
+        expect(fn () => (new MeiliQueryBuilder)->build(new MockWPQuery(['tax_query' => [['taxonomy' => "category = 1 OR x", 'terms' => [1]]]])))
+            ->toThrow(UnsupportedQuery::class, 'unsupported_tax_query:taxonomy');
+    });
+
+    test('a clause without taxonomy sends the query to MySQL', function () {
+        expect(fn () => taxFilter([['field' => 'term_taxonomy_id', 'terms' => [4]]]))->toThrow(UnsupportedQuery::class, 'no_taxonomy');
+    });
+
+    test('operators are read in any case', function () {
+        expect(taxFilter([['taxonomy' => 'post_tag', 'field' => 'slug', 'terms' => ['a'], 'operator' => 'not in']]))
+            ->toBe("(taxonomies.post_tag.slug NOT IN ['a'])");
+    });
+
+    test('an operator WordPress does not know sends the query to MySQL', function () {
+        expect(fn () => taxFilter([['taxonomy' => 'post_tag', 'terms' => [1], 'operator' => 'LIKE']]))->toThrow(UnsupportedQuery::class);
+    });
+
+    test('no term to look for: no post for IN, no restriction for NOT IN and AND, as in WordPress', function () {
+        expect(taxFilter([['taxonomy' => 'post_tag', 'terms' => []]]))->toBe('(post_type IN [])')
+            ->and(taxFilter([['taxonomy' => 'post_tag', 'field' => 'slug', 'terms' => ['']]]))->toBe('(post_type IN [])')
+            ->and((new MeiliQueryBuilder)->build(new MockWPQuery(['tax_query' => [['taxonomy' => 'post_tag', 'terms' => [], 'operator' => 'NOT IN']]]))['filter'])
             ->toBe("post_type = 'post' AND post_status = 'publish'");
+    });
+
+    test('term ids are read as wp_parse_id_list() reads them', function () {
+        expect(taxFilter([['taxonomy' => 'post_tag', 'terms' => '3, 5 3']]))->toBe('(taxonomies.post_tag.term_id IN [3, 5])');
+    });
+
+    test('AND on a term that does not exist finds no post', function () {
+        $GLOBALS['hierarchical'] = ['category'];
+        $GLOBALS['tax_terms'] = [term(3, 'news', 'category')];
+
+        expect(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news', 'missing'], 'operator' => 'AND']]))
+            ->toBe('(post_type IN [])');
     });
 }

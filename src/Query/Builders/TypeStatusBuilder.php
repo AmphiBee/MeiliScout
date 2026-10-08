@@ -5,71 +5,125 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Indexables\PostIndexable;
+use Pollora\MeiliScout\Query\Builders\Concerns\FormatsValues;
+use Pollora\MeiliScout\Query\QuerySupport;
+use Pollora\MeiliScout\Query\QueryVars;
+use Pollora\MeiliScout\Query\UnsupportedQuery;
+use Pollora\MeiliScout\Services\IndexNames;
 
 /**
- * Builder for post type and status filters.
- * 
- * Handles the conversion of WordPress post_type and post_status parameters to MeiliSearch filter syntax.
+ * Filters on the post types and statuses the query is about.
+ *
+ * The types are the ones WordPress works out (posts by default, the types of
+ * a custom taxonomy on its archive, every searchable type for 'any'); the
+ * statuses the ones it would include, among those the index holds. That a
+ * status the index lacks has no post is checked by QuerySupport.
+ *
+ * When private posts are indexed, a logged-in user gets them as WordPress
+ * gives them: all of a type whose private posts they may read, their own
+ * otherwise.
  */
 class TypeStatusBuilder implements QueryBuilderInterface
 {
+    use FormatsValues;
+
     /**
-     * Builds the post type and status filters for MeiliSearch.
-     * 
-     * @param QueryInterface $query The WordPress query
-     * @param array $searchParams The MeiliSearch search parameters to modify
-     * @return void
+     * @param  array<string, mixed>  $searchParams
      */
     public function build(QueryInterface $query, array &$searchParams): void
     {
         $searchParams['filter'] = $searchParams['filter'] ?? [];
 
-        $postType = $query->get('post_type');
-        if ($postType === null || $postType === '' || $postType === []) {
-            // As in WordPress: posts, unless a search or a taxonomy query widens it to every type
-            $postType = (! empty($query->get('s')) || ! empty($query->get('tax_query'))) ? 'any' : 'post';
+        $types = QueryVars::postTypes($query);
+        $requested = QuerySupport::requestedStatuses($query);
+        $statuses = self::statuses($query);
+
+        if ($requested['explicit']) {
+            foreach ($requested['statuses'] as $status) {
+                if (! in_array($status, PostIndexable::queryableStatuses(), true)) {
+                    throw new UnsupportedQuery('unindexed_status:'.$status);
+                }
+            }
         }
 
-        // 'any' leaves the type open: only indexed post types are in the index
-        if (! $this->isAny($postType)) {
-            $this->addFilter($searchParams['filter'], 'post_type', $postType);
+        // Private posts a user may only see their own of, as WP_Query::get_posts() restricts them
+        if (! $requested['explicit'] && $types !== 'any' && in_array('private', $statuses, true) && function_exists('current_user_can')) {
+            $searchParams['filter'][] = $this->readablePrivate($types, $statuses);
+
+            return;
         }
 
-        $postStatus = $query->get('post_status');
-        if ($postStatus === null || $postStatus === '' || $postStatus === []) {
-            $postStatus = 'publish';
+        // 'any' without WordPress to list the types: the index only holds indexed ones
+        if ($types !== 'any') {
+            $searchParams['filter'][] = $this->filter('post_type', $types);
         }
 
-        if (! $this->isAny($postStatus)) {
-            $this->addFilter($searchParams['filter'], 'post_status', $postStatus);
-        }
+        $searchParams['filter'][] = $this->filter('post_status', $statuses);
     }
 
     /**
-     * Whether a post_type or post_status query var asks for any value.
+     * The statuses the query includes, among those the index holds every post of.
      *
-     * @param  array|string  $value  The query var
+     * @return list<string>
      */
-    private function isAny(array|string $value): bool
+    public static function statuses(QueryInterface $query): array
     {
-        return $value === 'any' || $value === ['any'];
+        return array_values(array_intersect(QuerySupport::requestedStatuses($query)['statuses'], PostIndexable::queryableStatuses()));
     }
 
     /**
-     * Adds a filter to the filter array.
-     * 
-     * @param array $filters The filter array to modify
-     * @param string $key The filter key
-     * @param array|string $value The filter value(s)
-     * @return void
+     * Each type with its statuses: private posts of the types the user may not read others' private posts of are theirs only.
+     *
+     * @param  list<string>  $types
+     * @param  list<string>  $statuses
      */
-    private function addFilter(array &$filters, string $key, array|string $value): void
+    private function readablePrivate(array $types, array $statuses): string
     {
-        if (is_array($value)) {
-            $escapedValues = array_map(fn ($val) => sprintf("'%s'", addslashes($val)), $value);
-            $filters[] = sprintf('%s IN [%s]', $key, implode(', ', $escapedValues));
-        } else {
-            $filters[] = sprintf("%s = '%s'", $key, addslashes($value));
+        $readable = [];
+        $own = [];
+
+        foreach ($types as $type) {
+            $object = get_post_type_object($type);
+            $capability = $object !== null ? $object->cap->read_private_posts : "read_private_{$type}s";
+
+            if (current_user_can($capability)) {
+                $readable[] = $type;
+            } else {
+                $own[] = $type;
+            }
         }
+
+        $groups = [];
+
+        if ($readable !== []) {
+            $groups[] = "({$this->filter('post_type', $readable)} AND {$this->filter('post_status', $statuses)})";
+        }
+
+        if ($own !== []) {
+            if (IndexNames::activeSchema() < 3) {
+                throw new UnsupportedQuery('schema_too_old');
+            }
+
+            $others = array_values(array_diff($statuses, ['private']));
+            $mine = "(post_status = 'private' AND post_author = ".get_current_user_id().')';
+            $status = $others === [] ? $mine : "({$this->filter('post_status', $others)} OR {$mine})";
+
+            $groups[] = "({$this->filter('post_type', $own)} AND {$status})";
+        }
+
+        return count($groups) === 1 ? $groups[0] : '('.implode(' OR ', $groups).')';
+    }
+
+    /**
+     * @param  list<string>  $values
+     */
+    private function filter(string $attribute, array $values): string
+    {
+        $values = array_values(array_unique($values));
+
+        return count($values) === 1
+            ? "{$attribute} = {$this->quote($values[0])}"
+            : "{$attribute} IN [".implode(', ', array_map(fn (string $value) => $this->quote($value), $values)).']';
     }
 }

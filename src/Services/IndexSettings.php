@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Services;
 
 use Meilisearch\Endpoints\Indexes;
 
+use function apply_filters;
 use function get_option;
 use function update_option;
 
@@ -22,6 +23,23 @@ final class IndexSettings
      * Option prefix under which the fingerprint of the last pushed settings is kept.
      */
     private const OPTION_PREFIX = 'meiliscout/index_settings_hash/';
+
+    /**
+     * Results a search can reach, by default: Meilisearch's own default is 1000.
+     */
+    public const DEFAULT_MAX_TOTAL_HITS = 10000;
+
+    /**
+     * The most results a search can reach: posts_per_page -1 stops there, and so does paging.
+     *
+     * Set in the admin (Settings, Advanced); the meiliscout/max_total_hits filter has the last word.
+     */
+    public static function maxTotalHits(): int
+    {
+        $value = (int) \Pollora\MeiliScout\Config\Settings::get('max_total_hits', self::DEFAULT_MAX_TOTAL_HITS);
+
+        return max(1, (int) apply_filters('meiliscout/max_total_hits', $value > 0 ? $value : self::DEFAULT_MAX_TOTAL_HITS));
+    }
 
     /**
      * Pushes the settings, whatever was pushed before. Used by full indexations.

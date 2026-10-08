@@ -8,9 +8,12 @@ use Meilisearch\Contracts\IndexesQuery;
 use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Config\RealtimeIndexing;
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Query\AutoIntegration;
 use Pollora\MeiliScout\Services\ClientFactory;
+use Pollora\MeiliScout\Services\ContainsFilter;
 use Pollora\MeiliScout\Services\Indexer;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\IndexSettings;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -83,7 +86,28 @@ final class SettingsController extends Controller
             }
         }
 
+        $maxTotalHits = $request->get_param('max_total_hits');
+        $previousMaxTotalHits = IndexSettings::maxTotalHits();
+        if (is_numeric($maxTotalHits) && (int) $maxTotalHits > 0) {
+            Settings::save('max_total_hits', (int) $maxTotalHits);
+        }
+
         ClientFactory::reset();
+
+        if (IndexSettings::maxTotalHits() !== $previousMaxTotalHits) {
+            $this->pushMaxTotalHits();
+        }
+
+        $integration = $request->get_param('query_integration');
+        if (is_array($integration)) {
+            AutoIntegration::save($integration);
+        }
+
+        // An experimental feature of the instance: changed there, only when asked to change
+        $contains = $request->get_param('contains_filter');
+        if (is_bool($contains) && $contains !== ContainsFilter::state()['enabled']) {
+            ContainsFilter::set($contains);
+        }
 
         return $this->respond($this->payload());
     }
@@ -147,6 +171,19 @@ final class SettingsController extends Controller
         return ['readable' => $readable, 'total' => count(IndexNames::BASES)];
     }
 
+    /**
+     * Applies the maximum number of results to the index searches read, without waiting for an indexation.
+     */
+    private function pushMaxTotalHits(): void
+    {
+        try {
+            ClientFactory::getClient()?->index(IndexNames::active('posts'))->updatePagination(['maxTotalHits' => IndexSettings::maxTotalHits()]);
+        } catch (\Throwable $e) {
+            // The next indexation sends it with the other settings
+            error_log('MeiliScout: could not update the maximum number of results: '.$e->getMessage());
+        }
+    }
+
     private function typedOrSaved(WP_REST_Request $request, string $param, string $setting): string
     {
         $typed = $request->get_param($param);
@@ -179,6 +216,10 @@ final class SettingsController extends Controller
             'realtime' => ['value' => RealtimeIndexing::mode(), 'locked' => RealtimeIndexing::isLocked()],
             'timeout' => ClientFactory::timeout(),
             'batch_size' => Indexer::batchSize(),
+            'max_total_hits' => IndexSettings::maxTotalHits(),
+            'query_integration' => AutoIntegration::settings(),
+            // The instance's state, which can be changed outside the plugin
+            'contains_filter' => ContainsFilter::state(),
         ];
     }
 }

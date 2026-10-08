@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-07T18:47:27+02:00\n"
+"POT-Creation-Date: 2026-10-08T11:53:33+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: meiliscout\n"
@@ -49,11 +49,15 @@ msgstr ""
 msgid "Searches still read the previous indexes."
 msgstr ""
 
-#: src/Admin/Rest/SettingsController.php:52
+#: src/Admin/Rest/SearchPreviewController.php:51
+msgid "The arguments must be a JSON object, e.g. {\"cat\": 3}."
+msgstr ""
+
+#: src/Admin/Rest/SettingsController.php:55
 msgid "The instance URL is not a valid URL."
 msgstr ""
 
-#: src/Admin/Rest/SettingsController.php:103
+#: src/Admin/Rest/SettingsController.php:127
 msgid "Enter the instance URL and the admin key."
 msgstr ""
 
@@ -71,6 +75,58 @@ msgstr ""
 
 #: src/Foundation/Container.php:136
 msgid "Open the settings"
+msgstr ""
+
+#. translators: 1: queries, 2: queries MySQL served
+#: src/Integrations/QueryMonitor/Output.php:36
+#, php-format
+msgid "MeiliScout (%1$d, %2$d on MySQL)"
+msgstr ""
+
+#. translators: %d: queries
+#: src/Integrations/QueryMonitor/Output.php:38
+#, php-format
+msgid "MeiliScout (%d)"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:51
+msgid "No query asked for Meilisearch on this page."
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:60
+msgid "Query"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:60
+msgid "Served by"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:60
+msgid "Found"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:60
+msgid "Time"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:60
+msgid "Search sent to Meilisearch"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:67
+msgid "main query"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:69
+msgid "Meilisearch"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:80
+msgid "As a curl command"
+msgstr ""
+
+#: src/Integrations/QueryMonitor/Output.php:81
+msgid "Copy as cURL"
 msgstr ""
 
 #: src/Providers/Admin/AdminServiceProvider.php:91
@@ -192,18 +248,18 @@ msgid "Duration"
 msgstr ""
 
 #: build/app.js:11
-#: build/app.js:15
+#: build/app.js:20
 msgid "Date"
 msgstr ""
 
 #: build/app.js:11
-#: build/app.js:21
+#: build/app.js:26
 msgid "Full"
 msgstr ""
 
 #: build/app.js:11
-#: build/app.js:21
-#: build/app.js:36
+#: build/app.js:26
+#: build/app.js:43
 msgid "Real time"
 msgstr ""
 
@@ -234,14 +290,14 @@ msgid "(retried)"
 msgstr ""
 
 #: build/app.js:12
-#: build/app.js:21
-#: build/app.js:31
+#: build/app.js:26
+#: build/app.js:39
 msgid "Content"
 msgstr ""
 
 #: build/app.js:12
-#: build/app.js:15
-#: build/app.js:21
+#: build/app.js:20
+#: build/app.js:26
 msgid "Terms"
 msgstr ""
 
@@ -254,58 +310,89 @@ msgid "Active · async queue"
 msgstr ""
 
 #: build/app.js:12
-#: build/app.js:27
+#: build/app.js:35
 msgid "Off"
 msgstr ""
 
-#: build/app.js:12
+#. translators: %s: a meta key
+#: build/app.js:13
+#, js-format
+msgid "field %s"
+msgstr ""
+
+#: build/app.js:13
+msgid "fields not indexed"
+msgstr ""
+
+#. translators: %s: a post status
+#: build/app.js:15
+#, js-format
+msgid "status %s"
+msgstr ""
+
+#. translators: %s: a post type
+#: build/app.js:17
+#, js-format
+msgid "type %s"
+msgstr ""
+
+#: build/app.js:17
+msgid "Meilisearch error"
+msgstr ""
+
+#: build/app.js:17
+msgid "Meilisearch unreachable"
+msgstr ""
+
+#: build/app.js:17
+#: build/app.js:31
 msgid "Error"
 msgstr ""
 
-#: build/app.js:12
+#: build/app.js:17
 msgid "Indexing"
 msgstr ""
 
-#: build/app.js:12
+#: build/app.js:17
 msgid "Up to date"
 msgstr ""
 
-#: build/app.js:12
+#: build/app.js:17
 msgid "Not created"
 msgstr ""
 
-#: build/app.js:12
+#: build/app.js:17
 msgid "Documents"
 msgstr ""
 
-#: build/app.js:12
+#: build/app.js:17
 msgid "Size"
 msgstr ""
 
-#: build/app.js:12
+#: build/app.js:17
 msgid "Updated"
 msgstr ""
 
-#: build/app.js:12
+#: build/app.js:17
 msgid "Run a full indexation to create this index."
 msgstr ""
 
-#: build/app.js:12
-#: build/app.js:35
+#: build/app.js:17
+#: build/app.js:43
 msgid "Search preview"
 msgstr ""
 
-#: build/app.js:12
-#: build/app.js:29
+#: build/app.js:17
+#: build/app.js:37
 msgid "Indexed content"
 msgstr ""
 
-#: build/app.js:12
+#: build/app.js:17
 msgid "Indexed taxonomies"
 msgstr ""
 
 #. translators: %d: number of post types
-#: build/app.js:13
+#: build/app.js:18
 #, js-format
 msgid "%d type"
 msgid_plural "%d types"
@@ -313,7 +400,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of taxonomies
-#: build/app.js:14
+#: build/app.js:19
 #, js-format
 msgid "%d taxonomy"
 msgid_plural "%d taxonomies"
@@ -321,712 +408,892 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of custom fields
-#: build/app.js:15
+#: build/app.js:20
 #, js-format
 msgid "%d field"
 msgid_plural "%d fields"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Previous indexes can be deleted"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "The previous indexes were deleted."
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Deleting…"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Delete them"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Searches no longer read these indexes: <indexes />"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Number"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Yes / no"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "List"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Text"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Always empty"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Title"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Excerpt"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Content, without markup"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Content, raw HTML"
 msgstr ""
 
-#: build/app.js:15
+#: build/app.js:20
 msgid "Slug"
 msgstr ""
 
 #. translators: %s: a meta key
-#: build/app.js:16
+#: build/app.js:21
 #, js-format
 msgid "Field %s"
 msgstr ""
 
-#: build/app.js:16
+#: build/app.js:21
 msgid "No published content"
 msgstr ""
 
 #. translators: %s: a post type or taxonomy name
 #. translators: %s: a meta key
-#: build/app.js:17
-#: build/app.js:34
+#: build/app.js:22
+#: build/app.js:42
 #, js-format
 msgid "Index %s"
 msgstr ""
 
-#: build/app.js:17
+#: build/app.js:22
 msgid "Add a field"
 msgstr ""
 
 #. translators: %s: number of meta keys
-#: build/app.js:18
+#: build/app.js:23
 #, js-format
 msgid "Search the %s key of your content"
 msgid_plural "Search the %s keys of your content"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/app.js:18
+#: build/app.js:23
 msgid "Meta keys"
 msgstr ""
 
-#: build/app.js:18
+#: build/app.js:23
 msgid "Add"
 msgstr ""
 
-#: build/app.js:18
+#: build/app.js:23
 msgid "Searches look into every field today, <guid /> and the markup of the blocks included, and a match anywhere counts the same."
 msgstr ""
 
-#: build/app.js:18
+#: build/app.js:23
 msgid "Use this order"
 msgstr ""
 
 #. translators: %s: a field name
-#: build/app.js:19
+#: build/app.js:24
 #, js-format
 msgid "Move %s up"
 msgstr ""
 
 #. translators: %s: a field name
-#: build/app.js:20
+#: build/app.js:25
 #, js-format
 msgid "Move %s down"
 msgstr ""
 
 #. translators: %s: a field name
-#: build/app.js:21
+#: build/app.js:26
 #, js-format
 msgid "Stop searching %s"
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "Search one more field"
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "Search one more field…"
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "Search every field again"
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "Update"
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "Adds and updates the documents, removes the ones no longer published. The fastest."
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "Rebuild"
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "Builds each index aside, then swaps it with the current one. Starts from scratch, without downtime."
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "All"
 msgstr ""
 
-#: build/app.js:21
+#: build/app.js:26
 msgid "Failures"
 msgstr ""
 
 #. translators: %s: Content or Terms
-#: build/app.js:22
+#: build/app.js:27
 #, js-format
 msgid "%s · swapping with the live index"
 msgstr ""
 
 #. translators: 1: Content or Terms, 2: items done, 3: items in all
-#: build/app.js:23
+#: build/app.js:28
 #, js-format
 msgid "%1$s · %2$s of %3$s"
 msgstr ""
 
-#: build/app.js:23
+#: build/app.js:28
 msgid "Starting the indexation…"
 msgstr ""
 
-#: build/app.js:23
+#: build/app.js:28
 msgid "Rebuild in progress"
 msgstr ""
 
-#: build/app.js:23
+#: build/app.js:28
 msgid "Update in progress"
 msgstr ""
 
 #. translators: 1: items done, 2: items in all
-#: build/app.js:24
+#: build/app.js:29
 #, js-format
 msgid "%1$s of %2$s"
 msgstr ""
 
-#: build/app.js:24
+#: build/app.js:29
 msgid "Indexation progress"
 msgstr ""
 
-#: build/app.js:24
+#: build/app.js:29
 msgid "Still waiting for WP-Cron. If it is turned off on this site (<constant />), run <command /> from the server."
 msgstr ""
 
-#: build/app.js:24
+#: build/app.js:29
 msgid "You can leave this page: the indexation goes on in the background."
 msgstr ""
 
-#: build/app.js:24
+#: build/app.js:29
 msgid "Full indexation"
 msgstr ""
 
 #. translators: 1: items in all, 2: posts, 3: terms
-#: build/app.js:25
+#: build/app.js:30
 #, js-format
 msgid "%1$s items: %2$s contents and %3$s terms. Search stays available during the whole operation."
 msgstr ""
 
 #. translators: %s: the error message
-#: build/app.js:26
+#: build/app.js:31
 #, js-format
 msgid "The last indexation failed: %s"
 msgstr ""
 
-#: build/app.js:26
+#: build/app.js:31
 msgid "The last indexation stopped without finishing, probably killed by a time or memory limit. Run it again, or from the server with wp meiliscout index."
 msgstr ""
 
-#: build/app.js:26
+#: build/app.js:31
 msgid "Kind of indexation"
 msgstr ""
 
-#: build/app.js:26
+#: build/app.js:31
 msgid "Starting…"
 msgstr ""
 
-#: build/app.js:26
-#: build/app.js:29
 #: build/app.js:31
+#: build/app.js:37
+#: build/app.js:39
 msgid "Run the indexation"
 msgstr ""
 
-#: build/app.js:26
+#: build/app.js:31
 msgid "For a large site, prefer <command />"
 msgstr ""
 
-#: build/app.js:26
+#: build/app.js:31
 msgid "Log"
 msgstr ""
 
-#: build/app.js:26
-#: build/app.js:36
+#: build/app.js:31
+#: build/app.js:43
 msgid "Show"
 msgstr ""
 
+#: build/app.js:31
+msgid "Same posts, same order"
+msgstr ""
+
+#: build/app.js:31
+msgid "Same posts, any order"
+msgstr ""
+
+#: build/app.js:31
+msgid "Same number of posts"
+msgstr ""
+
+#: build/app.js:31
+msgid "A search: compare the overlap only"
+msgstr ""
+
+#: build/app.js:31
+msgid "Same result"
+msgstr ""
+
+#: build/app.js:31
+msgid "Different result"
+msgstr ""
+
+#: build/app.js:31
+msgid "Served by MySQL"
+msgstr ""
+
+#: build/app.js:31
+msgid "Search: ranked differently"
+msgstr ""
+
+#. translators: %s: number of posts
+#: build/app.js:32
+#, js-format
+msgid "found_posts: %s"
+msgstr ""
+
+#: build/app.js:32
+msgid "No posts."
+msgstr ""
+
+#. translators: %s: the JSON parser's message
+#: build/app.js:33
+#, js-format
+msgid "The arguments are not valid JSON: %s"
+msgstr ""
+
+#: build/app.js:33
+#: build/app.js:34
+msgid "WP_Query arguments"
+msgstr ""
+
+#: build/app.js:33
+msgid "Runs the query on MySQL, then with use_meilisearch, as you, and compares the two."
+msgstr ""
+
+#: build/app.js:33
+msgid "What is translated, and why a query runs on MySQL"
+msgstr ""
+
+#: build/app.js:33
+msgid "Arguments, as JSON"
+msgstr ""
+
+#: build/app.js:33
+msgid "Compare"
+msgstr ""
+
+#: build/app.js:33
+msgid "Running…"
+msgstr ""
+
+#: build/app.js:33
+msgid "Run on both"
+msgstr ""
+
+#: build/app.js:33
+#: build/app.js:35
+msgid "Request sent to Meilisearch"
+msgstr ""
+
 #. translators: %d: a post ID
-#: build/app.js:27
+#: build/app.js:34
 #, js-format
 msgid "ID %d"
 msgstr ""
 
-#: build/app.js:27
+#: build/app.js:34
 msgid "View"
 msgstr ""
 
-#: build/app.js:27
+#: build/app.js:34
 msgid "Edit"
 msgstr ""
 
-#: build/app.js:27
-msgid "At the end of the request"
-msgstr ""
-
-#: build/app.js:27
-msgid "recommended"
-msgstr ""
-
-#: build/app.js:27
-msgid "One update per content, sent once the page is served."
-msgstr ""
-
-#: build/app.js:27
-msgid "Async queue"
-msgstr ""
-
-#: build/app.js:27
-msgid "Grouped and sent by WP-Cron every 5 minutes. For very busy sites."
-msgstr ""
-
-#: build/app.js:27
-msgid "Only full indexations update the indexes."
-msgstr ""
-
-#: build/app.js:27
-msgid "Set by <name /> in the environment or wp-config.php"
-msgstr ""
-
-#. translators: %s: the Meilisearch version
-#: build/app.js:28
-#, js-format
-msgid "Meilisearch v%s answers"
-msgstr ""
-
-#: build/app.js:28
-msgid "admin key valid"
-msgstr ""
-
-#. translators: 1: indexes the key can search, 2: indexes in all
-#: build/app.js:29
-#, js-format
-msgid "search key: can search %1$d of the %2$d indexes"
-msgstr ""
-
-#: build/app.js:29
-msgid "Overview"
-msgstr ""
-
-#: build/app.js:29
-msgid "Meilisearch cannot be reached"
-msgstr ""
-
-#: build/app.js:29
-msgid "Check the connection"
-msgstr ""
-
-#: build/app.js:29
-msgid "Searches run on MySQL meanwhile, and saved content is not indexed."
-msgstr ""
-
-#: build/app.js:29
-msgid "A full indexation is needed"
-msgstr ""
-
-#: build/app.js:29
-msgid "Searches still use <indexes /> in the previous format. Content saved meanwhile stays up to date in both."
-msgstr ""
-
-#: build/app.js:29
-msgid "The indexed content changed"
-msgstr ""
-
-#: build/app.js:29
-msgid "A full indexation applies the new selection to the indexes."
-msgstr ""
-
-#: build/app.js:29
-msgid "Indexes"
-msgstr ""
-
-#: build/app.js:29
-msgid "Re-index"
-msgstr ""
-
-#: build/app.js:29
-msgid "State"
-msgstr ""
-
-#: build/app.js:29
-#: build/app.js:36
-msgid "Real-time indexing"
-msgstr ""
-
-#: build/app.js:29
-msgid "Switch to the async queue"
-msgstr ""
-
-#: build/app.js:29
-msgid "Change the mode"
-msgstr ""
-
-#: build/app.js:29
-msgid "Edit the selection"
-msgstr ""
-
-#: build/app.js:29
-msgid "Queries served by Meilisearch"
-msgstr ""
-
-#. translators: %s: number of queries
-#: build/app.js:30
-#, js-format
-msgid "MySQL fallback: %s in 24 h"
-msgstr ""
-
-#. translators: %s: number of queries
-#: build/app.js:31
-#, js-format
-msgid "%s on a field not indexed"
-msgid_plural "%s on fields not indexed"
-msgstr[0] ""
-msgstr[1] ""
-
-#: build/app.js:31
-msgid "See the log"
-msgstr ""
-
-#: build/app.js:31
-msgid "Recent activity"
-msgstr ""
-
-#: build/app.js:31
-msgid "Whole log"
-msgstr ""
-
-#: build/app.js:31
-msgid "Sections of the selection"
-msgstr ""
-
-#: build/app.js:31
-msgid "Post types"
-msgstr ""
-
-#: build/app.js:31
-#: build/app.js:32
-msgid "Taxonomies"
-msgstr ""
-
-#: build/app.js:31
-#: build/app.js:33
-msgid "Custom fields"
-msgstr ""
-
-#: build/app.js:31
-#: build/app.js:35
-msgid "Relevance"
-msgstr ""
-
-#: build/app.js:31
-msgid "Not applied yet"
-msgstr ""
-
-#: build/app.js:31
-msgid "The selection changed since the last full indexation."
-msgstr ""
-
-#: build/app.js:31
-msgid "Only published content is sent. Password-protected content is sent without its text."
-msgstr ""
-
-#. translators: %s: number of published posts
-#: build/app.js:32
-#, js-format
-msgid "%s published"
-msgid_plural "%s published"
-msgstr[0] ""
-msgstr[1] ""
-
-#: build/app.js:32
-msgid "The terms of indexed content can always be filtered on. Turn a taxonomy on to index its terms themselves too (term pages, autocompletion)."
-msgstr ""
-
-#. translators: %s: number of terms
-#: build/app.js:33
-#, js-format
-msgid "%s term"
-msgid_plural "%s terms"
-msgstr[0] ""
-msgstr[1] ""
-
-#: build/app.js:33
-msgid "The fields added here are sent with each content, and can be used in a <code>meta_query</code> and to sort."
-msgstr ""
-
-#: build/app.js:33
-msgid "Found in your queries, served by MySQL because they are not indexed"
-msgstr ""
-
 #: build/app.js:34
-msgid "Key"
-msgstr ""
-
-#: build/app.js:34
-msgid "Detected type"
-msgstr ""
-
-#: build/app.js:34
-msgid "Found on"
-msgstr ""
-
-#: build/app.js:34
-msgid "Actions"
-msgstr ""
-
-#: build/app.js:34
-msgid "After saving"
-msgstr ""
-
-#. translators: %s: a meta key
-#: build/app.js:35
-#, js-format
-msgid "Remove %s"
-msgstr ""
-
-#: build/app.js:35
-#: build/app.js:36
-msgid "Remove"
-msgstr ""
-
-#: build/app.js:35
-msgid "No field selected: every meta of the content is sent, private ones included. Select the ones your queries need."
-msgstr ""
-
-#: build/app.js:35
-msgid "The fields a search looks into, from the most to the least important."
-msgstr ""
-
-#: build/app.js:35
-msgid "Unsaved changes · a full indexation will be needed to apply them."
-msgstr ""
-
-#: build/app.js:35
-msgid "Cancel"
-msgstr ""
-
-#: build/app.js:35
-msgid "Saved. A full indexation applies the changes."
-msgstr ""
-
-#: build/app.js:35
-#: build/app.js:36
-msgid "Saving…"
-msgstr ""
-
-#: build/app.js:35
-msgid "Save"
-msgstr ""
-
-#: build/app.js:35
-msgid "Indexation"
-msgstr ""
-
-#: build/app.js:35
-msgid "The last indexation completed."
-msgstr ""
-
-#: build/app.js:35
 msgid "Search"
 msgstr ""
 
-#: build/app.js:35
+#: build/app.js:34
 msgid "Search the indexed content"
 msgstr ""
 
 #. translators: 1: number of results, 2: milliseconds
-#: build/app.js:36
+#: build/app.js:35
 #, js-format
 msgid "%1$s result in %2$s ms"
 msgid_plural "%1$s results in %2$s ms"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/app.js:36
+#: build/app.js:35
 msgid "Filters"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:35
 msgid "Post type"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:35
 msgid "No results."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:35
 msgid "Check that the post type is indexed."
 msgstr ""
 
+#: build/app.js:35
+msgid "At the end of the request"
+msgstr ""
+
+#: build/app.js:35
+msgid "recommended"
+msgstr ""
+
+#: build/app.js:35
+msgid "One update per content, sent once the page is served."
+msgstr ""
+
+#: build/app.js:35
+msgid "Async queue"
+msgstr ""
+
+#: build/app.js:35
+msgid "Grouped and sent by WP-Cron every 5 minutes. For very busy sites."
+msgstr ""
+
+#: build/app.js:35
+msgid "Only full indexations update the indexes."
+msgstr ""
+
+#: build/app.js:35
+msgid "Set by <name /> in the environment or wp-config.php"
+msgstr ""
+
+#: build/app.js:35
+msgid "Site search"
+msgstr ""
+
+#: build/app.js:35
+msgid "The search results page."
+msgstr ""
+
+#: build/app.js:35
+msgid "Archives"
+msgstr ""
+
+#: build/app.js:35
+msgid "Post type archives, categories, tags and custom taxonomies."
+msgstr ""
+
+#: build/app.js:35
+msgid "REST API searches"
+msgstr ""
+
+#: build/app.js:35
+msgid "/wp/v2/posts?search= and the other indexed post types: the block editor's link search, headless front ends."
+msgstr ""
+
+#: build/app.js:35
+msgid "Admin lists"
+msgstr ""
+
+#: build/app.js:35
+msgid "The lists of posts in the admin. Drafts are not indexed: lists that show them run on MySQL."
+msgstr ""
+
+#. translators: %s: the Meilisearch version
 #: build/app.js:36
-msgid "Request sent to Meilisearch"
+#, js-format
+msgid "Meilisearch v%s answers"
 msgstr ""
 
 #: build/app.js:36
+msgid "admin key valid"
+msgstr ""
+
+#. translators: 1: indexes the key can search, 2: indexes in all
+#: build/app.js:37
+#, js-format
+msgid "search key: can search %1$d of the %2$d indexes"
+msgstr ""
+
+#: build/app.js:37
+msgid "Overview"
+msgstr ""
+
+#: build/app.js:37
+msgid "Meilisearch cannot be reached"
+msgstr ""
+
+#: build/app.js:37
+msgid "Check the connection"
+msgstr ""
+
+#: build/app.js:37
+msgid "Searches run on MySQL meanwhile, and saved content is not indexed."
+msgstr ""
+
+#: build/app.js:37
+msgid "A full indexation is needed"
+msgstr ""
+
+#: build/app.js:37
+msgid "Searches still use <indexes /> in the previous format. Content saved meanwhile stays up to date in both."
+msgstr ""
+
+#: build/app.js:37
+msgid "Serve the site search with Meilisearch"
+msgstr ""
+
+#: build/app.js:37
+msgid "Choose the queries"
+msgstr ""
+
+#: build/app.js:37
+msgid "The content is indexed. The site search, archives, REST searches and admin lists can be served by Meilisearch, each on its own; any query can also ask with use_meilisearch."
+msgstr ""
+
+#: build/app.js:37
+msgid "The indexed content changed"
+msgstr ""
+
+#: build/app.js:37
+msgid "A full indexation applies the new selection to the indexes."
+msgstr ""
+
+#: build/app.js:37
+msgid "Indexes"
+msgstr ""
+
+#: build/app.js:37
+msgid "Re-index"
+msgstr ""
+
+#: build/app.js:37
+msgid "State"
+msgstr ""
+
+#: build/app.js:37
+#: build/app.js:43
+msgid "Real-time indexing"
+msgstr ""
+
+#: build/app.js:37
+msgid "Switch to the async queue"
+msgstr ""
+
+#: build/app.js:37
+msgid "Change the mode"
+msgstr ""
+
+#: build/app.js:37
+msgid "Edit the selection"
+msgstr ""
+
+#: build/app.js:37
+msgid "Queries served by Meilisearch"
+msgstr ""
+
+#. translators: %s: number of queries
+#: build/app.js:38
+#, js-format
+msgid "MySQL fallback: %s in 24 h"
+msgstr ""
+
+#. translators: %s: number of queries
+#: build/app.js:39
+#, js-format
+msgid "%s on a field not indexed"
+msgid_plural "%s on fields not indexed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/app.js:39
+msgid "See the log"
+msgstr ""
+
+#: build/app.js:39
+msgid "Recent activity"
+msgstr ""
+
+#: build/app.js:39
+msgid "Whole log"
+msgstr ""
+
+#: build/app.js:39
+msgid "Sections of the selection"
+msgstr ""
+
+#: build/app.js:39
+msgid "Post types"
+msgstr ""
+
+#: build/app.js:39
+#: build/app.js:40
+msgid "Taxonomies"
+msgstr ""
+
+#: build/app.js:39
+#: build/app.js:41
+msgid "Custom fields"
+msgstr ""
+
+#: build/app.js:39
+#: build/app.js:43
+msgid "Relevance"
+msgstr ""
+
+#: build/app.js:39
+msgid "Not applied yet"
+msgstr ""
+
+#: build/app.js:39
+msgid "The selection changed since the last full indexation."
+msgstr ""
+
+#: build/app.js:39
+msgid "Published and private content is sent. Password-protected content is sent without its text."
+msgstr ""
+
+#: build/app.js:39
+msgid "Only published content is sent. Password-protected content is sent without its text."
+msgstr ""
+
+#. translators: %s: number of published posts
+#: build/app.js:40
+#, js-format
+msgid "%s published"
+msgid_plural "%s published"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/app.js:40
+msgid "Index private content"
+msgstr ""
+
+#: build/app.js:40
+msgid "Logged-in users then get the private content they may read from Meilisearch. Off, their queries run on MySQL when there is private content."
+msgstr ""
+
+#: build/app.js:40
+msgid "What indexing private content means"
+msgstr ""
+
+#: build/app.js:40
+msgid "Private content and its indexed fields are stored in Meilisearch: anyone with a key that can search these indexes can read them. Never use such a key in the browser, and check who can reach the instance (Meilisearch Cloud dashboard, other sites sharing it)."
+msgstr ""
+
+#: build/app.js:40
+msgid "MeiliScout filters each query by the WordPress permissions of the user (read_private_posts, or their own content). A query sent to Meilisearch directly is not filtered."
+msgstr ""
+
+#: build/app.js:40
+msgid "The terms of indexed content can always be filtered on. Turn a taxonomy on to index its terms themselves too (term pages, autocompletion)."
+msgstr ""
+
+#. translators: %s: number of terms
+#: build/app.js:41
+#, js-format
+msgid "%s term"
+msgid_plural "%s terms"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/app.js:41
+msgid "The fields added here are sent with each content, and can be used in a <code>meta_query</code> and to sort."
+msgstr ""
+
+#: build/app.js:41
+msgid "Found in your queries, served by MySQL because they are not indexed"
+msgstr ""
+
+#: build/app.js:42
+msgid "Key"
+msgstr ""
+
+#: build/app.js:42
+msgid "Detected type"
+msgstr ""
+
+#: build/app.js:42
+msgid "Found on"
+msgstr ""
+
+#: build/app.js:42
+msgid "Actions"
+msgstr ""
+
+#: build/app.js:42
+msgid "After saving"
+msgstr ""
+
+#. translators: %s: a meta key
+#: build/app.js:43
+#, js-format
+msgid "Remove %s"
+msgstr ""
+
+#: build/app.js:43
+msgid "Remove"
+msgstr ""
+
+#: build/app.js:43
+msgid "No field selected: every meta of the content is sent, private ones included. Select the ones your queries need."
+msgstr ""
+
+#: build/app.js:43
+msgid "The fields a search looks into, from the most to the least important."
+msgstr ""
+
+#: build/app.js:43
+msgid "Unsaved changes · a full indexation will be needed to apply them."
+msgstr ""
+
+#: build/app.js:43
+msgid "Cancel"
+msgstr ""
+
+#: build/app.js:43
+msgid "Saved. A full indexation applies the changes."
+msgstr ""
+
+#: build/app.js:43
+msgid "Saving…"
+msgstr ""
+
+#: build/app.js:43
+msgid "Save"
+msgstr ""
+
+#: build/app.js:43
+msgid "Indexation"
+msgstr ""
+
+#: build/app.js:43
+msgid "The last indexation completed."
+msgstr ""
+
+#: build/app.js:43
+msgid "Preview mode"
+msgstr ""
+
+#: build/app.js:43
 msgid "Settings"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Settings saved."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Sections of the settings"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Connection"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Index names"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
+msgid "Queries"
+msgstr ""
+
+#: build/app.js:43
 msgid "Advanced"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Welcome to MeiliScout"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Connect your Meilisearch instance to start: its URL, and an API key allowed to write to the indexes."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Instance URL"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Admin key"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Saved · type a new key to replace it"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Hide"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Used on the server only, to write to the indexes. Never sent to the browser."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Search key"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "(optional)"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Used for searches. Without it, the admin key searches too."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Testing…"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Test the connection"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "One prefix per site: several sites, staging included, can share an instance without mixing up."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Prefix"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "The site’s domain by default."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Indexes:"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Once saved, searches keep using the current indexes until the next full indexation, which creates the new ones."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "When content is saved, edited or deleted."
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Real-time indexing mode"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
+msgid "Queries Meilisearch serves without asking. Any query can ask with <code>use_meilisearch</code>, or stay on MySQL with <code>use_meilisearch => false</code>. A query Meilisearch cannot answer as MySQL would runs on MySQL."
+msgstr ""
+
+#: build/app.js:43
 msgid "Timeout (seconds)"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Contents per batch"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
+msgid "Maximum results per query"
+msgstr ""
+
+#: build/app.js:43
+msgid "A query for all posts (posts_per_page -1) stops there, and so does paging. Higher values cost memory on large sites."
+msgstr ""
+
+#: build/app.js:43
+msgid "Partial filters on fields (LIKE)"
+msgstr ""
+
+#: build/app.js:43
+msgid "Serves meta_query LIKE and NOT LIKE with the CONTAINS filter, an experimental feature of Meilisearch turned on for the whole instance. Off, these queries run on MySQL."
+msgstr ""
+
+#: build/app.js:43
+msgid "On on the instance"
+msgstr ""
+
+#: build/app.js:43
+msgid "Off on the instance"
+msgstr ""
+
+#: build/app.js:43
 msgid "Save the settings"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Connected"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Unreachable"
 msgstr ""
 
-#: build/app.js:36
+#: build/app.js:43
 msgid "Not configured"
 msgstr ""
 
 #. translators: %s: the Meilisearch version
-#: build/app.js:37
+#: build/app.js:44
 #, js-format
 msgid "Meilisearch v%s"
 msgstr ""
 
-#: build/app.js:37
+#: build/app.js:44
 msgid "Documentation"
 msgstr ""
 
-#: build/app.js:37
+#: build/app.js:44
 msgid "MeiliScout sections"
 msgstr ""

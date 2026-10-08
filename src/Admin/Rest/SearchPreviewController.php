@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Admin\Rest;
 
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Diagnostics\QueryParity;
 use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\IndexNames;
@@ -36,6 +37,48 @@ final class SearchPreviewController extends Controller
     public function registerRoutes(): void
     {
         $this->route('/search', 'POST', [$this, 'search']);
+        $this->route('/wp-query', 'POST', [$this, 'wpQuery']);
+    }
+
+    /**
+     * Runs WP_Query arguments on MySQL and on Meilisearch, as the current user, and compares them.
+     */
+    public function wpQuery(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        $args = $request->get_param('args');
+
+        if (! is_array($args)) {
+            return new WP_Error('meiliscout_invalid_args', __('The arguments must be a JSON object, e.g. {"cat": 3}.', 'meiliscout'), ['status' => 400]);
+        }
+
+        // As the user testing: no one else's permissions, and the engine is chosen here
+        unset($args['_user'], $args['use_meilisearch']);
+
+        $mode = (string) $request->get_param('mode');
+        $modes = [QueryParity::MODE_ORDER, QueryParity::MODE_SET, QueryParity::MODE_COUNT, QueryParity::MODE_SEARCH];
+        $args['_user'] = get_current_user_id();
+
+        $result = QueryParity::compare($args, in_array($mode, $modes, true) ? $mode : QueryParity::MODE_ORDER);
+
+        $posts = fn (array $ids): array => array_map(static function (int $id): array {
+            $post = get_post($id);
+
+            return [
+                'id' => $id,
+                'title' => $post ? wp_strip_all_tags(get_the_title($post)) : '#'.$id,
+                'type' => $post ? $post->post_type : '',
+                'status' => $post ? $post->post_status : '',
+            ];
+        }, $ids);
+
+        return $this->respond([
+            'outcome' => $result['outcome'],
+            'reason' => $result['reason'] ?? null,
+            'notes' => $result['notes'],
+            'mysql' => ['found' => $result['mysql_found'] ?? null, 'posts' => $posts($result['mysql_ids'] ?? [])],
+            'meilisearch' => ['found' => $result['meili_found'] ?? null, 'posts' => $posts($result['meili_ids'] ?? [])],
+            'params' => $result['params'] ?? null,
+        ]);
     }
 
     public function search(WP_REST_Request $request): WP_REST_Response|WP_Error

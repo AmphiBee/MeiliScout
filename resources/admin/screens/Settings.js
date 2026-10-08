@@ -6,7 +6,14 @@ import {
 import { __, sprintf } from '@wordpress/i18n';
 
 import { post, errorMessage } from '../api';
-import { Banner, Icon, Skeleton, useResource, useToast } from '../components';
+import {
+	Banner,
+	Icon,
+	Skeleton,
+	Switch,
+	useResource,
+	useToast,
+} from '../components';
 
 const REALTIME_MODES = [
 	{
@@ -54,7 +61,42 @@ const fromData = ( data ) => ( {
 	realtime: data.realtime.value,
 	timeout: data.timeout,
 	batch_size: data.batch_size,
+	max_total_hits: data.max_total_hits,
+	contains_filter: data.contains_filter.enabled,
+	query_integration: data.query_integration,
 } );
+
+const INTEGRATIONS = [
+	{
+		id: 'search',
+		title: __( 'Site search', 'meiliscout' ),
+		text: __( 'The search results page.', 'meiliscout' ),
+	},
+	{
+		id: 'archives',
+		title: __( 'Archives', 'meiliscout' ),
+		text: __(
+			'Post type archives, categories, tags and custom taxonomies.',
+			'meiliscout'
+		),
+	},
+	{
+		id: 'rest_search',
+		title: __( 'REST API searches', 'meiliscout' ),
+		text: __(
+			"/wp/v2/posts?search= and the other indexed post types: the block editor's link search, headless front ends.",
+			'meiliscout'
+		),
+	},
+	{
+		id: 'admin',
+		title: __( 'Admin lists', 'meiliscout' ),
+		text: __(
+			'The lists of posts in the admin. Drafts are not indexed: lists that show them run on MySQL.',
+			'meiliscout'
+		),
+	},
+];
 
 const ConnectionTest = ( { result } ) => {
 	if ( ! result ) {
@@ -202,6 +244,9 @@ const Settings = ( { refreshOverview, overview } ) => {
 				</a>
 				<a href="#/settings#realtime">
 					{ __( 'Real time', 'meiliscout' ) }
+				</a>
+				<a href="#/settings#queries">
+					{ __( 'Queries', 'meiliscout' ) }
 				</a>
 				<a href="#/settings#advanced">
 					{ __( 'Advanced', 'meiliscout' ) }
@@ -496,6 +541,50 @@ const Settings = ( { refreshOverview, overview } ) => {
 				</section>
 
 				<section
+					id="queries"
+					className="ms-card"
+					aria-labelledby="ms-queries-title"
+				>
+					<div className="ms-card__head">
+						<h2 id="ms-queries-title">
+							{ __( 'Queries', 'meiliscout' ) }
+						</h2>
+						<p>
+							{ createInterpolateElement(
+								__(
+									'Queries Meilisearch serves without asking. Any query can ask with <code>use_meilisearch</code>, or stay on MySQL with <code>use_meilisearch => false</code>. A query Meilisearch cannot answer as MySQL would runs on MySQL.',
+									'meiliscout'
+								),
+								{ code: <code /> }
+							) }
+						</p>
+					</div>
+					{ INTEGRATIONS.map( ( integration ) => (
+						<div className="ms-row" key={ integration.id }>
+							<Switch
+								checked={
+									form.query_integration[ integration.id ]
+								}
+								onChange={ ( on ) =>
+									setForm( {
+										...form,
+										query_integration: {
+											...form.query_integration,
+											[ integration.id ]: on,
+										},
+									} )
+								}
+								label={ integration.title }
+							/>
+							<div className="ms-row__label ms-row__label--text">
+								<strong>{ integration.title }</strong>
+								<span>{ integration.text }</span>
+							</div>
+						</div>
+					) ) }
+				</section>
+
+				<section
 					id="advanced"
 					className="ms-card"
 					aria-labelledby="ms-advanced-title"
@@ -534,7 +623,76 @@ const Settings = ( { refreshOverview, overview } ) => {
 									onChange={ set( 'batch_size' ) }
 								/>
 							</div>
+							<div className="ms-field">
+								<label htmlFor="ms-max-hits">
+									{ __(
+										'Maximum results per query',
+										'meiliscout'
+									) }
+								</label>
+								<input
+									id="ms-max-hits"
+									className="ms-input"
+									type="number"
+									min="100"
+									step="100"
+									value={ form.max_total_hits }
+									onChange={ set( 'max_total_hits' ) }
+									aria-describedby="ms-max-hits-help"
+								/>
+								<span
+									id="ms-max-hits-help"
+									className="ms-field__help"
+								>
+									{ __(
+										'A query for all posts (posts_per_page -1) stops there, and so does paging. Higher values cost memory on large sites.',
+										'meiliscout'
+									) }
+								</span>
+							</div>
 						</div>
+						{ data.contains_filter.available && (
+							<div className="ms-row">
+								<Switch
+									checked={ form.contains_filter }
+									onChange={ ( on ) =>
+										setForm( {
+											...form,
+											contains_filter: on,
+										} )
+									}
+									label={ __(
+										'Partial filters on fields (LIKE)',
+										'meiliscout'
+									) }
+								/>
+								<div className="ms-row__label ms-row__label--text">
+									<strong>
+										{ __(
+											'Partial filters on fields (LIKE)',
+											'meiliscout'
+										) }
+									</strong>
+									<span>
+										{ __(
+											'Serves meta_query LIKE and NOT LIKE with the CONTAINS filter, an experimental feature of Meilisearch turned on for the whole instance. Off, these queries run on MySQL.',
+											'meiliscout'
+										) }
+									</span>
+								</div>
+								<span className="ms-row__meta">
+									{ data.contains_filter.enabled
+										? __(
+												'On on the instance',
+												'meiliscout'
+										  )
+										: __(
+												'Off on the instance',
+												'meiliscout'
+										  ) }
+								</span>
+							</div>
+						) }
 					</div>
 				</section>
 

@@ -428,6 +428,12 @@
 	font-weight: 700;
 }
 
+.ms-health__detail {
+	font-size: 12px;
+	color: var(--ms-muted);
+	overflow-wrap: anywhere;
+}
+
 .ms-health a {
 	font-size: 13px;
 }
@@ -769,6 +775,13 @@
 	font-family: var(--ms-mono);
 	font-size: 12px;
 	color: var(--ms-muted);
+}
+
+/* An option explained in a sentence, not named by an identifier */
+.ms-row__label--text span {
+	font-family: inherit;
+	font-size: 13px;
+	line-height: 1.45;
 }
 
 .ms-row__meta {
@@ -1450,4 +1463,93 @@
 	.ms-skeleton {
 		animation: none;
 	}
+}
+
+/* Lists in running text */
+
+.meiliscout-admin .ms-list {
+	margin: 4px 0 0;
+	padding-left: 18px;
+	list-style: disc;
+}
+
+.meiliscout-admin .ms-list li {
+	margin: 4px 0;
+}
+
+/* Preview modes */
+
+.ms-segmented {
+	display: inline-flex;
+	align-self: flex-start;
+	padding: 3px;
+	gap: 3px;
+	background: var(--ms-surface-2);
+	border: 1px solid var(--ms-border);
+	border-radius: var(--ms-radius-lg);
+}
+
+.meiliscout-admin .ms-segmented__item {
+	padding: 6px 14px;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--ms-muted);
+	background: transparent;
+	border: 0;
+	border-radius: var(--ms-radius);
+	cursor: pointer;
+}
+
+.meiliscout-admin .ms-segmented__item[aria-pressed="true"] {
+	color: var(--ms-ink);
+	background: var(--ms-surface);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* WP_Query tester */
+
+.ms-tester textarea {
+	width: 100%;
+	font-size: 13px;
+	line-height: 1.5;
+	resize: vertical;
+}
+
+.ms-tester__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: center;
+	margin-top: 12px;
+}
+
+.ms-tester__actions .ms-button {
+	margin-left: auto;
+}
+
+.ms-tester__outcome {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	align-items: center;
+}
+
+.ms-compare {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 20px;
+	align-items: start;
+}
+
+.ms-compare__list {
+	margin: 0;
+	padding: 8px 20px 16px 40px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.ms-compare__list li {
+	margin: 4px 0;
+	overflow-wrap: anywhere;
 }

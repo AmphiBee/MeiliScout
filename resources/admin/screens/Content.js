@@ -54,6 +54,7 @@ const fromData = ( data ) => ( {
 		.map( ( taxonomy ) => taxonomy.name ),
 	meta_keys: data.meta_keys,
 	searchable: data.searchable.configured,
+	index_private: data.index_private,
 } );
 
 const sameSelection = ( a, b ) =>
@@ -513,6 +514,7 @@ const Content = ( { refreshOverview } ) => {
 			taxonomies: draft.taxonomies,
 			meta_keys: selectedKeys,
 			searchable: draft.searchable ?? [],
+			index_private: draft.index_private,
 		} )
 			.then( ( result ) => {
 				resource.setData( result );
@@ -585,10 +587,15 @@ const Content = ( { refreshOverview } ) => {
 								{ __( 'Post types', 'meiliscout' ) }
 							</h2>
 							<p>
-								{ __(
-									'Only published content is sent. Password-protected content is sent without its text.',
-									'meiliscout'
-								) }
+								{ draft.index_private
+									? __(
+											'Published and private content is sent. Password-protected content is sent without its text.',
+											'meiliscout'
+									  )
+									: __(
+											'Only published content is sent. Password-protected content is sent without its text.',
+											'meiliscout'
+									  ) }
 							</p>
 						</div>
 						<SwitchList
@@ -616,6 +623,56 @@ const Content = ( { refreshOverview } ) => {
 								)
 							}
 						/>
+						<div className="ms-row">
+							<Switch
+								checked={ draft.index_private }
+								onChange={ ( on ) =>
+									update( { index_private: on } )
+								}
+								label={ __(
+									'Index private content',
+									'meiliscout'
+								) }
+							/>
+							<div className="ms-row__label ms-row__label--text">
+								<strong>
+									{ __(
+										'Index private content',
+										'meiliscout'
+									) }
+								</strong>
+								<span>
+									{ __(
+										'Logged-in users then get the private content they may read from Meilisearch. Off, their queries run on MySQL when there is private content.',
+										'meiliscout'
+									) }
+								</span>
+							</div>
+						</div>
+						{ draft.index_private && (
+							<Banner
+								icon="alert"
+								title={ __(
+									'What indexing private content means',
+									'meiliscout'
+								) }
+							>
+								<ul className="ms-list">
+									<li>
+										{ __(
+											'Private content and its indexed fields are stored in Meilisearch: anyone with a key that can search these indexes can read them. Never use such a key in the browser, and check who can reach the instance (Meilisearch Cloud dashboard, other sites sharing it).',
+											'meiliscout'
+										) }
+									</li>
+									<li>
+										{ __(
+											'MeiliScout filters each query by the WordPress permissions of the user (read_private_posts, or their own content). A query sent to Meilisearch directly is not filtered.',
+											'meiliscout'
+										) }
+									</li>
+								</ul>
+							</Banner>
+						) }
 					</section>
 
 					<section

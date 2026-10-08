@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Admin\Rest;
 
 use Pollora\MeiliScout\Config\SearchableAttributes;
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Services\Indexer;
 use Pollora\MeiliScout\Services\MetaKeyCatalog;
 use WP_REST_Request;
@@ -51,6 +52,10 @@ final class ContentController extends Controller
         Settings::save('indexed_post_types', $postTypes);
         Settings::save('indexed_taxonomies', $taxonomies);
         Settings::save('indexed_meta_keys', $metaKeys);
+
+        if ($request->has_param('index_private')) {
+            Settings::save(PostIndexable::INDEX_PRIVATE, (bool) $request->get_param('index_private'));
+        }
 
         // Keys now indexed are no longer missed by queries
         $missed = (array) Settings::get('non_indexable_meta_keys', []);
@@ -129,6 +134,7 @@ final class ContentController extends Controller
                 'suggested' => SearchableAttributes::SUGGESTED,
                 'available' => SearchableAttributes::available(),
             ],
+            'index_private' => (bool) Settings::get(PostIndexable::INDEX_PRIVATE, false),
             'needs_indexation' => $structure['has_changed'],
             'last_indexed' => $structure['last_indexed'],
         ];

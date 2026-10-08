@@ -8,11 +8,13 @@ use Pollora\MeiliScout\Config\SearchableAttributes;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\IndexSettings;
 use WP_Post;
 use WP_Term;
 
 use function apply_filters;
 use function get_object_taxonomies;
+use function get_option;
 use function get_permalink;
 use function get_post_meta;
 use function get_posts;
@@ -31,11 +33,36 @@ class PostIndexable implements Indexable
     private array $metaKeys = [];
 
     /**
+     * Setting that adds private posts to the index (Content screen).
+     */
+    public const INDEX_PRIVATE = 'index_private';
+
+    /**
+     * The statuses of the posts sent to the index: published ones, and private ones when the admin chose to.
+     *
      * @return string[]
      */
     public static function indexableStatuses(): array
     {
-        return apply_filters('meiliscout/indexable_post_statuses', ['publish']);
+        $statuses = Settings::get(self::INDEX_PRIVATE, false) ? ['publish', 'private'] : ['publish'];
+
+        return apply_filters('meiliscout/indexable_post_statuses', $statuses);
+    }
+
+    /**
+     * The statuses the index holds every post of: the indexable ones the last full indexation sent.
+     *
+     * A status made indexable since only has the posts saved since: queries
+     * that include it run on MySQL until a full indexation sends them all.
+     *
+     * @return list<string>
+     */
+    public static function queryableStatuses(): array
+    {
+        $structure = get_option('meiliscout/last_indexing_structure', []);
+        $indexed = is_array($structure) && isset($structure['statuses']) ? (array) $structure['statuses'] : ['publish'];
+
+        return array_values(array_intersect(self::indexableStatuses(), $indexed));
     }
 
     /**
@@ -73,6 +100,16 @@ class PostIndexable implements Indexable
         $filterableAttributes = [
             'post_type',
             'post_status',
+            // WP_Query arguments, from schema 3
+            'ID',
+            'post_name',
+            'post_author',
+            'post_parent',
+            'menu_order',
+            'comment_count',
+            'has_password',
+            ...array_map(fn (string $column) => "{$column}_ts", PostDates::COLUMNS),
+            'date_parts',
         ];
 
         foreach ($filterableMetaKeys as $metaKey) {
@@ -88,6 +125,15 @@ class PostIndexable implements Indexable
             'sortableAttributes' => array_values(array_unique([
                 'post_title',
                 'post_date',
+                'ID',
+                'post_name',
+                'post_author',
+                'post_parent',
+                'post_modified',
+                'post_type',
+                'menu_order',
+                'comment_count',
+                'post_title_sort',
                 ...array_map(fn($key) => "metas.{$key}", $filterableMetaKeys),
             ])),
             'displayedAttributes' => apply_filters(
@@ -95,7 +141,26 @@ class PostIndexable implements Indexable
                 ['*'],
                 $filterableMetaKeys
             ),
+            'rankingRules' => self::rankingRules(),
+            'pagination' => ['maxTotalHits' => IndexSettings::maxTotalHits()],
         ];
+    }
+
+    /**
+     * The ranking rules of the posts index: `sort` first.
+     *
+     * A search without a sort is ranked by relevance as before. With one (an
+     * explicit orderby), the order asked for is followed strictly, as on
+     * MySQL, rather than only breaking ties between equally relevant posts.
+     *
+     * @return list<string>
+     */
+    public static function rankingRules(): array
+    {
+        return array_values((array) apply_filters(
+            'meiliscout/post/ranking_rules',
+            ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness']
+        ));
     }
 
     public function getItems(?int $offset = null, ?int $limit = null): iterable
@@ -358,6 +423,7 @@ class PostIndexable implements Indexable
         }
 
         $document = $this->withoutProtectedText(get_object_vars($item));
+        $document = [...$document, ...$this->queryFields($item)];
 
         $document['url'] = get_permalink($item);
         $document['content_text'] = $this->plainText((string) $document['post_content']);
@@ -366,6 +432,58 @@ class PostIndexable implements Indexable
         $document['metas'] = $this->getMetaData($item);
 
         return apply_filters('meiliscout/post/document', $document, $item);
+    }
+
+    /**
+     * Fields WP_Query arguments are translated against (schema 3).
+     *
+     * Numbers as numbers, for sorts and comparisons to be numeric; whether the
+     * post has a password, without the password; the dates as timestamps and
+     * parts; and the title folded the way MySQL's collation compares it.
+     *
+     * @return array<string, mixed>
+     */
+    private function queryFields(WP_Post $post): array
+    {
+        $fields = [];
+
+        foreach (['ID', 'post_author', 'post_parent', 'menu_order', 'comment_count'] as $field) {
+            if (isset($post->$field)) {
+                $fields[$field] = (int) $post->$field;
+            }
+        }
+
+        $fields['has_password'] = (string) $post->post_password !== '';
+
+        foreach (PostDates::COLUMNS as $column) {
+            $timestamp = PostDates::timestamp((string) ($post->$column ?? ''));
+
+            if ($timestamp !== null) {
+                $fields["{$column}_ts"] = $timestamp;
+            }
+        }
+
+        foreach (PostDates::PART_COLUMNS as $column) {
+            $parts = PostDates::parts((string) ($post->$column ?? ''));
+
+            if ($parts !== null) {
+                $fields['date_parts'][$column] = $parts;
+            }
+        }
+
+        $fields['post_title_sort'] = self::titleSortKey((string) $post->post_title);
+
+        return $fields;
+    }
+
+    /**
+     * A title folded for sorting: lowercase and without accents, close to how MySQL's collations order titles.
+     */
+    public static function titleSortKey(string $title): string
+    {
+        $title = function_exists('remove_accents') ? remove_accents($title) : $title;
+
+        return mb_strtolower(trim($title));
     }
 
     /**
