@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use Pollora\MeiliScout\Services\ClientFactory;
+use Pollora\MeiliScout\Services\ContainsFilter;
 
 /*
  * The filters the unit tests make the builders produce are only strings to
  * them: Meilisearch has to parse each one. The unit suite is run with
  * MEILISCOUT_RECORD_FILTERS, which records every filter built, and each is
- * sent to a scratch index where every attribute is filterable.
+ * sent to a scratch index where every attribute is filterable, with the
+ * CONTAINS feature on (LIKE uses it), as it was left afterwards.
  */
 
 const SYNTAX_INDEX = 'meiliscout_filter_syntax_check';
@@ -42,6 +44,9 @@ function recordedFilters(): array
 }
 
 beforeAll(function () {
+    $GLOBALS['meiliscout_contains_before'] = ContainsFilter::state()['enabled'];
+    ContainsFilter::set(true);
+
     $client = ClientFactory::getClient();
     $task = $client->createIndex(SYNTAX_INDEX, ['primaryKey' => 'ID']);
     $client->waitForTask($task['taskUid']);
@@ -55,6 +60,7 @@ beforeAll(function () {
 });
 
 afterAll(function () {
+    ContainsFilter::set((bool) $GLOBALS['meiliscout_contains_before']);
     ClientFactory::getClient()?->deleteIndex(SYNTAX_INDEX);
 });
 
