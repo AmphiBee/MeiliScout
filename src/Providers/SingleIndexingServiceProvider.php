@@ -158,6 +158,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         // Hook for a post another plugin says changed, such as the parent of a product variation
         add_action('meiliscout/reindex_post', [$this, 'handlePostReindex'], 10, 1);
+
+        // Hook for terms given to or taken from a post outside a save: documents carry its terms
+        add_action('set_object_terms', [$this, 'handleObjectTermsSet'], 10, 6);
+        add_action('deleted_term_relationships', [$this, 'handleObjectTermsRemoved'], 10, 3);
     }
 
     /**
@@ -320,6 +324,51 @@ class SingleIndexingServiceProvider extends ServiceProvider
         }
 
         $this->queue('post', 'index', $postId);
+    }
+
+    /**
+     * Re-indexes a post whose terms changed (wp_set_object_terms()), when they did.
+     *
+     * @param  int  $objectId  The post ID
+     * @param  array<mixed>  $terms
+     * @param  array<int|string>  $ttIds  The term taxonomy IDs now
+     * @param  string  $taxonomy
+     * @param  bool  $append
+     * @param  array<int|string>  $oldTtIds  The term taxonomy IDs before
+     */
+    public function handleObjectTermsSet(int $objectId, array $terms, array $ttIds, string $taxonomy, bool $append, array $oldTtIds): void
+    {
+        $now = array_map('intval', $ttIds);
+        $before = array_map('intval', $oldTtIds);
+        sort($now);
+        sort($before);
+
+        if ($now !== $before) {
+            $this->reindexObjectOf($objectId, $taxonomy);
+        }
+    }
+
+    /**
+     * Re-indexes the post an object id stands for, when the taxonomy is one of its type's: a taxonomy may be the users'.
+     */
+    private function reindexObjectOf(int $objectId, string $taxonomy): void
+    {
+        $post = get_post($objectId);
+
+        if ($post instanceof \WP_Post && is_object_in_taxonomy($post->post_type, $taxonomy)) {
+            $this->handlePostReindex($objectId);
+        }
+    }
+
+    /**
+     * Re-indexes a post that lost terms (wp_remove_object_terms()).
+     *
+     * @param  int  $objectId  The post ID
+     * @param  array<int>  $ttIds
+     */
+    public function handleObjectTermsRemoved(int $objectId, array $ttIds, string $taxonomy): void
+    {
+        $this->reindexObjectOf($objectId, $taxonomy);
     }
 
     /**

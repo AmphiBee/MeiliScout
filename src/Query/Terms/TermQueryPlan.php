@@ -55,6 +55,13 @@ final class TermQueryPlan
     public bool $updateMetaCache = true;
 
     /**
+     * The terms of each post object_ids names, in the queried taxonomies; null without object_ids.
+     *
+     * @var array<int, list<int>>|null
+     */
+    public ?array $objectTerms = null;
+
+    /**
      * Whether WordPress pages in SQL (LIMIT); otherwise it filters and pages in PHP.
      */
     public bool $limited = false;

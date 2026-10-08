@@ -45,7 +45,9 @@ final class TermResults
         $params = $plan->params();
 
         if ($plan->fields === 'count') {
-            $total = $this->search([...$params, 'hitsPerPage' => 0, 'page' => 1])->getTotalHits();
+            $total = $plan->objectTerms === null
+                ? $this->search([...$params, 'hitsPerPage' => 0, 'page' => 1])->getTotalHits()
+                : $this->objectTermRows($params, $plan->objectTerms);
 
             // SELECT COUNT(*) ... LIMIT offset, number: past the only row
             return $plan->limited && $plan->offset > 0 ? null : (string) $total;
@@ -63,6 +65,31 @@ final class TermResults
         }
 
         return $this->format($this->load($this->inPhp($params, $plan), $plan), $plan->fields);
+    }
+
+    /**
+     * The rows a count of terms by object_ids counts: one per post and term (SELECT DISTINCT COUNT(*)).
+     *
+     * @param  array<string, mixed>  $params
+     * @param  array<int, list<int>>  $objectTerms
+     */
+    private function objectTermRows(array $params, array $objectTerms): int
+    {
+        $limit = IndexSettings::maxTotalHits();
+        $hits = $this->search([...$params, 'offset' => 0, 'limit' => $limit, 'attributesToRetrieve' => ['term_id']])->getHits();
+
+        if (count($hits) >= $limit) {
+            throw new UnsupportedQuery('too_many_terms');
+        }
+
+        $matching = array_flip(array_map(static fn (array $hit) => (int) $hit['term_id'], $hits));
+        $rows = 0;
+
+        foreach ($objectTerms as $termIds) {
+            $rows += count(array_filter($termIds, static fn (int $id) => isset($matching[$id])));
+        }
+
+        return $rows;
     }
 
     /**

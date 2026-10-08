@@ -88,3 +88,27 @@ test('publishing a post in a child term makes its empty ancestors non-empty for 
         waitForMeilisearch();
     }
 })->group('integration');
+
+test('terms given to a post outside a save reach its document, and object_ids', function () {
+    $tag = wp_insert_term('Fraîcheur étiquette '.uniqid(), 'post_tag');
+    $post = (int) get_posts(['post_type' => 'post', 'posts_per_page' => 1, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC'])[0];
+    $termIds = static fn (): array => array_map('intval', get_terms(['taxonomy' => 'post_tag', 'object_ids' => [$post], 'fields' => 'ids', 'use_meilisearch' => true]));
+
+    try {
+        wp_set_object_terms($post, [(int) $tag['term_id']], 'post_tag', true);
+        runQueuedIndexing();
+        waitForMeilisearch();
+
+        expect($termIds())->toContain((int) $tag['term_id']);
+
+        wp_remove_object_terms($post, [(int) $tag['term_id']], 'post_tag');
+        runQueuedIndexing();
+        waitForMeilisearch();
+
+        expect($termIds())->not->toContain((int) $tag['term_id']);
+    } finally {
+        wp_delete_term((int) $tag['term_id'], 'post_tag');
+        runQueuedIndexing();
+        waitForMeilisearch();
+    }
+})->group('integration');

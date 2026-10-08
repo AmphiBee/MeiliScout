@@ -37,7 +37,12 @@ final class TermQueryBuilder
         'term_taxonomy_id' => 'term_taxonomy_id', 'description' => 'description_sort',
     ];
 
-    public function build(WP_Term_Query $query): TermQueryPlan
+    /**
+     * @param  array<int, list<int>>|null  $objectTerms  The terms of the posts object_ids names (ObjectTerms)
+     *
+     * @throws UnsupportedQuery
+     */
+    public function build(WP_Term_Query $query, ?array $objectTerms = null): TermQueryPlan
     {
         $args = $query->query_vars;
         $plan = new TermQueryPlan;
@@ -82,7 +87,7 @@ final class TermQueryBuilder
         }
 
         if (! empty($args['object_ids'])) {
-            throw new UnsupportedQuery('unsupported_arg:object_ids');
+            $this->objectIds($plan, $objectTerms);
         }
 
         if ($parent !== '') {
@@ -101,6 +106,27 @@ final class TermQueryBuilder
         $this->order($query, $plan);
 
         return $plan;
+    }
+
+    /**
+     * object_ids: the terms of these posts, which ObjectTerms read in the posts index.
+     *
+     * @param  array<int, list<int>>|null  $objectTerms
+     */
+    private function objectIds(TermQueryPlan $plan, ?array $objectTerms): void
+    {
+        if ($objectTerms === null) {
+            throw new UnsupportedQuery('unsupported_arg:object_ids');
+        }
+
+        // One row per post and term, which only term_relationships has
+        if ($plan->fields === 'all_with_object_id') {
+            throw new UnsupportedQuery('unsupported_fields:all_with_object_id');
+        }
+
+        $termIds = array_values(array_unique(array_merge([], ...array_values($objectTerms))));
+        $plan->filters[] = $termIds === [] ? 'taxonomy IN []' : 'term_id IN ['.implode(', ', $termIds).']';
+        $plan->objectTerms = $objectTerms;
     }
 
     /**

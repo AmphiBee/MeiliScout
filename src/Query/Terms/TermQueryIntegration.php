@@ -71,7 +71,7 @@ final class TermQueryIntegration
                 throw new UnsupportedQuery($reason);
             }
 
-            $plan = $this->builder->build($query);
+            $plan = $this->builder->build($query, $this->objectTerms($query));
         } catch (UnsupportedQuery $e) {
             return $this->fallBack($query, $e->reason);
         } catch (\Throwable $e) {
@@ -93,6 +93,26 @@ final class TermQueryIntegration
         }
 
         return $this->served($query, $result, $started);
+    }
+
+    /**
+     * The terms of the posts object_ids names, from the posts index; null without object_ids.
+     *
+     * @return array<int, list<int>>|null
+     *
+     * @throws UnsupportedQuery
+     */
+    private function objectTerms(WP_Term_Query $query): ?array
+    {
+        $objectIds = $query->query_vars['object_ids'] ?? [];
+
+        if (empty($objectIds) || $this->client === null) {
+            return null;
+        }
+
+        $taxonomies = array_values(array_map('strval', (array) ($query->query_vars['taxonomy'] ?? [])));
+
+        return (new ObjectTerms($this->client))->of(array_map('intval', (array) $objectIds), $taxonomies);
     }
 
     /**

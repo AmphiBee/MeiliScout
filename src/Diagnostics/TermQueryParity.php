@@ -147,7 +147,15 @@ final class TermQueryParity
             $fallback('meta key not indexed', [...$cat, 'hide_empty' => false, 'meta_query' => [['key' => 'not_indexed_'.md5('x'), 'compare' => 'EXISTS']]]),
 
             // Posts' terms
-            $fallback('object_ids', $when($d['post'] > 0, [...$cat, 'object_ids' => [$d['post']]])),
+            $case('object_ids', $when($d['post'] > 0, [...$cat, 'object_ids' => [$d['post']]])),
+            $sorted('object_ids, several posts and taxonomies', $when(count($d['posts']) >= 3, ['taxonomy' => ['category', 'post_tag'], 'object_ids' => $d['posts']]), 'name'),
+            $case('object_ids, fields ids', $when(count($d['posts']) >= 3, [...$tag, 'object_ids' => $d['posts'], 'fields' => 'ids'])),
+            $case('object_ids, fields count (one per post and term)', $when(count($d['posts']) >= 3, [...$tag, 'object_ids' => $d['posts'], 'fields' => 'count'])),
+            $fallback('object_ids, a post of a type the taxonomy is not for', $when($d['custom'] !== null, ['taxonomy' => $d['custom'], 'object_ids' => [$d['post']]])),
+            $fallback('object_ids, fields all_with_object_id', $when($d['post'] > 0, [...$cat, 'object_ids' => [$d['post']], 'fields' => 'all_with_object_id'])),
+            $fallback('object_ids, orderby term_order', $when($d['post'] > 0, [...$cat, 'object_ids' => [$d['post']], 'orderby' => 'term_order'])),
+            $fallback('object_ids, a draft', $when($d['draft'] > 0, [...$cat, 'object_ids' => [$d['draft']]])),
+            $fallback('object_ids without a taxonomy', $when($d['post'] > 0, ['object_ids' => [$d['post']]])),
 
             // A plugin's SQL filters
             $fallback('terms_clauses of a plugin', [...$tag, '_sql_filter' => ['hook' => 'terms_clauses', 'change' => true]]),
@@ -400,6 +408,8 @@ final class TermQueryParity
             'metas' => array_diff(['position', 'color', 'aliases'], TaxonomyIndexable::selectedMetaKeys()) === []
                 && (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->termmeta} WHERE meta_key IN ('position', 'color', 'aliases')") > 0,
             'post' => (int) $wpdb->get_var("SELECT ID FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status = 'publish' ORDER BY ID LIMIT 1"),
+            'posts' => array_map('intval', $wpdb->get_col("SELECT ID FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status = 'publish' ORDER BY ID LIMIT 2, 4")),
+            'draft' => (int) $wpdb->get_var("SELECT ID FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status = 'draft' ORDER BY ID LIMIT 1"),
         ];
     }
 }
