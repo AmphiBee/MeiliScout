@@ -45,6 +45,8 @@ add_filter('meiliscout/indexables', function($indexables) {
 });
 ```
 
+An indexable's `getIndexSettings()` is what queries rely on. Start from the parent's settings and add to them: queries read back what the index pushed last, and fall back to MySQL when it lacks a field they need. Keep `ID`, `post_parent` and `taxonomies` in `displayedAttributes` (`get_terms()` with `object_ids`, `fields => 'id=>parent'`), `post_title`, `post_excerpt` and `content_text` in `searchableAttributes` (`search_columns`), and `pagination.maxTotalHits` no lower than `IndexSettings::maxTotalHits()`: a query without LIMIT stops at the lower of the two.
+
 ### meiliscout/post_single_indexer
 Replace default PostSingleIndexer.
 

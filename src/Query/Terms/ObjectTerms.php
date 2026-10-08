@@ -9,6 +9,7 @@ use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\IndexSettings;
 
 /**
  * The terms of the posts object_ids names, read from the posts index.
@@ -40,6 +41,13 @@ final class ObjectTerms
 
         if (IndexNames::activeSchema('posts') < 3) {
             throw new UnsupportedQuery('schema_too_old');
+        }
+
+        $missing = IndexSettings::firstUncovered(IndexSettings::displayed(IndexNames::active('posts')), ['ID', 'taxonomies']);
+
+        // Without them in the hits, every post would look like it has no term
+        if ($missing !== null) {
+            throw new UnsupportedQuery("undisplayed_attribute:{$missing}");
         }
 
         $posts = $this->posts($objectIds, $taxonomies);

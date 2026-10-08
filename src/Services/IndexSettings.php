@@ -25,6 +25,16 @@ final class IndexSettings
     private const OPTION_PREFIX = 'meiliscout/index_settings_hash/';
 
     /**
+     * Option prefix under which the attributes an index returns and searches, and its pagination, are kept as last pushed.
+     */
+    private const ATTRIBUTES_OPTION_PREFIX = 'meiliscout/index_attributes/';
+
+    /**
+     * The settings queries depend on: an indexable (a plugin's, through meiliscout/indexables) may narrow them.
+     */
+    private const RECORDED = ['displayedAttributes', 'searchableAttributes', 'pagination'];
+
+    /**
      * Results a search can reach, by default: Meilisearch's own default is 1000.
      */
     public const DEFAULT_MAX_TOTAL_HITS = 10000;
@@ -39,6 +49,17 @@ final class IndexSettings
         $value = (int) \Pollora\MeiliScout\Config\Settings::get('max_total_hits', self::DEFAULT_MAX_TOTAL_HITS);
 
         return max(1, (int) apply_filters('meiliscout/max_total_hits', $value > 0 ? $value : self::DEFAULT_MAX_TOTAL_HITS));
+    }
+
+    /**
+     * The most results a search of this index reaches: an indexable may have pushed a lower maxTotalHits.
+     */
+    public static function reachable(string $indexName): int
+    {
+        $attributes = get_option(self::ATTRIBUTES_OPTION_PREFIX.$indexName, []);
+        $pushed = is_array($attributes) ? ($attributes['pagination']['maxTotalHits'] ?? null) : null;
+
+        return is_numeric($pushed) && (int) $pushed > 0 ? min(self::maxTotalHits(), (int) $pushed) : self::maxTotalHits();
     }
 
     /**
@@ -60,6 +81,71 @@ final class IndexSettings
     public static function remember(string $indexName, array $settings): void
     {
         update_option(self::OPTION_PREFIX.$indexName, self::fingerprint($settings), false);
+        // Read by queries, hence autoloaded
+        update_option(self::ATTRIBUTES_OPTION_PREFIX.$indexName, array_intersect_key($settings, array_flip(self::RECORDED)), true);
+    }
+
+    /**
+     * The attributes the index returns, as last pushed: every one (`*`) when unknown.
+     *
+     * @return list<string>
+     */
+    public static function displayed(string $indexName): array
+    {
+        return self::recorded($indexName, 'displayedAttributes') ?? ['*'];
+    }
+
+    /**
+     * The attributes the index searches, as last pushed, or null when unknown.
+     *
+     * @return list<string>|null
+     */
+    public static function searchable(string $indexName): ?array
+    {
+        return self::recorded($indexName, 'searchableAttributes');
+    }
+
+    /**
+     * The first of the attributes a list of settings leaves out, or null when it covers them all.
+     *
+     * `*` covers every attribute, and an attribute its fields: `taxonomies` covers `taxonomies.category`.
+     *
+     * @param  list<string>  $list
+     * @param  list<string>  $attributes
+     */
+    public static function firstUncovered(array $list, array $attributes): ?string
+    {
+        if (in_array('*', $list, true)) {
+            return null;
+        }
+
+        foreach ($attributes as $attribute) {
+            $covered = false;
+
+            foreach ($list as $setting) {
+                if ($attribute === $setting || str_starts_with($attribute, $setting.'.')) {
+                    $covered = true;
+                    break;
+                }
+            }
+
+            if (! $covered) {
+                return $attribute;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private static function recorded(string $indexName, string $setting): ?array
+    {
+        $attributes = get_option(self::ATTRIBUTES_OPTION_PREFIX.$indexName, []);
+        $list = is_array($attributes) ? ($attributes[$setting] ?? null) : null;
+
+        return is_array($list) ? array_values(array_filter($list, 'is_string')) : null;
     }
 
     /**

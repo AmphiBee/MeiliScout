@@ -86,6 +86,7 @@ Reasons are recorded on the query (`$query->meiliscout['reason']`), counted on t
 | `sql_filter:<hook>` | A plugin changed the query's SQL | `meiliscout/ignored_term_sql_filters` when the site translates it |
 | `unsupported_compare:LIKE` | `name__like` or `description__like` without Partial filters | Settings › Advanced › Partial filters on fields |
 | `unindexed_object:<id>` | A post of `object_ids` the index lacks, or a taxonomy that is not the posts' | |
+| `undisplayed_attribute:<field>` | `object_ids` while the posts index does not return `ID` or `taxonomies` (an indexable narrowed `displayedAttributes`) | The plugin: keep them displayed |
 | `unsupported_fields:all_with_object_id`, `unsupported_orderby:<value>` | Needs `term_relationships`, or an order on a key the index cannot sort | |
 | `unindexed_meta:<key>`, `multivalued_meta:<key>`... | As for posts | Content › Term fields |
 | `too_many_terms` | More matching terms than the maximum results per query, for a query WordPress filters in PHP | Settings › Advanced › Maximum results per query |

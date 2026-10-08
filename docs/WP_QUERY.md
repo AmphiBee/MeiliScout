@@ -166,7 +166,7 @@ Every fallback has a reason, recorded on the query (`$query->meiliscout['reason'
 
 | Reason | Meaning | What to do |
 |---|---|---|
-| `unsupported_arg:<var>` | A query var nothing translates | See the coverage above; `meiliscout/supported_query_vars` for a plugin's var |
+| `unsupported_arg:<var>` | A query var nothing translates; `search_columns` on a field the index does not search (as last pushed: a plugin's indexable may override Content › Relevance) | See the coverage above; `meiliscout/supported_query_vars` for a plugin's var |
 | `unindexed_meta:<key>` | A meta key that is not indexed | Content › Custom fields, then a full indexation |
 | `unindexed_status:<status>` | A status the index lacks, with posts | Private posts: Content › Index private content. Drafts are never indexed |
 | `unindexed_status:singular` | A single post that exists with another status | Nothing: WordPress shows it to whoever may read it |
@@ -177,6 +177,7 @@ Every fallback has a reason, recorded on the query (`$query->meiliscout['reason'
 | `unsupported_orderby:<field>` | An order the index cannot give, or `rand`/`post__in` over more than 1000 results | |
 | `unsupported_date_column:<column>` | Parts of a GMT column, another table | |
 | `schema_too_old` | The indexes predate the fields the query needs | Run a full indexation |
+| `undisplayed_attribute:<field>` | An indexable (a plugin's, through `meiliscout/indexables`) narrowed `displayedAttributes`, and the query reads this field back (`fields => 'id=>parent'`, an order put in PHP) | The plugin: keep the field displayed |
 | `engine_error` | Meilisearch answered with an error | Indexation › Log, PHP error log |
 | `unreachable` | Meilisearch could not be reached | Settings › Connection |
 | `build_error` | The query could not be translated (a bug: please report it) | PHP error log |
