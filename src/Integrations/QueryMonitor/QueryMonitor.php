@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Integrations\QueryMonitor;
 
 /**
- * Adds a MeiliScout panel to Query Monitor: each query that asked for
- * Meilisearch, whether it served it or why not, what was sent, and how long it took.
+ * Adds a MeiliScout panel to Query Monitor: each query (WP_Query, or
+ * get_terms()) that asked for Meilisearch, whether it served it or why not,
+ * what was sent, and how long it took.
  *
  * Query Monitor's classes exist once it asks for its collectors: the classes
  * extending them are loaded then.

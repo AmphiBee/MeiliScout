@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Diagnostics;
 use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
 use Pollora\MeiliScout\Services\ContainsFilter;
+use Pollora\MeiliScout\Services\MissedMetaKeys;
 use Pollora\MeiliScout\Services\SearchFallbacks;
 use WP_Term;
 use WP_Term_Query;
@@ -206,6 +207,8 @@ final class TermQueryParity
 
             $mysql = self::run($args, false);
             $meili = SearchFallbacks::withoutRecording(static fn () => self::run($args, true));
+            // The harness's own keys are not the site's queries
+            MissedMetaKeys::reset();
         } catch (\Throwable $e) {
             return ['outcome' => QueryParity::ERROR, 'notes' => [get_class($e).': '.$e->getMessage()]];
         } finally {

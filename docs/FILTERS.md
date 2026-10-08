@@ -150,6 +150,22 @@ The SQL filters of `WP_Query` that do not stop Meilisearch from serving a query.
 add_filter('meiliscout/ignored_sql_filters', fn (array $ignored) => [...$ignored, 'My_Plugin::posts_where']);
 ```
 
+### meiliscout/skip_term_query_integration, meiliscout/integrate_term_query
+
+As `meiliscout/skip_query_integration` and `meiliscout/integrate_query`, for `get_terms()` calls that do not ask with `use_meilisearch`. They get the `WP_Term_Query`. See [TERM_QUERY.md](TERM_QUERY.md).
+
+### meiliscout/ignored_term_sql_filters
+
+As `meiliscout/ignored_sql_filters`, for `terms_clauses`, `list_terms_exclusions`, `get_terms_orderby` and `get_terms_fields`.
+
+### meiliscout/term/ranking_rules
+
+The ranking rules of the taxonomies index. Default: `['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness']`, `sort` first so that an order is followed strictly.
+
+### meiliscout/term/document
+
+The document of a term, before it is sent. Gets the document and the `WP_Term`.
+
 ### meiliscout/search_params
 The parameters of the Meilisearch search a query becomes.
 

@@ -321,6 +321,17 @@
 	font-size: 16px;
 }
 
+/* A second group of rows in a card */
+.ms-card__head--sub {
+	border-top: 1px solid var(--ms-border);
+	padding-top: 16px;
+}
+
+.ms-card__head h3 {
+	font-size: 14px;
+	margin: 0;
+}
+
 .ms-card__head p {
 	color: var(--ms-muted);
 }

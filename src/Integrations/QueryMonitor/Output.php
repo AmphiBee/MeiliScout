@@ -64,7 +64,12 @@ final class Output extends \QM_Output_Html
 
         foreach ($queries as $number => $query) {
             echo '<tr>';
-            echo '<td class="qm-num">'.esc_html((string) ($number + 1)).($query['main'] ? '<br><span class="qm-info">'.esc_html__('main query', 'meiliscout').'</span>' : '').'</td>';
+            $kind = match (true) {
+                $query['main'] => __('main query', 'meiliscout'),
+                $query['kind'] === 'terms' => __('get_terms()', 'meiliscout'),
+                default => '',
+            };
+            echo '<td class="qm-num">'.esc_html((string) ($number + 1)).($kind !== '' ? '<br><span class="qm-info">'.esc_html($kind).'</span>' : '').'</td>';
             echo '<td>'.($query['served']
                 ? esc_html__('Meilisearch', 'meiliscout')
                 : '<span class="qm-warn">MySQL</span><br><code>'.esc_html((string) $query['reason']).'</code>').'</td>';

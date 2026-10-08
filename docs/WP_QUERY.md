@@ -17,6 +17,8 @@ $query = new WP_Query([
 $query->meiliscout; // ['served' => true, 'reason' => null, 'params' => [...], 'index' => '...', 'time' => 3.2]
 ```
 
+`get_terms()` is served the same way, from the taxonomies index: see [TERM_QUERY.md](TERM_QUERY.md).
+
 ## Which queries Meilisearch serves
 
 | Query | Served when |

@@ -64,7 +64,35 @@ const fromData = ( data ) => ( {
 	max_total_hits: data.max_total_hits,
 	contains_filter: data.contains_filter.enabled,
 	query_integration: data.query_integration,
+	term_query_integration: data.term_query_integration,
 } );
+
+const TERM_INTEGRATIONS = [
+	{
+		id: 'search',
+		title: __( 'Term searches of the classic editor', 'meiliscout' ),
+		text: __(
+			'The tag box suggestions (ajax-tag-search). Needs Partial filters on fields, below, to match as MySQL does; MySQL otherwise.',
+			'meiliscout'
+		),
+	},
+	{
+		id: 'rest_search',
+		title: __( 'REST API term searches', 'meiliscout' ),
+		text: __(
+			"/wp/v2/categories?search= and the other indexed taxonomies: the block editor's category and tag panels.",
+			'meiliscout'
+		),
+	},
+	{
+		id: 'admin',
+		title: __( 'Admin term lists', 'meiliscout' ),
+		text: __(
+			'The lists of categories, tags and other terms in the admin.',
+			'meiliscout'
+		),
+	},
+];
 
 const INTEGRATIONS = [
 	{
@@ -570,6 +598,43 @@ const Settings = ( { refreshOverview, overview } ) => {
 										...form,
 										query_integration: {
 											...form.query_integration,
+											[ integration.id ]: on,
+										},
+									} )
+								}
+								label={ integration.title }
+							/>
+							<div className="ms-row__label ms-row__label--text">
+								<strong>{ integration.title }</strong>
+								<span>{ integration.text }</span>
+							</div>
+						</div>
+					) ) }
+					<div className="ms-card__head ms-card__head--sub">
+						<h3>{ __( 'Term queries', 'meiliscout' ) }</h3>
+						<p>
+							{ __(
+								'get_terms() calls Meilisearch serves without asking. Terms are read from the taxonomies index: turn the taxonomies on in Content.',
+								'meiliscout'
+							) }
+						</p>
+					</div>
+					{ TERM_INTEGRATIONS.map( ( integration ) => (
+						<div
+							className="ms-row"
+							key={ 'term-' + integration.id }
+						>
+							<Switch
+								checked={
+									form.term_query_integration[
+										integration.id
+									]
+								}
+								onChange={ ( on ) =>
+									setForm( {
+										...form,
+										term_query_integration: {
+											...form.term_query_integration,
 											[ integration.id ]: on,
 										},
 									} )

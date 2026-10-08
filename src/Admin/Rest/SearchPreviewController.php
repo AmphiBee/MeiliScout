@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Admin\Rest;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Diagnostics\QueryParity;
+use Pollora\MeiliScout\Diagnostics\TermQueryParity;
 use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\IndexNames;
@@ -41,7 +42,7 @@ final class SearchPreviewController extends Controller
     }
 
     /**
-     * Runs WP_Query arguments on MySQL and on Meilisearch, as the current user, and compares them.
+     * Runs WP_Query arguments (with kind=terms, get_terms() ones) on MySQL and on Meilisearch, as the current user, and compares them.
      */
     public function wpQuery(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
@@ -56,9 +57,14 @@ final class SearchPreviewController extends Controller
 
         $mode = (string) $request->get_param('mode');
         $modes = [QueryParity::MODE_ORDER, QueryParity::MODE_SET, QueryParity::MODE_COUNT, QueryParity::MODE_SEARCH];
+        $mode = in_array($mode, $modes, true) ? $mode : QueryParity::MODE_ORDER;
         $args['_user'] = get_current_user_id();
 
-        $result = QueryParity::compare($args, in_array($mode, $modes, true) ? $mode : QueryParity::MODE_ORDER);
+        if ($request->get_param('kind') === 'terms') {
+            return $this->termQuery($args, $mode === QueryParity::MODE_COUNT ? QueryParity::MODE_ORDER : $mode);
+        }
+
+        $result = QueryParity::compare($args, $mode);
 
         $posts = fn (array $ids): array => array_map(static function (int $id): array {
             $post = get_post($id);
@@ -77,6 +83,42 @@ final class SearchPreviewController extends Controller
             'notes' => $result['notes'],
             'mysql' => ['found' => $result['mysql_found'] ?? null, 'posts' => $posts($result['mysql_ids'] ?? [])],
             'meilisearch' => ['found' => $result['meili_found'] ?? null, 'posts' => $posts($result['meili_ids'] ?? [])],
+            'params' => $result['params'] ?? null,
+        ]);
+    }
+
+    /**
+     * Runs get_terms() arguments on both engines; each side lists what get_terms() returned, by key.
+     *
+     * @param  array<string, mixed>  $args
+     */
+    private function termQuery(array $args, string $mode): WP_REST_Response
+    {
+        $result = TermQueryParity::compare($args, $mode);
+
+        $items = static function (array $values): array {
+            $items = [];
+
+            foreach ($values as $key => $value) {
+                $term = is_int($value) ? get_term($value) : null;
+
+                $items[] = [
+                    'id' => $key,
+                    'title' => $term instanceof \WP_Term ? $term->name.' (#'.$term->term_id.')' : (is_scalar($value) ? (string) $value : (string) wp_json_encode($value)),
+                    'type' => $term instanceof \WP_Term ? $term->taxonomy : '',
+                    'status' => '',
+                ];
+            }
+
+            return $items;
+        };
+
+        return $this->respond([
+            'outcome' => $result['outcome'],
+            'reason' => $result['reason'] ?? null,
+            'notes' => $result['notes'],
+            'mysql' => ['found' => $result['mysql_found'] ?? null, 'posts' => $items($result['mysql_ids'] ?? [])],
+            'meilisearch' => ['found' => $result['meili_found'] ?? null, 'posts' => $items($result['meili_ids'] ?? [])],
             'params' => $result['params'] ?? null,
         ]);
     }

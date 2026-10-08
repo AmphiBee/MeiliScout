@@ -35,8 +35,8 @@ composer test
 # WP_Query parity case and every filter the unit tests build
 ddev exec --dir /var/www/html/public/wp-content/plugins/meiliscout composer test:integration
 
-# Compare WP_Query results on MySQL and Meilisearch (exit 1 on a DIFF)
-ddev wp meiliscout check-queries [--case=<label>] [--args='<json>']
+# Compare WP_Query (--terms: get_terms()) results on MySQL and Meilisearch (exit 1 on a DIFF)
+ddev wp meiliscout check-queries [--terms] [--case=<label>] [--args='<json>']
 ```
 
 ### DDEV Environment
@@ -82,10 +82,11 @@ ddev exec --dir /var/www/html/public/content/plugins/meiliscout composer test:ty
 - `PhpOrder`: `rand` and list orders, applied in PHP over every result
 - `QueryLog`, `DebugHeader`, `Integrations/QueryMonitor`: debugging
 - `Diagnostics/QueryParity`: the differential harness behind `check-queries`, the integration tests and the admin's WP_Query tester; its cases pick their data in the site
+- `Terms/`: `get_terms()` on `terms_pre_query` (`TermQueryIntegration`): `TermQuerySupport`, `TermQueryBuilder` (WHERE/ORDER BY/LIMIT as `WP_Term_Query` builds them) into a `TermQueryPlan`, `TermResults` (what WordPress does after its SQL, with its own functions, array keys included), `ObjectTerms` (`object_ids` through the posts index), `TermSqlFilters`, `TermAutoIntegration`. Coverage: `docs/TERM_QUERY.md`; harness `Diagnostics/TermQueryParity` (`check-queries --terms`)
 
 #### Indexables (`src/Indexables/`)
 - `PostIndexable`: WordPress post indexing implementation
-- `TaxonomyIndexable`: Taxonomy indexing implementation
+- `TaxonomyIndexable`: Taxonomy indexing implementation (schema 4: `name_sort`, `description_fold`/`description_sort`, `tree_count`; term meta keys apart, `indexed_term_meta_keys`)
 - Implements `Indexable` contract for extensibility
 
 #### Services (`src/Services/`)
@@ -170,7 +171,7 @@ The plugin provides several filters for customization:
 - `meiliscout/reindex_on_meta_change`: Whether a changed meta key re-indexes the post (default: selected meta keys only)
 - `meiliscout/http_client_options`: Options of the Symfony HttpClient used for Meilisearch (default: `['timeout' => 10]`)
 - `meiliscout/index_prefix`: Prefix of the index names (default: `MEILI_INDEX_PREFIX`, else the site's domain)
-- `meiliscout/supported_query_vars`, `meiliscout/ignored_sql_filters`, `meiliscout/skip_query_integration`, `meiliscout/integrate_query`, `meiliscout/search_params`, `meiliscout/hydrate_from_documents`, `meiliscout/max_total_hits`, `meiliscout/php_order_limit`, `meiliscout/post/ranking_rules`, `meiliscout/debug_header`, `meiliscout/indexable_post_statuses`: see `docs/FILTERS.md`
+- `meiliscout/supported_query_vars`, `meiliscout/ignored_sql_filters`, `meiliscout/ignored_term_sql_filters`, `meiliscout/skip_term_query_integration`, `meiliscout/integrate_term_query`, `meiliscout/term/ranking_rules`, `meiliscout/term/document`, `meiliscout/skip_query_integration`, `meiliscout/integrate_query`, `meiliscout/search_params`, `meiliscout/hydrate_from_documents`, `meiliscout/max_total_hits`, `meiliscout/php_order_limit`, `meiliscout/post/ranking_rules`, `meiliscout/debug_header`, `meiliscout/indexable_post_statuses`: see `docs/FILTERS.md`
 
 ## Environment Variables
 
