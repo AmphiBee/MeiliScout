@@ -5,6 +5,7 @@ import { post, errorMessage } from '../api';
 import { Banner, Pill } from '../components';
 import { number } from '../format';
 import { href } from '../routes';
+import WpQueryTester from './WpQueryTester';
 
 const DEBOUNCE = 250;
 
@@ -93,7 +94,39 @@ const Hit = ( { hit } ) => (
 	</article>
 );
 
+const MODES = [
+	{ id: 'search', label: __( 'Search', 'meiliscout' ) },
+	{ id: 'wp-query', label: __( 'WP_Query arguments', 'meiliscout' ) },
+];
+
 const SearchPreview = () => {
+	const [ mode, setMode ] = useState( 'search' );
+
+	return (
+		<div className="ms-wrap ms-page" style={ { gap: 20 } }>
+			<div
+				className="ms-segmented"
+				role="group"
+				aria-label={ __( 'Preview mode', 'meiliscout' ) }
+			>
+				{ MODES.map( ( item ) => (
+					<button
+						key={ item.id }
+						type="button"
+						className="ms-segmented__item"
+						aria-pressed={ mode === item.id }
+						onClick={ () => setMode( item.id ) }
+					>
+						{ item.label }
+					</button>
+				) ) }
+			</div>
+			{ mode === 'search' ? <Search /> : <WpQueryTester /> }
+		</div>
+	);
+};
+
+const Search = () => {
 	const [ query, setQuery ] = useState( '' );
 	const [ postTypes, setPostTypes ] = useState( [] );
 	const [ terms, setTerms ] = useState( {} );
@@ -133,7 +166,7 @@ const SearchPreview = () => {
 		} );
 
 	return (
-		<div className="ms-wrap ms-page" style={ { gap: 20 } }>
+		<>
 			<div className="ms-search-bar">
 				<label htmlFor="ms-search" className="ms-visually-hidden">
 					{ __( 'Search', 'meiliscout' ) }
@@ -235,7 +268,7 @@ const SearchPreview = () => {
 					</div>
 				</div>
 			) }
-		</div>
+		</>
 	);
 };
 

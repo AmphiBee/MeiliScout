@@ -25,7 +25,27 @@ namespace {
             public function get($key, $default = '') { return $this->query_vars[$key] ?? $default; }
 
             public function set($key, $value) { $this->query_vars[$key] = $value; }
+
+            public bool $main = false;
+            public bool $is_search = false;
+            public bool $is_category = false;
+            public bool $is_tag = false;
+            public bool $is_post_type_archive = false;
+
+            public function is_main_query() { return $this->main; }
+            public function is_search() { return $this->is_search; }
+            public function is_category() { return $this->is_category; }
+            public function is_tag() { return $this->is_tag; }
+            public function is_tax() { return $this->is_tax; }
+            public function is_post_type_archive() { return $this->is_post_type_archive; }
         }
+    }
+
+    if (! function_exists('wp_doing_ajax')) {
+        function wp_doing_ajax() { return ! empty($GLOBALS['doing_ajax']); }
+    }
+    if (! function_exists('is_admin')) {
+        function is_admin() { return ! empty($GLOBALS['is_admin']); }
     }
 
     // What WP_Query::get_posts() would know about the site
@@ -147,6 +167,8 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
         $GLOBALS['logged_in'] = false;
         $GLOBALS['post_counts'] = [];
         $GLOBALS['capabilities'] = [];
+        $GLOBALS['doing_ajax'] = false;
+        $GLOBALS['is_admin'] = false;
         SearchFallbacks::reset();
         $this->errorLog = ini_set('error_log', '/dev/null');
     });

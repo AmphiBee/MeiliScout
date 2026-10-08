@@ -65,6 +65,11 @@ final class QueryParity
     public const MODE_SORTED = 'sorted';
 
     /**
+     * Ids of each engine's posts given back, at most.
+     */
+    private const IDS_KEPT = 50;
+
+    /**
      * Fields of the first WP_Post compared between the two engines.
      */
     private const POST_FIELDS = [
@@ -301,7 +306,7 @@ final class QueryParity
      *
      * @param  array<string, mixed>  $args
      * @param  list<string>  $keys  For MODE_SORTED: the fields sorted on (title, post_author, meta:price...)
-     * @return array{outcome: string, mysql_found?: int, meili_found?: int, reason?: string|null, notes: list<string>, params?: array<string, mixed>|null}
+     * @return array{outcome: string, mysql_found?: int, meili_found?: int, reason?: string|null, notes: list<string>, params?: array<string, mixed>|null, mysql_ids?: list<int>, meili_ids?: list<int>}
      */
     public static function compare(array $args, string $mode = self::MODE_ORDER, array $keys = []): array
     {
@@ -322,7 +327,14 @@ final class QueryParity
             wp_set_current_user($previousUser);
         }
 
-        $base = ['mysql_found' => $mysql['found'], 'meili_found' => $meili['found'], 'reason' => $meili['reason'], 'params' => $meili['params']];
+        $base = [
+            'mysql_found' => $mysql['found'],
+            'meili_found' => $meili['found'],
+            'reason' => $meili['reason'],
+            'params' => $meili['params'],
+            'mysql_ids' => array_slice($mysql['ids'], 0, self::IDS_KEPT),
+            'meili_ids' => array_slice($meili['ids'], 0, self::IDS_KEPT),
+        ];
 
         if (! $meili['served']) {
             return ['outcome' => self::FALLBACK, ...$base, 'notes' => [$meili['reason'] ?? 'not intercepted']];

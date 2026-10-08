@@ -634,7 +634,7 @@ const Content = ( { refreshOverview } ) => {
 									'meiliscout'
 								) }
 							/>
-							<div className="ms-row__label">
+							<div className="ms-row__label ms-row__label--text">
 								<strong>
 									{ __(
 										'Index private content',

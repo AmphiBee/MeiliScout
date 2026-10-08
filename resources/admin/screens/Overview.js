@@ -315,6 +315,36 @@ const Overview = ( { overview } ) => {
 				</Banner>
 			) }
 
+			{ data.integration.indexed &&
+				! data.integration.search &&
+				! migration.pending &&
+				! data.needs_indexation &&
+				! running && (
+					<Banner
+						tone="info"
+						icon="search"
+						title={ __(
+							'Serve the site search with Meilisearch',
+							'meiliscout'
+						) }
+						actions={
+							<a
+								className="ms-button ms-button--primary"
+								href={ href( 'settings', 'queries' ) }
+							>
+								{ __( 'Choose the queries', 'meiliscout' ) }
+							</a>
+						}
+					>
+						<p>
+							{ __(
+								'The content is indexed. The site search, archives, REST searches and admin lists can be served by Meilisearch, each on its own; any query can also ask with use_meilisearch.',
+								'meiliscout'
+							) }
+						</p>
+					</Banner>
+				) }
+
 			{ ! migration.pending && data.needs_indexation && ! running && (
 				<Banner
 					title={ __( 'The indexed content changed', 'meiliscout' ) }

@@ -13,6 +13,7 @@ use Pollora\MeiliScout\Services\ActivityLog;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\Indexer;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Query\AutoIntegration;
 use Pollora\MeiliScout\Services\SearchFallbacks;
 use WP_REST_Response;
 
@@ -55,6 +56,11 @@ final class OverviewController extends Controller
             ],
             'needs_indexation' => $structure['has_changed'] || $structure['last_indexed'] === null,
             'fallbacks' => SearchFallbacks::lastDay(),
+            // Offered once a full indexation succeeded
+            'integration' => [
+                'search' => AutoIntegration::settings()['search'],
+                'indexed' => $structure['last_indexed'] !== null,
+            ],
             'run' => IndexationController::currentRun(),
             'activity' => array_map(
                 [IndexationController::class, 'present'],

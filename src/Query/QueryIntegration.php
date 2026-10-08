@@ -16,7 +16,7 @@ use WP_Post;
 use WP_Query;
 
 /**
- * Serves the WP_Query that ask for it (use_meilisearch) from Meilisearch.
+ * Serves from Meilisearch the WP_Query that ask for it (use_meilisearch), or that the settings cover (AutoIntegration).
  *
  * Translate or fall back: a query is answered by Meilisearch only when every
  * argument it has is translated faithfully. Otherwise MySQL runs it, and the
@@ -75,7 +75,7 @@ class QueryIntegration
         // A WP_Query object can run several queries
         unset($query->meiliscout);
 
-        if ($posts !== null || empty($query->query_vars['use_meilisearch'])) {
+        if ($posts !== null || ! AutoIntegration::wants($query)) {
             return $posts;
         }
 
@@ -138,6 +138,7 @@ class QueryIntegration
         $query->facet_raw = $results->getRaw();
         $query->meiliscout['served'] = true;
         $query->meiliscout['time'] = round((microtime(true) - $started) * 1000, 2);
+        QueryLog::record($query);
 
         return $posts;
     }
@@ -152,9 +153,10 @@ class QueryIntegration
     {
         unset($query->meiliscout);
 
-        if ($posts === null && ! empty($query->query_vars['use_meilisearch'])) {
+        if ($posts === null && AutoIntegration::wants($query)) {
             $query->meiliscout = ['served' => false, 'reason' => SearchFallbacks::UNREACHABLE, 'params' => null, 'index' => null, 'time' => null];
             SearchFallbacks::record(SearchFallbacks::UNREACHABLE);
+            QueryLog::record($query);
         }
 
         return $posts;
@@ -193,6 +195,7 @@ class QueryIntegration
     {
         $query->meiliscout['reason'] = $reason;
         SearchFallbacks::record($reason);
+        QueryLog::record($query);
 
         return null;
     }

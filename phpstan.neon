@@ -9,6 +9,9 @@ parameters:
     paths:
         - src
     excludePaths:
+        # Extend Query Monitor's classes; loaded only when it runs
+        - src/Integrations/QueryMonitor/Collector.php
+        - src/Integrations/QueryMonitor/Output.php
     
     # Configuration pour WordPress
     bootstrapFiles:

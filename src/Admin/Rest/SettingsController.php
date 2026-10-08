@@ -8,6 +8,7 @@ use Meilisearch\Contracts\IndexesQuery;
 use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Config\RealtimeIndexing;
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Query\AutoIntegration;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\ContainsFilter;
 use Pollora\MeiliScout\Services\Indexer;
@@ -95,6 +96,11 @@ final class SettingsController extends Controller
 
         if (IndexSettings::maxTotalHits() !== $previousMaxTotalHits) {
             $this->pushMaxTotalHits();
+        }
+
+        $integration = $request->get_param('query_integration');
+        if (is_array($integration)) {
+            AutoIntegration::save($integration);
         }
 
         // An experimental feature of the instance: changed there, only when asked to change
@@ -211,6 +217,7 @@ final class SettingsController extends Controller
             'timeout' => ClientFactory::timeout(),
             'batch_size' => Indexer::batchSize(),
             'max_total_hits' => IndexSettings::maxTotalHits(),
+            'query_integration' => AutoIntegration::settings(),
             // The instance's state, which can be changed outside the plugin
             'contains_filter' => ContainsFilter::state(),
         ];

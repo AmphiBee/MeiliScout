@@ -63,7 +63,40 @@ const fromData = ( data ) => ( {
 	batch_size: data.batch_size,
 	max_total_hits: data.max_total_hits,
 	contains_filter: data.contains_filter.enabled,
+	query_integration: data.query_integration,
 } );
+
+const INTEGRATIONS = [
+	{
+		id: 'search',
+		title: __( 'Site search', 'meiliscout' ),
+		text: __( 'The search results page.', 'meiliscout' ),
+	},
+	{
+		id: 'archives',
+		title: __( 'Archives', 'meiliscout' ),
+		text: __(
+			'Post type archives, categories, tags and custom taxonomies.',
+			'meiliscout'
+		),
+	},
+	{
+		id: 'rest_search',
+		title: __( 'REST API searches', 'meiliscout' ),
+		text: __(
+			"/wp/v2/posts?search= and the other indexed post types: the block editor's link search, headless front ends.",
+			'meiliscout'
+		),
+	},
+	{
+		id: 'admin',
+		title: __( 'Admin lists', 'meiliscout' ),
+		text: __(
+			'The lists of posts in the admin. Drafts are not indexed: lists that show them run on MySQL.',
+			'meiliscout'
+		),
+	},
+];
 
 const ConnectionTest = ( { result } ) => {
 	if ( ! result ) {
@@ -211,6 +244,9 @@ const Settings = ( { refreshOverview, overview } ) => {
 				</a>
 				<a href="#/settings#realtime">
 					{ __( 'Real time', 'meiliscout' ) }
+				</a>
+				<a href="#/settings#queries">
+					{ __( 'Queries', 'meiliscout' ) }
 				</a>
 				<a href="#/settings#advanced">
 					{ __( 'Advanced', 'meiliscout' ) }
@@ -505,6 +541,50 @@ const Settings = ( { refreshOverview, overview } ) => {
 				</section>
 
 				<section
+					id="queries"
+					className="ms-card"
+					aria-labelledby="ms-queries-title"
+				>
+					<div className="ms-card__head">
+						<h2 id="ms-queries-title">
+							{ __( 'Queries', 'meiliscout' ) }
+						</h2>
+						<p>
+							{ createInterpolateElement(
+								__(
+									'Queries Meilisearch serves without asking. Any query can ask with <code>use_meilisearch</code>, or stay on MySQL with <code>use_meilisearch => false</code>. A query Meilisearch cannot answer as MySQL would runs on MySQL.',
+									'meiliscout'
+								),
+								{ code: <code /> }
+							) }
+						</p>
+					</div>
+					{ INTEGRATIONS.map( ( integration ) => (
+						<div className="ms-row" key={ integration.id }>
+							<Switch
+								checked={
+									form.query_integration[ integration.id ]
+								}
+								onChange={ ( on ) =>
+									setForm( {
+										...form,
+										query_integration: {
+											...form.query_integration,
+											[ integration.id ]: on,
+										},
+									} )
+								}
+								label={ integration.title }
+							/>
+							<div className="ms-row__label ms-row__label--text">
+								<strong>{ integration.title }</strong>
+								<span>{ integration.text }</span>
+							</div>
+						</div>
+					) ) }
+				</section>
+
+				<section
 					id="advanced"
 					className="ms-card"
 					aria-labelledby="ms-advanced-title"
@@ -586,7 +666,7 @@ const Settings = ( { refreshOverview, overview } ) => {
 										'meiliscout'
 									) }
 								/>
-								<div className="ms-row__label">
+								<div className="ms-row__label ms-row__label--text">
 									<strong>
 										{ __(
 											'Partial filters on fields (LIKE)',
