@@ -92,6 +92,7 @@ From schema 4, documents hold every value of a key: a list when a post has sever
 | Serialized (arrays) | Every comparison but `EXISTS` and `NOT EXISTS`, and any order: MySQL compares the serialized text | `structured_meta:<key>` |
 | Some are no numbers (`''` included) | A numeric `type` (MySQL casts text to 0), `>`/`<`/`BETWEEN` against a number | `meta_not_numeric:<key>` |
 | Numbers and text mixed | Any order on the key: MySQL orders them all as text | `unsupported_orderby:<field>` |
+| Changed by the site (`meiliscout/post/document` altered `metas.<key>`) | Every comparison and order: the index no longer holds MySQL's values | `altered_meta:<key>` |
 
 `BETWEEN` on numbers with several values per post matches a post one of whose values is in the range, as MySQL does.
 
@@ -171,7 +172,7 @@ Every fallback has a reason, recorded on the query (`$query->meiliscout['reason'
 | `unindexed_status:singular` | A single post that exists with another status | Nothing: WordPress shows it to whoever may read it |
 | `unindexed_type:<type>` | A post type that is not indexed, with posts | Content › Post types |
 | `unsupported_compare:<op>` | `LIKE` (setting off), `REGEXP` | Settings › Advanced › Partial filters |
-| `multivalued_meta:<key>`, `structured_meta:<key>`, `meta_not_numeric:<key>` | A comparison Meilisearch makes otherwise on the values of this key (see Custom fields) | |
+| `multivalued_meta:<key>`, `structured_meta:<key>`, `meta_not_numeric:<key>`, `altered_meta:<key>` | A comparison Meilisearch makes otherwise on the values of this key (see Custom fields) | |
 | `sql_filter:<hook>` | A plugin changed the query's SQL through this filter | `meiliscout/ignored_sql_filters`, when the site translates the change |
 | `unsupported_orderby:<field>` | An order the index cannot give, or `rand`/`post__in` over more than 1000 results | |
 | `unsupported_date_column:<column>` | Parts of a GMT column, another table | |

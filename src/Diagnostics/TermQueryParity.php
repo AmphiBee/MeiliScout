@@ -78,12 +78,12 @@ final class TermQueryParity
             $case('number with parent (WordPress returns them all)', [...$cat, 'parent' => 0, 'hierarchical' => false, 'number' => 2]),
 
             // Which terms
-            $case('include', $when($hasTags, [...$tag, 'include' => [$tags[3], $tags[0], $tags[5]]])),
-            $case('include + orderby include', $when($hasTags, [...$tag, 'include' => [$tags[3], $tags[0], $tags[5]], 'orderby' => 'include'])),
-            $case('include + orderby include DESC', $when($hasTags, [...$tag, 'include' => "{$tags[3]},{$tags[0]},{$tags[5]}", 'orderby' => 'include', 'order' => 'DESC'])),
-            $case('exclude', $when($hasTags, [...$tag, 'exclude' => [$tags[0], $tags[1]]])),
+            $case('include', $when($hasTags, [...$tag, 'include' => [($tags[3] ?? 0), ($tags[0] ?? 0), ($tags[5] ?? 0)]])),
+            $case('include + orderby include', $when($hasTags, [...$tag, 'include' => [($tags[3] ?? 0), ($tags[0] ?? 0), ($tags[5] ?? 0)], 'orderby' => 'include'])),
+            $case('include + orderby include DESC', $when($hasTags, [...$tag, 'include' => implode(',', [$tags[3] ?? 0, $tags[0] ?? 0, $tags[5] ?? 0]), 'orderby' => 'include', 'order' => 'DESC'])),
+            $case('exclude', $when($hasTags, [...$tag, 'exclude' => [($tags[0] ?? 0), ($tags[1] ?? 0)]])),
             $case('exclude_tree', $when($hasBranch, [...$cat, 'hide_empty' => false, 'exclude_tree' => [$branch['top'] ?? 0]])),
-            $case('include wins over exclude', $when($hasTags, [...$tag, 'include' => [$tags[0], $tags[1]], 'exclude' => [$tags[0]]])),
+            $case('include wins over exclude', $when($hasTags, [...$tag, 'include' => [($tags[0] ?? 0), ($tags[1] ?? 0)], 'exclude' => [($tags[0] ?? 0)]])),
             $case('slug', $when($d['tag_slug'] !== null, [...$tag, 'slug' => $d['tag_slug']])),
             $case('slug list + orderby slug__in', $when(count($d['tag_slugs']) >= 3, [...$tag, 'slug' => $d['tag_slugs'], 'orderby' => 'slug__in'])),
             $case('name, other case and accents', $when($d['accented_name'] !== null, [...$cat, 'name' => mb_strtoupper((string) $d['accented_name'])])),
@@ -161,7 +161,7 @@ final class TermQueryParity
             // A plugin's SQL filters
             $fallback('terms_clauses of a plugin', [...$tag, '_sql_filter' => ['hook' => 'terms_clauses', 'change' => true]]),
             $case('terms_clauses of a plugin that changes nothing', [...$tag, '_sql_filter' => ['hook' => 'terms_clauses', 'change' => false]]),
-            $fallback('list_terms_exclusions of a plugin', $when($hasTags, [...$tag, 'exclude' => [$tags[0]], '_sql_filter' => ['hook' => 'list_terms_exclusions', 'change' => true]])),
+            $fallback('list_terms_exclusions of a plugin', $when($hasTags, [...$tag, 'exclude' => [($tags[0] ?? 0)], '_sql_filter' => ['hook' => 'list_terms_exclusions', 'change' => true]])),
             $fallback('get_terms_orderby of a plugin', [...$tag, '_sql_filter' => ['hook' => 'get_terms_orderby', 'change' => true]]),
         ];
     }

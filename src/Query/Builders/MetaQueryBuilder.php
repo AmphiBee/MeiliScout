@@ -101,6 +101,11 @@ class MetaQueryBuilder extends AbstractFilterBuilder
         $key = trim($key);
         $this->assertIndexed($key);
 
+        // The site changed the key's values in documents (meiliscout/post/document): they are not MySQL's
+        if (MetaValueFlags::has($key, MetaValueFlags::ALTERED, $this->objectType)) {
+            throw new UnsupportedQuery('altered_meta:'.$key);
+        }
+
         $attribute = "metas.{$key}";
         $compare = $this->compare($clause);
 

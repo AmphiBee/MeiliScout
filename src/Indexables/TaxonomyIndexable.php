@@ -8,6 +8,7 @@ use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Services\IndexNames;
 use Pollora\MeiliScout\Services\IndexSettings;
+use Pollora\MeiliScout\Services\MetaValueFlags;
 use WP_Term;
 
 use function apply_filters;
@@ -203,7 +204,10 @@ class TaxonomyIndexable implements Indexable
             'metas' => $this->getMetaData($item),
         ];
 
-        return apply_filters('meiliscout/term/document', $document, $item);
+        $filtered = apply_filters('meiliscout/term/document', $document, $item);
+        MetaValueFlags::noteAltered($document['metas'], is_array($filtered) ? (array) ($filtered['metas'] ?? []) : [], 'term');
+
+        return $filtered;
     }
 
     public function formatForSearch(array $hit): mixed

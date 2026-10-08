@@ -26,6 +26,9 @@ use function update_option;
  *  - numeric: a value is a number. With non_numeric, the key mixes both:
  *    MySQL sorts them all as text, Meilisearch the numbers first.
  *  - empty: a value is ''. Meilisearch sorts it last, MySQL first.
+ *  - altered: the site changed the key's values in documents (the
+ *    meiliscout/post/document filter): the index no longer holds what
+ *    MySQL compares, and queries on the key run on MySQL.
  *
  * A flag is only ever added by real-time indexing. A full indexation records
  * them anew, and replaces the previous ones once it is done.
@@ -41,6 +44,8 @@ final class MetaValueFlags
     public const NUMERIC = 'numeric';
 
     public const EMPTY = 'empty';
+
+    public const ALTERED = 'altered';
 
     /**
      * Options holding the flags, by object type.
@@ -81,6 +86,34 @@ final class MetaValueFlags
     }
 
     /**
+     * Notes the keys whose values a document filter changed, added or removed.
+     *
+     * @param  array<string, mixed>  $before  The metas read from the database
+     * @param  array<string, mixed>  $after  The metas the filtered document carries
+     * @param  'post'|'term'  $objectType
+     */
+    public static function noteAltered(array $before, array $after, string $objectType = 'post'): void
+    {
+        foreach (array_unique([...array_keys($before), ...array_keys($after)]) as $key) {
+            if (! array_key_exists($key, $before) || ! array_key_exists($key, $after) || $before[$key] !== $after[$key]) {
+                self::flag((string) $key, self::ALTERED, $objectType);
+            }
+        }
+    }
+
+    /**
+     * @param  'post'|'term'  $objectType
+     */
+    private static function flag(string $key, string $flag, string $objectType): void
+    {
+        if (self::$pending === [] && function_exists('add_action')) {
+            add_action('shutdown', [self::class, 'flush']);
+        }
+
+        self::$pending[$objectType][$key][$flag] = true;
+    }
+
+    /**
      * Whether Meilisearch sorts on a key as MySQL does: one value per post, not serialized,
      * not numbers mixed with text (MySQL orders them all as text), none empty.
      *
@@ -90,7 +123,7 @@ final class MetaValueFlags
     {
         $flags = self::of($key, $objectType);
 
-        return ! isset($flags[self::MULTIPLE]) && ! isset($flags[self::STRUCTURED]) && ! isset($flags[self::EMPTY])
+        return ! isset($flags[self::MULTIPLE]) && ! isset($flags[self::STRUCTURED]) && ! isset($flags[self::EMPTY]) && ! isset($flags[self::ALTERED])
             && ! (isset($flags[self::NUMERIC]) && isset($flags[self::NON_NUMERIC]));
     }
 

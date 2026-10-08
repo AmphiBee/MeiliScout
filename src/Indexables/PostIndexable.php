@@ -473,7 +473,10 @@ class PostIndexable implements Indexable
         $document['taxonomies'] = $this->groupedByTaxonomy($document['terms']);
         $document['metas'] = $this->getMetaData($item);
 
-        return apply_filters('meiliscout/post/document', $document, $item);
+        $filtered = apply_filters('meiliscout/post/document', $document, $item);
+        MetaValueFlags::noteAltered($document['metas'], is_array($filtered) ? (array) ($filtered['metas'] ?? []) : []);
+
+        return $filtered;
     }
 
     /**

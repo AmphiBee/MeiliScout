@@ -351,6 +351,8 @@ test('what the indexed values of a key are like sends the comparisons Meilisearc
     'text, > a number' => [['non_numeric' => true], ['value' => 5, 'compare' => '>'], 'meta_not_numeric:color'],
     'text, >= a date' => [['non_numeric' => true], ['value' => '2024-01-01', 'compare' => '>=', 'type' => 'DATE'], null],
     'text, = a number' => [['non_numeric' => true, 'numeric' => true], ['value' => '5'], null],
+    'changed by the site, EXISTS' => [['altered' => true], ['compare' => 'EXISTS'], 'altered_meta:color'],
+    'changed by the site, =' => [['altered' => true], ['value' => 'red'], 'altered_meta:color'],
 ]);
 
 test('a range over several numeric values matches one value in the range', function () {
