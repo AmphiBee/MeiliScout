@@ -173,10 +173,10 @@ class IndexCommand
             'index' => $base,
             'searches read' => IndexNames::active($base),
             'writes go to' => IndexNames::name($base),
+            'format' => sprintf('%d (current: %d)', IndexNames::activeSchema($base), IndexNames::schemaVersion($base)),
         ], IndexNames::BASES);
 
-        \WP_CLI\Utils\format_items('table', $rows, ['index', 'searches read', 'writes go to']);
-        WP_CLI::log(sprintf('Document format: %d (current: %d)', IndexNames::activeSchema(), IndexNames::SCHEMA_VERSION));
+        \WP_CLI\Utils\format_items('table', $rows, ['index', 'searches read', 'writes go to', 'format']);
 
         if (IndexNames::migrationPending()) {
             WP_CLI::warning('Migration pending: run `wp meiliscout index` to build the new indexes and move searches to them.');

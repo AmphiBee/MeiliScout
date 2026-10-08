@@ -196,7 +196,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
         $integration = integrationWith(clientReturning(new \RuntimeException('Meilisearch is down'), $this));
 
         $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true]));
-        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true, 'title' => 'Hello']));
+        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true, 'perm' => 'readable']));
         $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true, 'meta_query' => [['key' => 'nope', 'value' => 1]]]));
 
         expect(SearchFallbacks::lastDay()['total'])->toBe(0);
@@ -207,7 +207,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
             'total' => 3,
             'error' => 1,
             'meta' => 1,
-            'reasons' => ['engine_error' => 1, 'unsupported_arg:title' => 1, 'unindexed_meta:nope' => 1],
+            'reasons' => ['engine_error' => 1, 'unsupported_arg:perm' => 1, 'unindexed_meta:nope' => 1],
         ]);
     });
 
@@ -225,8 +225,10 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
         expect(integrationWith($client)->interceptQuery(null, $query))->toBeNull()
             ->and($query->meiliscout['reason'])->toBe($reason);
     })->with([
-        'title' => [['title' => 'Hello'], 'unsupported_arg:title'],
-        'post_mime_type' => [['post_mime_type' => 'image/png'], 'unsupported_arg:post_mime_type'],
+        'title before schema 4' => [['title' => 'Hello', '_schema' => 3], 'schema_too_old'],
+        'post_password' => [['post_password' => 'secret'], 'unsupported_arg:post_password'],
+        'perm' => [['perm' => 'readable'], 'unsupported_arg:perm'],
+        'post_mime_type before schema 4' => [['post_mime_type' => 'image/png', '_schema' => 3], 'schema_too_old'],
         'exact' => [['s' => 'x', 'exact' => true], 'unsupported_arg:exact'],
         'a plugin\'s var' => [['lang' => 'fr'], 'unsupported_arg:lang'],
         'a date before schema 3' => [['year' => 2024, '_schema' => 2], 'schema_too_old'],

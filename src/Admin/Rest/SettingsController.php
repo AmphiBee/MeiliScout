@@ -9,6 +9,7 @@ use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Config\RealtimeIndexing;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Query\AutoIntegration;
+use Pollora\MeiliScout\Query\Terms\TermAutoIntegration;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\ContainsFilter;
 use Pollora\MeiliScout\Services\Indexer;
@@ -101,6 +102,11 @@ final class SettingsController extends Controller
         $integration = $request->get_param('query_integration');
         if (is_array($integration)) {
             AutoIntegration::save($integration);
+        }
+
+        $termIntegration = $request->get_param('term_query_integration');
+        if (is_array($termIntegration)) {
+            TermAutoIntegration::save($termIntegration);
         }
 
         // An experimental feature of the instance: changed there, only when asked to change
@@ -218,6 +224,7 @@ final class SettingsController extends Controller
             'batch_size' => Indexer::batchSize(),
             'max_total_hits' => IndexSettings::maxTotalHits(),
             'query_integration' => AutoIntegration::settings(),
+            'term_query_integration' => TermAutoIntegration::settings(),
             // The instance's state, which can be changed outside the plugin
             'contains_filter' => ContainsFilter::state(),
         ];

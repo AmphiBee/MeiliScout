@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Query\Builders;
 use Pollora\MeiliScout\Contracts\QueryInterface;
 use Pollora\MeiliScout\Query\PhpOrder;
 use Pollora\MeiliScout\Query\QueryVars;
+use Pollora\MeiliScout\Services\IndexNames;
 use Pollora\MeiliScout\Services\IndexSettings;
 
 /**
@@ -28,14 +29,14 @@ class PaginationBuilder implements QueryBuilderInterface
     {
         // Every result, for the page to be cut out once in order
         if (PhpOrder::of($query) !== null) {
-            $searchParams['hitsPerPage'] = min(PhpOrder::limit(), IndexSettings::maxTotalHits());
+            $searchParams['hitsPerPage'] = min(PhpOrder::limit(), IndexSettings::reachable(IndexNames::active('posts')));
             $searchParams['page'] = 1;
 
             return;
         }
 
         if (QueryVars::isUnpaged($query)) {
-            $searchParams['hitsPerPage'] = IndexSettings::maxTotalHits();
+            $searchParams['hitsPerPage'] = IndexSettings::reachable(IndexNames::active('posts'));
             $searchParams['page'] = 1;
 
             return;

@@ -96,7 +96,7 @@ const Hit = ( { hit } ) => (
 
 const MODES = [
 	{ id: 'search', label: __( 'Search', 'meiliscout' ) },
-	{ id: 'wp-query', label: __( 'WP_Query arguments', 'meiliscout' ) },
+	{ id: 'wp-query', label: __( 'Query arguments', 'meiliscout' ) },
 ];
 
 const SearchPreview = () => {

@@ -6,9 +6,11 @@ namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
 use Pollora\MeiliScout\Query\QueryVars;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\ContainsFilter;
+use Pollora\MeiliScout\Services\MetaValueFlags;
 use Pollora\MeiliScout\Services\MissedMetaKeys;
 
 /**
@@ -22,6 +24,11 @@ use Pollora\MeiliScout\Services\MissedMetaKeys;
  * operators Meilisearch has no equivalent for (REGEXP), send the query to
  * MySQL. LIKE and NOT LIKE become CONTAINS when the instance has the feature
  * turned on (ContainsFilter), and run on MySQL otherwise.
+ *
+ * What the indexed values of a key are like (MetaValueFlags) sends the
+ * comparisons Meilisearch would make otherwise to MySQL too: a negation on a
+ * key with several values per post, any comparison on serialized values, a
+ * numeric comparison on a key with values that are no numbers.
  */
 class MetaQueryBuilder extends AbstractFilterBuilder
 {
@@ -38,6 +45,32 @@ class MetaQueryBuilder extends AbstractFilterBuilder
      * Casts whose values are numbers.
      */
     private const NUMERIC_CASTS = ['SIGNED', 'UNSIGNED', 'DECIMAL'];
+
+    /**
+     * @param  'post'|'term'  $objectType  Whose metas: the posts' (posts index) or the terms' (taxonomies index)
+     */
+    public function __construct(private readonly string $objectType = 'post') {}
+
+    /**
+     * The meta keys documents carry, which queries can filter and sort on.
+     *
+     * @param  'post'|'term'  $objectType
+     * @return list<string>
+     */
+    public static function indexedKeys(string $objectType = 'post'): array
+    {
+        $setting = $objectType === 'term' ? TaxonomyIndexable::META_KEYS_SETTING : 'indexed_meta_keys';
+
+        return array_values(array_filter((array) Settings::get($setting, []), 'is_string'));
+    }
+
+    /**
+     * A filter no document of the index matches.
+     */
+    private function matchNothing(): string
+    {
+        return $this->objectType === 'term' ? 'taxonomy IN []' : self::MATCH_NOTHING;
+    }
 
     protected function queries(QueryInterface $query): array
     {
@@ -68,6 +101,11 @@ class MetaQueryBuilder extends AbstractFilterBuilder
         $key = trim($key);
         $this->assertIndexed($key);
 
+        // The site changed the key's values in documents (meiliscout/post/document): they are not MySQL's
+        if (MetaValueFlags::has($key, MetaValueFlags::ALTERED, $this->objectType)) {
+            throw new UnsupportedQuery('altered_meta:'.$key);
+        }
+
         $attribute = "metas.{$key}";
         $compare = $this->compare($clause);
 
@@ -80,15 +118,17 @@ class MetaQueryBuilder extends AbstractFilterBuilder
             return "{$attribute} EXISTS";
         }
 
-        if (in_array($compare, ['LIKE', 'NOT LIKE'], true)) {
-            return $this->like($attribute, $compare, $clause['value']);
-        }
-
         if (in_array($compare, ['REGEXP', 'NOT REGEXP', 'RLIKE'], true)) {
             throw new UnsupportedQuery('unsupported_compare:'.$compare);
         }
 
         $cast = $this->cast($clause['type'] ?? '');
+        $this->assertComparable($key, $compare, $cast, $clause['value']);
+
+        if (in_array($compare, ['LIKE', 'NOT LIKE'], true)) {
+            return $this->like($attribute, $compare, $clause['value']);
+        }
+
         $value = $clause['value'];
 
         if (in_array($compare, ['IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN'], true)) {
@@ -101,6 +141,12 @@ class MetaQueryBuilder extends AbstractFilterBuilder
 
         $literal = fn (mixed $v): string => $this->literal($v, $cast);
 
+        $empty = $this->emptyValue($key, $attribute, $compare, $value, $literal);
+
+        if ($empty !== null) {
+            return $empty;
+        }
+
         return match ($compare) {
             // EXISTS with a value is '=' in WordPress
             '=', 'EXISTS' => "{$attribute} = {$literal($value)}",
@@ -109,10 +155,93 @@ class MetaQueryBuilder extends AbstractFilterBuilder
             '>', '>=', '<', '<=' => "{$attribute} {$compare} {$literal($value)}",
             'IN' => "{$attribute} IN [".implode(', ', array_map($literal, $value)).']',
             'NOT IN' => "({$attribute} EXISTS AND {$attribute} NOT IN [".implode(', ', array_map($literal, $value)).'])',
-            'BETWEEN' => "({$attribute} >= {$literal($value[0] ?? '')} AND {$attribute} <= {$literal($value[1] ?? '')})",
+            // One value of a list in the range, as MySQL matches one row
+            'BETWEEN' => MetaValueFlags::has($key, MetaValueFlags::MULTIPLE, $this->objectType)
+                ? "{$attribute} {$literal($value[0] ?? '')} TO {$literal($value[1] ?? '')}"
+                : "({$attribute} >= {$literal($value[0] ?? '')} AND {$attribute} <= {$literal($value[1] ?? '')})",
             'NOT BETWEEN' => "({$attribute} < {$literal($value[0] ?? '')} OR {$attribute} > {$literal($value[1] ?? '')})",
             default => throw new UnsupportedQuery('unsupported_compare:'.$compare),
         };
+    }
+
+    /**
+     * A comparison with an empty value: Meilisearch filters never match '', IS EMPTY does.
+     *
+     * @param  callable(mixed): string  $literal
+     * @return string|null The filter, or null when no empty value is compared
+     *
+     * @throws UnsupportedQuery
+     */
+    private function emptyValue(string $key, string $attribute, string $compare, mixed $value, callable $literal): ?string
+    {
+        if (! in_array($compare, ['=', 'EXISTS', '!=', 'IN', 'NOT IN'], true)) {
+            return null;
+        }
+
+        $values = is_array($value) ? $value : [$value];
+        $others = array_values(array_filter($values, static fn (mixed $v) => $v !== ''));
+
+        if (count($others) === count($values)) {
+            return null;
+        }
+
+        // IS EMPTY matches a list that is empty, not one that holds ''
+        if (MetaValueFlags::has($key, MetaValueFlags::MULTIPLE, $this->objectType)) {
+            throw new UnsupportedQuery('multivalued_meta:'.$key);
+        }
+
+        $listed = static fn (array $values): string => '['.implode(', ', array_map($literal, $values)).']';
+
+        return match ($compare) {
+            '=', 'EXISTS' => "{$attribute} IS EMPTY",
+            '!=' => "({$attribute} EXISTS AND {$attribute} IS NOT EMPTY)",
+            'IN' => $others === [] ? "{$attribute} IS EMPTY" : "({$attribute} IS EMPTY OR {$attribute} IN {$listed($others)})",
+            'NOT IN' => $others === []
+                ? "({$attribute} EXISTS AND {$attribute} IS NOT EMPTY)"
+                : "({$attribute} EXISTS AND {$attribute} IS NOT EMPTY AND {$attribute} NOT IN {$listed($others)})",
+        };
+    }
+
+    /**
+     * Whether Meilisearch compares the key's indexed values as MySQL compares its rows.
+     *
+     * @throws UnsupportedQuery
+     */
+    private function assertComparable(string $key, string $compare, string $cast, mixed $value): void
+    {
+        $flags = MetaValueFlags::of($key, $this->objectType);
+
+        // MySQL compares the serialized text
+        if (isset($flags[MetaValueFlags::STRUCTURED])) {
+            throw new UnsupportedQuery('structured_meta:'.$key);
+        }
+
+        // MySQL keeps a post for one row that differs; Meilisearch drops a list for one value that matches
+        if (isset($flags[MetaValueFlags::MULTIPLE]) && in_array($compare, ['!=', 'NOT IN', 'NOT LIKE'], true)) {
+            throw new UnsupportedQuery('multivalued_meta:'.$key);
+        }
+
+        // A range of text over several values, where TO only takes numbers
+        if (isset($flags[MetaValueFlags::MULTIPLE]) && $compare === 'BETWEEN' && ! in_array($cast, self::NUMERIC_CASTS, true)) {
+            throw new UnsupportedQuery('multivalued_meta:'.$key);
+        }
+
+        if (! isset($flags[MetaValueFlags::NON_NUMERIC])) {
+            return;
+        }
+
+        // MySQL casts a value that is no number to 0
+        if (in_array($cast, self::NUMERIC_CASTS, true) && ! in_array($compare, ['LIKE', 'NOT LIKE'], true)) {
+            throw new UnsupportedQuery('meta_not_numeric:'.$key);
+        }
+
+        // MySQL orders text, numbers included, as text; Meilisearch compares a number to numbers only
+        $ordering = in_array($compare, ['>', '>=', '<', '<=', 'BETWEEN', 'NOT BETWEEN'], true);
+        $numberGiven = array_filter((array) $value, static fn (mixed $v) => is_bool($v) || is_numeric($v)) !== [];
+
+        if ($ordering && ($numberGiven || isset($flags[MetaValueFlags::NUMERIC]))) {
+            throw new UnsupportedQuery('meta_not_numeric:'.$key);
+        }
     }
 
     /**
@@ -132,7 +261,7 @@ class MetaQueryBuilder extends AbstractFilterBuilder
 
         // '%%' matches any value, when the post has the key
         if ($value === '') {
-            return $compare === 'LIKE' ? "{$attribute} EXISTS" : 'post_type IN []';
+            return $compare === 'LIKE' ? "{$attribute} EXISTS" : $this->matchNothing();
         }
 
         return $compare === 'LIKE'
@@ -212,8 +341,8 @@ class MetaQueryBuilder extends AbstractFilterBuilder
      */
     private function assertIndexed(string $key): void
     {
-        if (! in_array($key, (array) Settings::get('indexed_meta_keys', []), true)) {
-            MissedMetaKeys::record($key);
+        if (! in_array($key, self::indexedKeys($this->objectType), true)) {
+            MissedMetaKeys::record($key, $this->objectType);
 
             throw new UnsupportedQuery('unindexed_meta:'.$key);
         }

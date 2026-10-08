@@ -237,6 +237,9 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
             /** @var \Pollora\MeiliScout\Indexables\TaxonomyIndexable $indexable */
             $indexable = $this->indexable();
 
+            // Metas and tree counts read in bulk
+            $indexable->preloadBatchData($termsToIndex);
+
             // Format all documents
             $documents = [];
             foreach ($termsToIndex as $term) {
@@ -254,6 +257,8 @@ class TaxonomySingleIndexer extends AbstractSingleIndexer
                 $index->addDocuments($documents);
                 $statistics['indexed'] = count($documents);
             }
+
+            $indexable->clearBatchData();
 
             // Aggressive memory cleanup after batch
             unset($documents, $termsToIndex);

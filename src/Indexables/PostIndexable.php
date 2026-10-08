@@ -9,6 +9,7 @@ use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\Indexable;
 use Pollora\MeiliScout\Services\IndexNames;
 use Pollora\MeiliScout\Services\IndexSettings;
+use Pollora\MeiliScout\Services\MetaValueFlags;
 use WP_Post;
 use WP_Term;
 
@@ -17,6 +18,7 @@ use function get_object_taxonomies;
 use function get_option;
 use function get_permalink;
 use function get_post_meta;
+use function get_post_status;
 use function get_posts;
 use function get_term;
 use function is_wp_error;
@@ -45,6 +47,11 @@ class PostIndexable implements Indexable
     public static function indexableStatuses(): array
     {
         $statuses = Settings::get(self::INDEX_PRIVATE, false) ? ['publish', 'private'] : ['publish'];
+
+        // Attachments, once media are indexed: their status follows their parent's
+        if (in_array('attachment', (array) Settings::get('indexed_post_types', []), true)) {
+            $statuses[] = 'inherit';
+        }
 
         return apply_filters('meiliscout/indexable_post_statuses', $statuses);
     }
@@ -110,6 +117,14 @@ class PostIndexable implements Indexable
             'has_password',
             ...array_map(fn (string $column) => "{$column}_ts", PostDates::COLUMNS),
             'date_parts',
+            // From schema 4
+            'post_title_sort',
+            'comment_status',
+            'ping_status',
+            'post_mime_type',
+            'mime_group',
+            'mime_subgroup',
+            'parent_status',
         ];
 
         foreach ($filterableMetaKeys as $metaKey) {
@@ -352,36 +367,63 @@ class PostIndexable implements Indexable
      */
     private function buildMetaFromCache(int $postId): array
     {
-        $meta = [];
         $cachedMeta = wp_cache_get($postId, 'post_meta');
 
         if ($cachedMeta === false) {
-            // Fallback to regular queries
-            foreach ($this->metaKeys as $key) {
-                $value = get_post_meta($postId, $key, true);
-                if ($value === '' || $value === null) {
-                    continue;
-                }
-                // Skip INF, -INF, and NAN values as they cannot be JSON encoded
-                $meta[$key] = (is_numeric($value) && is_finite((float) $value)) ? $value + 0 : $value;
+            return $this->metaFromDatabase($postId);
+        }
+
+        $meta = [];
+
+        foreach ($this->metaKeys as $key) {
+            if (! isset($cachedMeta[$key]) || ! is_array($cachedMeta[$key]) || $cachedMeta[$key] === []) {
+                continue;
             }
-        } else {
-            foreach ($this->metaKeys as $key) {
-                if (! isset($cachedMeta[$key])) {
-                    continue;
-                }
 
-                $value = maybe_unserialize($cachedMeta[$key][0] ?? '');
-                if ($value === '' || $value === null) {
-                    continue;
-                }
+            $meta[$key] = self::documentValue($key, array_map('maybe_unserialize', array_values($cachedMeta[$key])));
+        }
 
-                // Skip INF, -INF, and NAN values as they cannot be JSON encoded
-                $meta[$key] = (is_numeric($value) && is_finite((float) $value)) ? $value + 0 : $value;
+        return $meta;
+    }
+
+    /**
+     * The metas of a post, read one key at a time.
+     *
+     * @return array<string, mixed>
+     */
+    private function metaFromDatabase(int $postId): array
+    {
+        $meta = [];
+
+        foreach ($this->metaKeys as $key) {
+            $values = get_post_meta($postId, $key, false);
+
+            if (is_array($values) && $values !== []) {
+                $meta[$key] = self::documentValue($key, array_values($values));
             }
         }
 
         return $meta;
+    }
+
+    /**
+     * What a document holds for a meta key, from every value the post has (schema 4).
+     *
+     * One value as it is, several as a list, as MySQL has one row per value;
+     * numbers as numbers; an empty value too, since MySQL has its row. What
+     * the values are like is noted for queries (MetaValueFlags).
+     *
+     * @param  list<mixed>  $values  Unserialized
+     * @param  'post'|'term'  $objectType  Whose meta
+     */
+    public static function documentValue(string $key, array $values, string $objectType = 'post'): mixed
+    {
+        MetaValueFlags::note($key, $values, $objectType);
+
+        // INF, -INF and NAN cannot be JSON encoded: kept as text
+        $values = array_map(static fn (mixed $value) => is_numeric($value) && is_finite((float) $value) ? $value + 0 : $value, $values);
+
+        return count($values) === 1 ? $values[0] : $values;
     }
 
     /**
@@ -431,7 +473,10 @@ class PostIndexable implements Indexable
         $document['taxonomies'] = $this->groupedByTaxonomy($document['terms']);
         $document['metas'] = $this->getMetaData($item);
 
-        return apply_filters('meiliscout/post/document', $document, $item);
+        $filtered = apply_filters('meiliscout/post/document', $document, $item);
+        MetaValueFlags::noteAltered($document['metas'], is_array($filtered) ? (array) ($filtered['metas'] ?? []) : []);
+
+        return $filtered;
     }
 
     /**
@@ -472,6 +517,23 @@ class PostIndexable implements Indexable
         }
 
         $fields['post_title_sort'] = self::titleSortKey((string) $post->post_title);
+
+        // An attachment's type, by group (post_mime_type LIKE 'image/%'), and its parent's status, which WordPress reads for 'inherit'
+        $mimeType = (string) $post->post_mime_type;
+
+        if ($mimeType !== '') {
+            [$group, $subgroup] = array_pad(explode('/', strtolower($mimeType), 2), 2, '');
+            $fields['mime_group'] = $group;
+            $fields['mime_subgroup'] = $subgroup;
+        }
+
+        if ((int) $post->post_parent > 0) {
+            $parentStatus = get_post_status((int) $post->post_parent);
+
+            if (is_string($parentStatus)) {
+                $fields['parent_status'] = $parentStatus;
+            }
+        }
 
         return $fields;
     }
@@ -600,23 +662,6 @@ class PostIndexable implements Indexable
             $this->metaKeys = $this->resolveMetaKeys([$post->post_type]);
         }
 
-        $meta = [];
-        foreach ($this->metaKeys as $key) {
-            $value = get_post_meta($post->ID, $key, true);
-
-            if ($value === '' || $value === null) {
-                continue;
-            }
-
-            // Automatic casting of numeric values
-            // Skip INF, -INF, and NAN values as they cannot be JSON encoded
-            if (is_numeric($value) && is_finite((float) $value)) {
-                $meta[$key] = $value + 0;
-            } else {
-                $meta[$key] = $value;
-            }
-        }
-
-        return $meta;
+        return $this->metaFromDatabase($post->ID);
     }
 }

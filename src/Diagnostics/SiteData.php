@@ -75,6 +75,11 @@ final class SiteData
             'month' => $firstDate !== '' ? (int) substr($firstDate, 5, 2) : 0,
             'day' => $firstDate !== '' ? (int) substr($firstDate, 8, 2) : 0,
             'week' => $firstDate !== '' ? (int) gmdate('W', (int) strtotime($firstDate)) : 0,
+            'title' => $title !== '' ? $title : null,
+            'multivalued_meta' => self::multivaluedMeta(),
+            'structured_meta' => self::structuredMeta(),
+            'empty_meta' => self::emptyMeta(),
+            'attachment' => self::attachment(),
             'search_word' => $words[0] ?? null,
             'search_phrase' => count($words) >= 2 ? $words[0].' '.$words[1] : null,
         ];
@@ -235,6 +240,117 @@ final class SiteData
         }
 
         return 'text';
+    }
+
+    /**
+     * An indexed meta key some published post has several values of, with one of them.
+     *
+     * @return array{key: string, type: string, value: string, other: string, has_empty: bool}|null
+     */
+    private static function multivaluedMeta(): ?array
+    {
+        global $wpdb;
+
+        foreach ((array) Settings::get('indexed_meta_keys', []) as $key) {
+            $row = $wpdb->get_row($wpdb->prepare(
+                "SELECT pm.post_id, p.post_type FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = %s AND p.post_status = 'publish' GROUP BY pm.post_id, p.post_type HAVING COUNT(*) > 1 LIMIT 1",
+                $key
+            ));
+
+            if ($row === null) {
+                continue;
+            }
+
+            $values = array_map('strval', (array) get_post_meta((int) $row->post_id, (string) $key, false));
+            $hasEmpty = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = ''", $key)) > 0;
+
+            return ['key' => (string) $key, 'type' => (string) $row->post_type, 'value' => $values[1] ?? '', 'other' => $values[0] ?? '', 'has_empty' => $hasEmpty];
+        }
+
+        return null;
+    }
+
+    /**
+     * An indexed meta key with one value per post, one of them empty.
+     *
+     * @return array{key: string, type: string}|null
+     */
+    private static function emptyMeta(): ?array
+    {
+        global $wpdb;
+
+        foreach ((array) Settings::get('indexed_meta_keys', []) as $key) {
+            $type = $wpdb->get_var($wpdb->prepare(
+                "SELECT p.post_type FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = %s AND p.post_status = 'publish' AND pm.meta_value = '' LIMIT 1",
+                $key
+            ));
+            $multiple = $wpdb->get_var($wpdb->prepare(
+                "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s GROUP BY post_id HAVING COUNT(*) > 1 LIMIT 1",
+                $key
+            ));
+
+            if (is_string($type) && $multiple === null) {
+                return ['key' => (string) $key, 'type' => $type];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * An attachment with a published parent, and a term of a taxonomy attachments share, with attachments.
+     *
+     * @return array{id: int, slug: string, parent: int, taxonomy: string|null, term: string|null}|null
+     */
+    private static function attachment(): ?array
+    {
+        global $wpdb;
+
+        $row = $wpdb->get_row("SELECT a.ID, a.post_name, a.post_parent FROM {$wpdb->posts} a JOIN {$wpdb->posts} p ON p.ID = a.post_parent
+            WHERE a.post_type = 'attachment' AND a.post_status = 'inherit' AND p.post_status = 'publish' ORDER BY a.ID LIMIT 1");
+
+        if ($row === null) {
+            return null;
+        }
+
+        $term = $wpdb->get_row("SELECT tt.taxonomy, t.slug FROM {$wpdb->term_relationships} tr
+            JOIN {$wpdb->term_taxonomy} tt USING (term_taxonomy_id) JOIN {$wpdb->terms} t USING (term_id)
+            JOIN {$wpdb->posts} a ON a.ID = tr.object_id
+            WHERE a.post_type = 'attachment' AND tt.taxonomy NOT IN ('category', 'post_tag') LIMIT 1");
+
+        return [
+            'id' => (int) $row->ID,
+            'slug' => (string) $row->post_name,
+            'parent' => (int) $row->post_parent,
+            'taxonomy' => $term !== null ? (string) $term->taxonomy : null,
+            'term' => $term !== null ? (string) $term->slug : null,
+        ];
+    }
+
+    /**
+     * An indexed meta key with serialized values.
+     *
+     * @return array{key: string, type: string}|null
+     */
+    private static function structuredMeta(): ?array
+    {
+        global $wpdb;
+
+        foreach ((array) Settings::get('indexed_meta_keys', []) as $key) {
+            $type = $wpdb->get_var($wpdb->prepare(
+                "SELECT p.post_type FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = %s AND p.post_status = 'publish' AND pm.meta_value LIKE 'a:%%' LIMIT 1",
+                $key
+            ));
+
+            if (is_string($type)) {
+                return ['key' => (string) $key, 'type' => $type];
+            }
+        }
+
+        return null;
     }
 
     /**

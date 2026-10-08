@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Query\Builders\Concerns\FormatsValues;
 use Pollora\MeiliScout\Query\QueryVars;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\IndexNames;
 
 /**
- * Filters on the post's own fields: id, slug, parent, author, password, comment count, menu order.
+ * Filters on the post's own fields: id, slug, title, parent, author, password, comments, menu order.
  *
  * The arguments are read as WP_Query::get_posts() reads them, precedence
  * included: p wins over post__in, which wins over post__not_in; name over
@@ -32,7 +33,13 @@ class PostFieldsBuilder implements QueryBuilderInterface
         'post_parent', 'post_parent__in', 'post_parent__not_in',
         'author', 'author__in', 'author__not_in', 'author_name',
         'has_password', 'comment_count', 'menu_order',
+        ...self::V4_VARS,
     ];
+
+    /**
+     * The arguments that need the posts index in schema 4, where their fields are filterable.
+     */
+    private const V4_VARS = ['title', 'comment_status', 'ping_status', 'post_mime_type', 'attachment', 'attachment_id', 'subpost', 'subpost_id'];
 
     /**
      * @param  array<string, mixed>  $searchParams
@@ -48,12 +55,24 @@ class PostFieldsBuilder implements QueryBuilderInterface
             $this->commentCount($query),
             $this->menuOrder($query),
         ]));
+        $v4Filters = array_values(array_filter([
+            $this->mimeType($query),
+            $this->title($query),
+            $this->status($query, 'comment_status'),
+            $this->status($query, 'ping_status'),
+        ]));
+
+        if ($v4Filters !== [] && IndexNames::activeSchema('posts') < 4) {
+            throw new UnsupportedQuery('schema_too_old');
+        }
+
+        $filters = [...$filters, ...$v4Filters];
 
         if ($filters === []) {
             return;
         }
 
-        if (IndexNames::activeSchema() < 3) {
+        if (IndexNames::activeSchema('posts') < 3) {
             throw new UnsupportedQuery('schema_too_old');
         }
 
@@ -62,9 +81,92 @@ class PostFieldsBuilder implements QueryBuilderInterface
         }
     }
 
+    /**
+     * post_mime_type, as wp_post_mime_type_where() turns it into LIKE patterns: by group, subgroup or whole type.
+     */
+    private function mimeType(QueryInterface $query): ?string
+    {
+        $mimeTypes = $query->get('post_mime_type');
+
+        if ($mimeTypes === null || $mimeTypes === '') {
+            return null;
+        }
+
+        $mimeTypes = is_string($mimeTypes) ? array_map('trim', explode(',', $mimeTypes)) : (array) $mimeTypes;
+        $clauses = [];
+
+        foreach ($mimeTypes as $mimeType) {
+            $mimeType = (string) preg_replace('/\s/', '', (string) $mimeType);
+
+            // A wildcard: no restriction at all
+            if (in_array($mimeType, ['', '%', '%/%'], true)) {
+                return null;
+            }
+
+            $slash = strpos($mimeType, '/');
+
+            if ($slash !== false) {
+                $group = (string) preg_replace('/[^-*.a-zA-Z0-9]/', '', substr($mimeType, 0, $slash));
+                $subgroup = str_replace('/', '', (string) preg_replace('/[^-*.+a-zA-Z0-9]/', '', substr($mimeType, $slash + 1)));
+                $pattern = $group.'/'.($subgroup === '' ? '*' : $subgroup);
+            } else {
+                $pattern = (string) preg_replace('/[^-*.a-zA-Z0-9]/', '', $mimeType);
+                $pattern .= str_contains($pattern, '*') ? '' : '/*';
+            }
+
+            $pattern = (string) preg_replace('/\*+/', '%', $pattern);
+            [$group, $subgroup] = array_pad(explode('/', $pattern, 2), 2, null);
+
+            $clauses[] = match (true) {
+                ! str_contains($pattern, '%') => 'post_mime_type = '.$this->quote($pattern),
+                $pattern === '%' => null,
+                $subgroup === '%' && ! str_contains($group, '%') => 'mime_group = '.$this->quote($group),
+                $group === '%' && $subgroup !== null && ! str_contains($subgroup, '%') => 'mime_subgroup = '.$this->quote($subgroup),
+                default => throw new UnsupportedQuery('unsupported_arg:post_mime_type'),
+            };
+
+            // LIKE '%' matches every post
+            if (end($clauses) === null) {
+                return null;
+            }
+        }
+
+        return '('.implode(' OR ', $clauses).')';
+    }
+
+    /**
+     * title: the title as a whole, compared as MySQL's collation compares it (case and accents aside).
+     */
+    private function title(QueryInterface $query): ?string
+    {
+        $title = $this->string($query->get('title'));
+
+        if ($title === '') {
+            return null;
+        }
+
+        // WP_Query compares the title unslashed
+        return 'post_title_sort = '.$this->quote(PostIndexable::titleSortKey(stripslashes($title)));
+    }
+
+    /**
+     * comment_status or ping_status: open or closed.
+     */
+    private function status(QueryInterface $query, string $field): ?string
+    {
+        $status = $this->string($query->get($field));
+
+        return $status === '' ? null : "{$field} = ".$this->quote($status);
+    }
+
     private function slug(QueryInterface $query): ?string
     {
         $name = $this->string($query->get('name'));
+
+        // WordPress turned attachment (and subpost) into name
+        if ($name === '' && QueryVars::wp($query) === null) {
+            $name = $this->string($query->get('attachment')) ?: $this->string($query->get('subpost'));
+        }
         $pagename = $this->string($query->get('pagename'));
 
         // WordPress turned pagename into the page's id, and its last segment into name
@@ -161,9 +263,10 @@ class PostFieldsBuilder implements QueryBuilderInterface
     {
         $p = abs((int) $query->get('p'));
 
-        // WordPress copies page_id into p
-        if ($p === 0 && QueryVars::wp($query) === null) {
-            $p = abs((int) $query->get('page_id'));
+        // WordPress copies page_id, and attachment_id (or subpost_id), into p
+        if (QueryVars::wp($query) === null) {
+            $attachment = abs((int) ($query->get('attachment_id') ?: $query->get('subpost_id')));
+            $p = $attachment ?: ($p ?: abs((int) $query->get('page_id')));
         }
 
         if ($p > 0) {

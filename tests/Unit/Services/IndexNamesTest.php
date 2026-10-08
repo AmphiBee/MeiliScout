@@ -31,7 +31,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
 
     test('a new site searches the target indexes, in the current format, with nothing to migrate', function () {
         expect(IndexNames::active('posts'))->toBe('example_test_posts')
-            ->and(IndexNames::activeSchema())->toBe(IndexNames::SCHEMA_VERSION)
+            ->and(IndexNames::activeSchema())->toBe(IndexNames::schemaVersion('posts'))
             ->and(IndexNames::migrationPending())->toBeFalse()
             ->and(IndexNames::mirrorOf('example_test_posts'))->toBeNull();
     });
@@ -73,7 +73,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
         IndexNames::activate();
 
         expect(IndexNames::active('posts'))->toBe('example_test_posts')
-            ->and(IndexNames::activeSchema())->toBe(IndexNames::SCHEMA_VERSION)
+            ->and(IndexNames::activeSchema())->toBe(IndexNames::schemaVersion('posts'))
             ->and(IndexNames::migrationPending())->toBeFalse()
             ->and(IndexNames::mirrorOf('example_test_posts'))->toBeNull()
             ->and(IndexNames::legacyIndexes())->toBe(['posts', 'taxonomies']);
@@ -91,6 +91,40 @@ namespace Pollora\MeiliScout\Tests\Unit\Services {
             ->and(IndexNames::mirrorOf('renamed_posts'))->toBe('example_test_posts');
 
         putenv('MEILI_INDEX_PREFIX');
+    });
+
+    test('each index has its own format version, read from the single version recorded up to schema 3', function () {
+        update_option('meiliscout/active_indexes', ['posts' => 'example_test_posts', 'taxonomies' => 'example_test_taxonomies']);
+        update_option('meiliscout/schema_version', 3);
+
+        expect(IndexNames::activeSchema('posts'))->toBe(3)
+            ->and(IndexNames::activeSchema('taxonomies'))->toBe(3);
+    });
+
+    test('a full indexation moves only the indexes it built to the current format', function () {
+        update_option('meiliscout/active_indexes', ['posts' => 'example_test_posts', 'taxonomies' => 'example_test_taxonomies']);
+        update_option('meiliscout/schema_version', ['posts' => 0, 'taxonomies' => 0]);
+
+        expect(IndexNames::pendingBases())->toBe(['posts', 'taxonomies']);
+
+        IndexNames::activate(['taxonomies']);
+
+        expect(IndexNames::activeSchema('taxonomies'))->toBe(IndexNames::schemaVersion('taxonomies'))
+            ->and(IndexNames::activeSchema('posts'))->toBe(0)
+            ->and(IndexNames::pendingBases())->toBe(['posts'])
+            ->and(IndexNames::migrationPending())->toBeTrue();
+    });
+
+    test('a site indexed before 2.0 that rebuilt one index keeps reading the legacy other one', function () {
+        indexedBefore20();
+
+        IndexNames::activate(['posts']);
+
+        expect(IndexNames::active('posts'))->toBe('example_test_posts')
+            ->and(IndexNames::active('taxonomies'))->toBe('taxonomies')
+            ->and(IndexNames::activeSchema('taxonomies'))->toBe(1)
+            ->and(IndexNames::pendingBases())->toBe(['taxonomies'])
+            ->and(IndexNames::legacyIndexes())->toBe(['posts']);
     });
 
     test('an index being rebuilt is written under its temporary name only', function () {

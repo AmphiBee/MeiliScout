@@ -12,7 +12,19 @@
 - Settings › Queries serves the site search, archives, REST searches and admin lists without `use_meilisearch` (all off by default).
 - Content › Index private content (off by default): logged-in users get the private posts they may read.
 - Debugging: `$query->meiliscout`, the `X-MeiliScout` header, a Query Monitor panel, Search preview › WP_Query arguments, fallbacks by reason on the overview, `wp meiliscout check-queries`.
+- A plugin restricting posts through `posts_where`, `posts_clauses` and the other SQL filters sends the query to MySQL (`sql_filter:<hook>`), unless declared with `meiliscout/ignored_sql_filters`.
+- `title`, `comment_status` and `ping_status` are translated (schema 4). Every value of a meta key is indexed, empty ones included; a comparison Meilisearch would make otherwise on a key's values (a negation over several values, serialized values, text in a numeric comparison) runs on MySQL.
+- Media can be indexed (Content › Post types): attachments with their `inherit` status, their parent's status and their mime group; `post_mime_type`, `attachment`, `attachment_id` and the media library are served.
+- A single post's query gets every status the index holds, as WordPress checks the status after the query.
+- The integration suite checks that every `WP_Query` argument is translated or falls back with a case of its own.
+
+### get_terms()
+
+- `get_terms()` (`WP_Term_Query`) is served from the taxonomies index with `'use_meilisearch' => true`, or for the editor's term searches, REST term searches and admin term lists (Settings › Queries, off by default). Translate or fall back, as for posts: every argument, `child_of`, `pad_counts`, `hide_empty` on hierarchical taxonomies, `fields`, `object_ids` (through the posts index), metas, the plugins' SQL filters. See [docs/TERM_QUERY.md](docs/TERM_QUERY.md).
+- Term meta keys are selected apart from the posts' (Content › Term fields); they used to take the posts' selection.
+- Term counts are kept fresh, with their ancestors' tree counts; a full indexation no longer applies a chunk's offset to each taxonomy, nor creates the taxonomies index twice.
+- `wp meiliscout check-queries --terms`, and a get_terms() mode in Search preview › Query arguments.
 
 ### Upgrading
 
-The documents change (schema 3). Nothing breaks on update: queries that need the new fields run on MySQL until a full indexation rebuilds the indexes, which the admin asks for. See [docs/FILTERS.md](docs/FILTERS.md#upgrading-to-20).
+The documents change (posts and terms: schema 4; each index now has its own version, so a later change to one index only rebuilds that one). Nothing breaks on update: queries that need the new fields run on MySQL until a full indexation rebuilds the indexes, which the admin asks for. See [docs/FILTERS.md](docs/FILTERS.md#upgrading-to-20).

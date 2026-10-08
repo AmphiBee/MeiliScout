@@ -11,9 +11,9 @@ use function get_transient;
 use function set_transient;
 
 /**
- * The meta keys of the posts that can be indexed, for the admin to pick from.
+ * The meta keys of the posts, or of the terms, that can be indexed, for the admin to pick from.
  *
- * Counting them reads the whole postmeta table: the list is cached for an hour.
+ * Counting them reads the whole postmeta (termmeta) table: the list is cached for an hour.
  */
 final class MetaKeyCatalog
 {
@@ -30,6 +30,8 @@ final class MetaKeyCatalog
     public const TYPE_EMPTY = 'empty';
 
     private const CACHE_KEY = 'meiliscout_meta_keys_';
+
+    private const TERM_CACHE_KEY = 'meiliscout_term_meta_keys_';
 
     private const CACHE_TTL = 3600;
 
@@ -97,20 +99,73 @@ final class MetaKeyCatalog
     }
 
     /**
+     * The meta keys of the terms of these taxonomies, most used first.
+     *
+     * @param  list<string>  $taxonomies
+     * @return list<array{key: string, terms: int, taxonomies: array<string, int>}>
+     */
+    public function termKeys(array $taxonomies): array
+    {
+        if ($taxonomies === []) {
+            return [];
+        }
+
+        sort($taxonomies);
+        $cacheKey = self::TERM_CACHE_KEY.md5(implode(',', $taxonomies));
+        $cached = get_transient($cacheKey);
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        global $wpdb;
+
+        $rows = $wpdb->get_results($wpdb->prepare(
+            sprintf(
+                "SELECT tm.meta_key, tt.taxonomy, COUNT(DISTINCT tt.term_id) AS terms
+                 FROM {$wpdb->termmeta} tm
+                 INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_id = tm.term_id
+                 WHERE tt.taxonomy IN (%s)
+                 GROUP BY tm.meta_key, tt.taxonomy",
+                implode(',', array_fill(0, count($taxonomies), '%s'))
+            ),
+            ...$taxonomies
+        ), ARRAY_A);
+
+        $keys = [];
+
+        foreach ((array) $rows as $row) {
+            $key = (string) $row['meta_key'];
+            $keys[$key] ??= ['key' => $key, 'terms' => 0, 'taxonomies' => []];
+            $keys[$key]['terms'] += (int) $row['terms'];
+            $keys[$key]['taxonomies'][(string) $row['taxonomy']] = (int) $row['terms'];
+        }
+
+        $keys = array_values($keys);
+        usort($keys, static fn (array $a, array $b) => [$b['terms'], $a['key']] <=> [$a['terms'], $b['key']]);
+
+        set_transient($cacheKey, $keys, self::CACHE_TTL);
+
+        return $keys;
+    }
+
+    /**
      * The type of each key, guessed from some of its values.
      *
      * @param  list<string>  $keys
+     * @param  'post'|'term'  $objectType  Whose metas
      * @return array<string, string>
      */
-    public function types(array $keys): array
+    public function types(array $keys, string $objectType = 'post'): array
     {
         global $wpdb;
 
+        $table = $objectType === 'term' ? $wpdb->termmeta : $wpdb->postmeta;
         $types = [];
 
         foreach ($keys as $key) {
             $values = $wpdb->get_col($wpdb->prepare(
-                "SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value <> '' LIMIT %d",
+                "SELECT meta_value FROM {$table} WHERE meta_key = %s AND meta_value <> '' LIMIT %d",
                 $key,
                 self::SAMPLE_SIZE
             ));

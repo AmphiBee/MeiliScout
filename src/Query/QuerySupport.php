@@ -20,6 +20,9 @@ use function apply_filters;
  * to MySQL, with the reason. An unknown query var is no exception: it may be
  * a plugin's, read in a posts_where filter Meilisearch never sees.
  *
+ * A plugin that changed the query's SQL through a filter (posts_where...)
+ * sends it to MySQL too: see SqlFilters.
+ *
  * Statuses and post types are checked against what the index holds: a query
  * for drafts, or one that includes private posts for a logged-in user, runs
  * on MySQL when the site has such posts.
@@ -44,6 +47,37 @@ final class QuerySupport
         'suppress_filters', 'cache_results', 'update_post_term_cache', 'update_post_meta_cache', 'lazy_load_term_meta',
         'update_menu_item_cache', 'ignore_sticky_posts', 'caller_get_posts', 'comments_per_page', 'page', 'cpage',
         'error', 'preview', 'feed', 'tb', 'embed', 'comments_popup',
+        // Public query vars WP_Query never reads; withoutcomments only matters for a single post's comment feed
+        'posts', 'search', 'calendar', 'more', 'pb', 'withoutcomments',
+    ];
+
+    /**
+     * The WP_Query arguments nothing translates, which send a query to MySQL, with an example.
+     *
+     * Each is a case of the parity harness, which checks that it falls back;
+     * the integration suite checks that every argument WordPress knows is
+     * either translated or listed here.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    public const UNTRANSLATED = [
+        // Permissions and passwords: not in the documents
+        'perm' => ['perm' => 'readable'],
+        'post_password' => ['post_password' => 'secret'],
+        // A search on the whole title or content, LIKE without %
+        'exact' => ['s' => 'word', 'exact' => true],
+        // Operators on meta keys
+        'meta_compare_key' => ['meta_key' => 'key', 'meta_compare_key' => 'LIKE'],
+        'meta_type_key' => ['meta_key' => 'key', 'meta_type_key' => 'BINARY'],
+        // A comment feed of several posts: the posts commented last
+        'withcomments' => ['feed' => 'rss2', 'withcomments' => 1],
+        // Requests for something other than posts
+        'robots' => ['robots' => 1],
+        'favicon' => ['favicon' => 1],
+        'sitemap' => ['sitemap' => 'posts'],
+        'sitemap-subtype' => ['sitemap-subtype' => 'post'],
+        'sitemap-stylesheet' => ['sitemap-stylesheet' => 'sitemap'],
+        'rest_route' => ['rest_route' => '/wp/v2/posts'],
     ];
 
     /**
@@ -65,7 +99,18 @@ final class QuerySupport
      */
     public static function check(QueryInterface $query): ?string
     {
-        return self::unsupportedVar($query) ?? self::unindexedStatus($query) ?? self::unindexedType($query);
+        return self::unsupportedVar($query) ?? self::sqlFilter($query) ?? self::unindexedStatus($query) ?? self::unindexedType($query);
+    }
+
+    /**
+     * A filter a plugin changed the query's SQL with: Meilisearch would not apply the change.
+     */
+    private static function sqlFilter(QueryInterface $query): ?string
+    {
+        $wp = QueryVars::wp($query);
+        $hook = $wp !== null ? SqlFilters::changedBy($wp) : null;
+
+        return $hook !== null ? 'sql_filter:'.$hook : null;
     }
 
     /**
@@ -89,6 +134,18 @@ final class QuerySupport
         }
 
         return null;
+    }
+
+    /**
+     * The query vars translated by the builders, or that do not change which posts come back.
+     *
+     * A post type's or a taxonomy's own query var is translated too, once WordPress parsed it.
+     *
+     * @return list<string>
+     */
+    public static function translatedVars(): array
+    {
+        return [...self::HANDLED, ...PostFieldsBuilder::VARS, ...DateQueryBuilder::VARS, ...self::TAXONOMY_SHORTCUTS];
     }
 
     /**
@@ -155,7 +212,7 @@ final class QuerySupport
         $indexed = PostIndexable::queryableStatuses();
         $requested = self::requestedStatuses($query);
 
-        if (self::singularUnindexed($query, array_values(array_intersect($requested['statuses'], $indexed)))) {
+        if (self::singularUnindexed($query, $indexed)) {
             return 'unindexed_status:singular';
         }
 
@@ -182,13 +239,13 @@ final class QuerySupport
     }
 
     /**
-     * A single post asked for, that exists with a status the query does not get from the index.
+     * A single post asked for, that exists with a status the index does not hold.
      *
      * WordPress does not filter a single post on its status in SQL: it shows a
      * draft or a private post to whoever may read it, after the query, and
      * counts it in found_posts even for those who may not.
      *
-     * @param  list<string>  $indexed  The statuses the query gets from the index
+     * @param  list<string>  $indexed  The statuses the index holds every post of
      */
     private static function singularUnindexed(QueryInterface $query, array $indexed): bool
     {

@@ -141,3 +141,27 @@ Aucun argument documenté n'est ignoré en silence : ce qui n'est pas traduit to
    - `activeSchema($base)` et `migrationPending()` se lisent index par index, et une indexation complète n'active que les index qu'elle a reconstruits ;
    - passer les termes en v4 n'impose pas de réindexer les articles ;
    - à faire en T1, avant le schéma 4 des termes.
+
+## 4. Bilan de l'exécution (2026-10-08)
+
+Branche `feat/term-query`, partie de `feat/wp-query-parity`, un commit par étape.
+
+| Étape | Commit | Livré |
+|---|---|---|
+| T1 | `65b00a2` | Version de schéma par index (`SCHEMA_VERSIONS`, lecture de l'ancien entier, activation des seuls index reconstruits). Métas de termes à part (`indexed_term_meta_keys`, écran Contenus › Champs des termes, clés manquées des requêtes de termes). `getItems()` pagine sur l'ensemble des taxonomies. Compteurs réindexés sur `edited_term_taxonomy`. Index créé une seule fois par indexation complète |
+| Audit § 2 | `cc273d4` | 2.1 : `SqlFilters` compare ce que chaque filtre SQL reçoit et renvoie ; repli `sql_filter:<hook>` seulement si un callback a changé la requête, `meiliscout/ignored_sql_filters`. 2.2 : requêtes principales vérifiées (`X-MeiliScout`), toutes servies. 2.3 : `QuerySupport::UNTRANSLATED` (un cas de banc FALLBACK par argument) et test d'intégration qui parcourt `fill_query_vars()` + variables publiques et privées + la doc ; il a trouvé `withcomments` (repli) et des variables publiques héritées sans effet. 2.4 : `title`, `comment_status`, `ping_status` traduits ; `post_password` reste en repli (rien de sûr à indexer). 2.5 : schéma 4 des articles (toutes les valeurs, `''` gardé, `IS EMPTY`, `TO` pour `BETWEEN`), `MetaValueFlags` et replis `multivalued_meta`, `structured_meta`, `meta_not_numeric` |
+| T0, T2, T3 | `cee802b` | `TermQueryIntegration` sur `terms_pre_query`, `TermQueryBuilder` / `TermQueryPlan` / `TermResults` (post-traitement de WordPress avec ses propres fonctions, clés de tableau comprises), `TermSqlFilters` (pile de frames, les filtres ne reçoivent pas la requête), schéma 4 des termes (`name_sort`, `description_fold`, `description_sort`, `tree_count`), ancêtres réindexés. Banc `check-queries --terms` |
+| T4 | `fa726f7` | `object_ids` via l'index des articles (`ObjectTerms`) ; un article dont les termes changent hors sauvegarde est réindexé (`set_object_terms`, `deleted_term_relationships`) |
+| T5 | `ebb9fc5` | Réglages › Requêtes › Requêtes de termes, Query Monitor, testeur get_terms(), `docs/TERM_QUERY.md`, traductions |
+
+**Écarts au plan :**
+- `ancestors` et `has_children` ne sont pas indexés : `child_of`, `exclude_tree` et `childless` reprennent ce que WordPress a calculé (exclusions lues dans la requête, `_get_term_children()` sur la liste), ce qui garde aussi les clés de tableau. Seul `tree_count` est indexé, pour `hide_empty` hiérarchique.
+- `count_with_children` n'est pas indexé : `pad_counts` dépend des termes du résultat, il est calculé par `_pad_term_counts()` comme dans WordPress.
+- Les arguments inconnus de `WP_Term_Query` ne provoquent pas de repli (au contraire de `WP_Query`) : seuls les filtres SQL peuvent les exploiter, et ils sont surveillés.
+- `object_ids` est traduit dès T4, comme décidé, avec un repli si l'article n'est pas d'un type de la taxonomie.
+
+**État mesuré sur la démo :** articles 141 OK, 38 replis voulus, 7 INFO, 0 DIFF ; termes 75 OK, 12 replis voulus, 1 INFO (recherche sans CONTAINS), 0 DIFF. Tests : 276 unitaires, 285 d'intégration, PHPStan propre.
+
+**Points restés ouverts, traités ensuite :**
+- 2.7, Redis : add-on DDEV et Redis Object Cache sur la démo. Bancs et suite d'intégration identiques, à froid et à chaud, sauf un cas : WordPress numérote autrement les termes de `pad_counts` selon qu'il lit son cache ou non ; MeiliScout renvoie la forme du cache (`ffb727f`).
+- 2.6, pièces jointes : Médias sélectionnables dans Contenus ; statut `inherit`, statut du parent (`parent_status`) et groupe MIME indexés ; jointure du statut du parent émulée sur les archives de taxonomie ; `post_mime_type`, `attachment`, `attachment_id`, `subpost(_id)` traduits ; hooks `add_attachment` et `edit_attachment`, pièces jointes réindexées quand le statut du parent change. Une requête singulière demande désormais tous les statuts de l'index, WordPress contrôlant le statut après la requête.

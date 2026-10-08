@@ -61,6 +61,8 @@ if (! class_exists('WP_Post', false)) {
             public string $post_content = '',
             public string $post_excerpt = '',
             public string $post_password = '',
+            public int $post_parent = 0,
+            public string $post_mime_type = '',
         ) {}
     }
 }

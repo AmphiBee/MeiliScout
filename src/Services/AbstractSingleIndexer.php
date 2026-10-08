@@ -525,6 +525,17 @@ abstract class AbstractSingleIndexer
     }
 
     /**
+     * Records that an index exists, created by someone else (a full indexation).
+     *
+     * Meilisearch creates an index asynchronously: asked right after, it may
+     * not know it yet, and a second creation fails with index_already_exists.
+     */
+    public static function indexCreated(string $indexName): void
+    {
+        self::$indexExistsCache[$indexName] = true;
+    }
+
+    /**
      * Clears the index existence cache.
      *
      * Call this if indexes might have been deleted externally.

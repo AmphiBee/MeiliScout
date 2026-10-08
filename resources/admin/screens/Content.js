@@ -53,40 +53,44 @@ const fromData = ( data ) => ( {
 		.filter( ( taxonomy ) => taxonomy.selected )
 		.map( ( taxonomy ) => taxonomy.name ),
 	meta_keys: data.meta_keys,
+	term_meta_keys: data.term_meta_keys,
 	searchable: data.searchable.configured,
 	index_private: data.index_private,
 } );
 
+const keysOnly = ( selection ) => ( {
+	...selection,
+	meta_keys: selection.meta_keys.map( ( key ) => key.key ),
+	term_meta_keys: selection.term_meta_keys.map( ( key ) => key.key ),
+} );
+
 const sameSelection = ( a, b ) =>
-	JSON.stringify( {
-		...a,
-		meta_keys: a.meta_keys.map( ( key ) => key.key ),
-	} ) ===
-	JSON.stringify( {
-		...b,
-		meta_keys: b.meta_keys.map( ( key ) => key.key ),
-	} );
+	JSON.stringify( keysOnly( a ) ) === JSON.stringify( keysOnly( b ) );
 
 const toggled = ( list, value, on ) =>
 	on ? [ ...list, value ] : list.filter( ( item ) => item !== value );
 
 /**
- * Where a meta key is found: "72 projects, 18 posts".
+ * Where a meta key is found: "72 projects, 18 posts", "12 categories".
  *
- * @param {Object} postTypes Counts by post type.
- * @param {Object} labels    Post type labels by name.
+ * @param {Object} key    The key, with its counts by post type or by taxonomy.
+ * @param {Object} labels Post type or taxonomy labels by name.
  * @return {string} The description.
  */
-const presence = ( postTypes, labels ) => {
-	const parts = Object.entries( postTypes ?? {} ).map(
+const presence = ( key, labels ) => {
+	const parts = Object.entries( key.post_types ?? key.taxonomies ?? {} ).map(
 		( [ type, count ] ) =>
 			number( count ) +
 			' ' +
 			( labels[ type ] ?? type ).toLocaleLowerCase()
 	);
 
-	return parts.length
-		? parts.join( ', ' )
+	if ( parts.length ) {
+		return parts.join( ', ' );
+	}
+
+	return key.taxonomies
+		? __( 'No term', 'meiliscout' )
 		: __( 'No published content', 'meiliscout' );
 };
 
@@ -115,22 +119,24 @@ const SwitchList = ( { items, selected, onToggle, meta } ) =>
 	} );
 
 /**
- * A search field listing the meta keys of the selected post types.
+ * A search field listing the meta keys of the selected post types, or taxonomies.
  *
  * @param {Object}   props
- * @param {string[]} props.postTypes Post types whose keys are listed.
- * @param {string[]} props.exclude   Keys already selected.
- * @param {number}   props.total     Number of keys in all.
- * @param {Object}   props.labels    Post type labels by name.
- * @param {Function} props.onAdd     Called with the key picked.
+ * @param {string}   props.kind    'post' or 'term'.
+ * @param {string[]} props.scope   Post types, or taxonomies, whose keys are listed.
+ * @param {string[]} props.exclude Keys already selected.
+ * @param {number}   props.total   Number of keys in all.
+ * @param {Object}   props.labels  Post type or taxonomy labels by name.
+ * @param {Function} props.onAdd   Called with the key picked.
  * @return {Element} The field.
  */
-const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
+const MetaKeyPicker = ( { kind, scope, exclude, total, labels, onAdd } ) => {
 	const [ query, setQuery ] = useState( '' );
 	const [ open, setOpen ] = useState( false );
 	const [ results, setResults ] = useState( [] );
 	const [ active, setActive ] = useState( 0 );
-	const listId = 'ms-meta-key-options';
+	const inputId = 'ms-' + kind + '-meta-key';
+	const listId = inputId + '-options';
 	const timer = useRef();
 
 	useEffect( () => {
@@ -141,8 +147,10 @@ const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
 		timer.current = setTimeout( () => {
 			get( '/meta-keys', {
 				search: query,
-				post_types: postTypes,
 				exclude,
+				...( kind === 'term'
+					? { kind, taxonomies: scope }
+					: { post_types: scope } ),
 			} )
 				.then( ( response ) => {
 					setResults( response.keys );
@@ -153,7 +161,7 @@ const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
 
 		return () => clearTimeout( timer.current );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ query, open, postTypes.join(), exclude.join() ] );
+	}, [ query, open, scope.join(), exclude.join() ] );
 
 	const add = ( key ) => {
 		onAdd( key );
@@ -162,8 +170,7 @@ const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
 	};
 
 	const typed = query.trim();
-	const addTyped = () =>
-		typed && add( { key: typed, type: null, posts: 0, post_types: {} } );
+	const addTyped = () => typed && add( { key: typed, type: null } );
 
 	const onKeyDown = ( event ) => {
 		if ( event.key === 'ArrowDown' ) {
@@ -187,13 +194,13 @@ const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
 
 	return (
 		<div className="ms-add">
-			<label htmlFor="ms-meta-key" className="ms-field__label">
+			<label htmlFor={ inputId } className="ms-field__label">
 				{ __( 'Add a field', 'meiliscout' ) }
 			</label>
 			<div className="ms-field__row ms-combobox">
 				<div>
 					<input
-						id="ms-meta-key"
+						id={ inputId }
 						className="ms-input"
 						type="text"
 						role="combobox"
@@ -203,20 +210,33 @@ const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
 						aria-autocomplete="list"
 						aria-activedescendant={
 							open && results[ active ]
-								? 'ms-meta-key-' + active
+								? inputId + '-' + active
 								: undefined
 						}
 						value={ query }
-						placeholder={ sprintf(
-							/* translators: %s: number of meta keys */
-							_n(
-								'Search the %s key of your content',
-								'Search the %s keys of your content',
-								total,
-								'meiliscout'
-							),
-							number( total )
-						) }
+						placeholder={
+							kind === 'term'
+								? sprintf(
+										/* translators: %s: number of meta keys */
+										_n(
+											'Search the %s key of your terms',
+											'Search the %s keys of your terms',
+											total,
+											'meiliscout'
+										),
+										number( total )
+								  )
+								: sprintf(
+										/* translators: %s: number of meta keys */
+										_n(
+											'Search the %s key of your content',
+											'Search the %s keys of your content',
+											total,
+											'meiliscout'
+										),
+										number( total )
+								  )
+						}
 						onChange={ ( event ) => {
 							setQuery( event.target.value );
 							setOpen( true );
@@ -237,7 +257,7 @@ const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
 							{ results.map( ( result, index ) => (
 								<li
 									key={ result.key }
-									id={ 'ms-meta-key-' + index }
+									id={ inputId + '-' + index }
 									role="option"
 									aria-selected={ index === active }
 									className="ms-combobox__option"
@@ -253,10 +273,7 @@ const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
 										{ TYPE_LABELS[ result.type ] }
 									</small>
 									<small>
-										{ presence(
-											result.post_types,
-											labels
-										) }
+										{ presence( result, labels ) }
 									</small>
 								</li>
 							) ) }
@@ -275,6 +292,134 @@ const MetaKeyPicker = ( { postTypes, exclude, total, labels, onAdd } ) => {
 		</div>
 	);
 };
+
+/**
+ * The meta keys selected for posts or for terms: suggestions, table and picker.
+ *
+ * @param {Object}   props
+ * @param {string}   props.kind      'post' or 'term'.
+ * @param {Object[]} props.keys      The keys selected.
+ * @param {string[]} props.missed    Keys queries asked for, not indexed.
+ * @param {string[]} props.scope     Post types, or taxonomies, whose keys can be picked.
+ * @param {number}   props.total     Number of keys in all.
+ * @param {Object}   props.labels    Post type or taxonomy labels by name.
+ * @param {Function} props.onAdd     Called with a key to add.
+ * @param {Function} props.onRemove  Called with a key name to remove.
+ * @param {string}   props.emptyNote Shown when no key is selected.
+ * @return {Element} The section's body.
+ */
+const MetaKeys = ( {
+	kind,
+	keys,
+	missed,
+	scope,
+	total,
+	labels,
+	onAdd,
+	onRemove,
+	emptyNote,
+} ) => (
+	<>
+		{ missed.length > 0 && (
+			<div className="ms-suggest">
+				<span className="ms-suggest__title">
+					{ kind === 'term'
+						? __(
+								'Found in your term queries, served by MySQL because they are not indexed',
+								'meiliscout'
+						  )
+						: __(
+								'Found in your queries, served by MySQL because they are not indexed',
+								'meiliscout'
+						  ) }
+				</span>
+				<div className="ms-chips">
+					{ missed.map( ( key ) => (
+						<button
+							key={ key }
+							type="button"
+							className="ms-button ms-button--small"
+							onClick={ () => onAdd( { key, type: null } ) }
+							aria-label={ sprintf(
+								/* translators: %s: a meta key */
+								__( 'Index %s', 'meiliscout' ),
+								key
+							) }
+						>
+							<span className="ms-mono">{ key }</span>
+							<span aria-hidden="true">+</span>
+						</button>
+					) ) }
+				</div>
+			</div>
+		) }
+
+		{ keys.length > 0 ? (
+			<div className="ms-table-wrap" style={ { padding: '8px 0' } }>
+				<table className="ms-table" style={ { minWidth: 560 } }>
+					<thead>
+						<tr>
+							<th scope="col">{ __( 'Key', 'meiliscout' ) }</th>
+							<th scope="col">
+								{ __( 'Detected type', 'meiliscout' ) }
+							</th>
+							<th scope="col">
+								{ __( 'Found on', 'meiliscout' ) }
+							</th>
+							<th scope="col">
+								<span className="ms-visually-hidden">
+									{ __( 'Actions', 'meiliscout' ) }
+								</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{ keys.map( ( key ) => (
+							<tr key={ key.key }>
+								<td className="ms-mono">{ key.key }</td>
+								<td>
+									{ key.type
+										? TYPE_LABELS[ key.type ]
+										: __( 'After saving', 'meiliscout' ) }
+								</td>
+								<td className="ms-table__muted">
+									{ key.type ? presence( key, labels ) : '—' }
+								</td>
+								<td className="ms-table__right">
+									<button
+										type="button"
+										className="ms-button ms-button--small"
+										onClick={ () => onRemove( key.key ) }
+										aria-label={ sprintf(
+											/* translators: %s: a meta key */
+											__( 'Remove %s', 'meiliscout' ),
+											key.key
+										) }
+									>
+										{ __( 'Remove', 'meiliscout' ) }
+									</button>
+								</td>
+							</tr>
+						) ) }
+					</tbody>
+				</table>
+			</div>
+		) : (
+			<p className="ms-inline-note" style={ { margin: '16px 24px' } }>
+				{ emptyNote }
+			</p>
+		) }
+
+		<MetaKeyPicker
+			kind={ kind }
+			scope={ scope }
+			exclude={ keys.map( ( key ) => key.key ) }
+			total={ total }
+			labels={ labels }
+			onAdd={ onAdd }
+		/>
+	</>
+);
 
 const Relevance = ( { searchable, available, suggested, onChange } ) => {
 	if ( searchable === null ) {
@@ -461,6 +606,16 @@ const Content = ( { refreshOverview } ) => {
 			),
 		[ data ]
 	);
+	const taxonomyLabels = useMemo(
+		() =>
+			Object.fromEntries(
+				( data?.taxonomies ?? [] ).map( ( taxonomy ) => [
+					taxonomy.name,
+					taxonomy.label,
+				] )
+			),
+		[ data ]
+	);
 
 	if ( resource.error && ! data ) {
 		return (
@@ -485,6 +640,10 @@ const Content = ( { refreshOverview } ) => {
 	const missed = data.missed_meta_keys.filter(
 		( key ) => ! selectedKeys.includes( key )
 	);
+	const selectedTermKeys = draft.term_meta_keys.map( ( key ) => key.key );
+	const missedTermKeys = data.missed_term_meta_keys.filter(
+		( key ) => ! selectedTermKeys.includes( key )
+	);
 
 	// The meta keys being added can be searched too
 	const available = [
@@ -507,12 +666,24 @@ const Content = ( { refreshOverview } ) => {
 				) ?? null,
 		} );
 
+	const addTermKey = ( key ) =>
+		! selectedTermKeys.includes( key.key ) &&
+		update( { term_meta_keys: [ ...draft.term_meta_keys, key ] } );
+
+	const removeTermKey = ( key ) =>
+		update( {
+			term_meta_keys: draft.term_meta_keys.filter(
+				( item ) => item.key !== key
+			),
+		} );
+
 	const save = () => {
 		setSaving( true );
 		post( '/content', {
 			post_types: draft.post_types,
 			taxonomies: draft.taxonomies,
 			meta_keys: selectedKeys,
+			term_meta_keys: selectedTermKeys,
 			searchable: draft.searchable ?? [],
 			index_private: draft.index_private,
 		} )
@@ -549,6 +720,9 @@ const Content = ( { refreshOverview } ) => {
 					</a>
 					<a href={ href( 'content', 'fields' ) }>
 						{ __( 'Custom fields', 'meiliscout' ) }
+					</a>
+					<a href={ href( 'content', 'term-fields' ) }>
+						{ __( 'Term fields', 'meiliscout' ) }
 					</a>
 					<a href={ href( 'content', 'relevance' ) }>
 						{ __( 'Relevance', 'meiliscout' ) }
@@ -611,16 +785,27 @@ const Content = ( { refreshOverview } ) => {
 								} )
 							}
 							meta={ ( type ) =>
-								sprintf(
-									/* translators: %s: number of published posts */
-									_n(
-										'%s published',
-										'%s published',
-										type.count,
-										'meiliscout'
-									),
-									number( type.count )
-								)
+								type.name === 'attachment'
+									? sprintf(
+											/* translators: %s: number of media files */
+											_n(
+												'%s file',
+												'%s files',
+												type.count,
+												'meiliscout'
+											),
+											number( type.count )
+									  )
+									: sprintf(
+											/* translators: %s: number of published posts */
+											_n(
+												'%s published',
+												'%s published',
+												type.count,
+												'meiliscout'
+											),
+											number( type.count )
+									  )
 							}
 						/>
 						<div className="ms-row">
@@ -738,150 +923,67 @@ const Content = ( { refreshOverview } ) => {
 							</p>
 						</div>
 
-						{ missed.length > 0 && (
-							<div className="ms-suggest">
-								<span className="ms-suggest__title">
-									{ __(
-										'Found in your queries, served by MySQL because they are not indexed',
-										'meiliscout'
-									) }
-								</span>
-								<div className="ms-chips">
-									{ missed.map( ( key ) => (
-										<button
-											key={ key }
-											type="button"
-											className="ms-button ms-button--small"
-											onClick={ () =>
-												addKey( {
-													key,
-													type: null,
-													posts: 0,
-													post_types: {},
-												} )
-											}
-											aria-label={ sprintf(
-												/* translators: %s: a meta key */
-												__( 'Index %s', 'meiliscout' ),
-												key
-											) }
-										>
-											<span className="ms-mono">
-												{ key }
-											</span>
-											<span aria-hidden="true">+</span>
-										</button>
-									) ) }
-								</div>
-							</div>
-						) }
+						<MetaKeys
+							kind="post"
+							keys={ draft.meta_keys }
+							missed={ missed }
+							scope={ draft.post_types }
+							total={ data.meta_key_total }
+							labels={ labels }
+							onAdd={ addKey }
+							onRemove={ removeKey }
+							emptyNote={ __(
+								'No field selected: every meta of the content is sent, private ones included. Select the ones your queries need.',
+								'meiliscout'
+							) }
+						/>
+					</section>
 
-						{ draft.meta_keys.length > 0 ? (
-							<div
-								className="ms-table-wrap"
-								style={ { padding: '8px 0' } }
-							>
-								<table
-									className="ms-table"
-									style={ { minWidth: 560 } }
-								>
-									<thead>
-										<tr>
-											<th scope="col">
-												{ __( 'Key', 'meiliscout' ) }
-											</th>
-											<th scope="col">
-												{ __(
-													'Detected type',
-													'meiliscout'
-												) }
-											</th>
-											<th scope="col">
-												{ __(
-													'Found on',
-													'meiliscout'
-												) }
-											</th>
-											<th scope="col">
-												<span className="ms-visually-hidden">
-													{ __(
-														'Actions',
-														'meiliscout'
-													) }
-												</span>
-											</th>
-										</tr>
-									</thead>
-									<tbody>
-										{ draft.meta_keys.map( ( key ) => (
-											<tr key={ key.key }>
-												<td className="ms-mono">
-													{ key.key }
-												</td>
-												<td>
-													{ key.type
-														? TYPE_LABELS[
-																key.type
-														  ]
-														: __(
-																'After saving',
-																'meiliscout'
-														  ) }
-												</td>
-												<td className="ms-table__muted">
-													{ key.type
-														? presence(
-																key.post_types,
-																labels
-														  )
-														: '—' }
-												</td>
-												<td className="ms-table__right">
-													<button
-														type="button"
-														className="ms-button ms-button--small"
-														onClick={ () =>
-															removeKey( key.key )
-														}
-														aria-label={ sprintf(
-															/* translators: %s: a meta key */
-															__(
-																'Remove %s',
-																'meiliscout'
-															),
-															key.key
-														) }
-													>
-														{ __(
-															'Remove',
-															'meiliscout'
-														) }
-													</button>
-												</td>
-											</tr>
-										) ) }
-									</tbody>
-								</table>
-							</div>
+					<section
+						id="term-fields"
+						className="ms-card"
+						aria-labelledby="ms-term-fields-title"
+					>
+						<div className="ms-card__head">
+							<h2 id="ms-term-fields-title">
+								{ __( 'Term fields', 'meiliscout' ) }
+							</h2>
+							<p>
+								{ createInterpolateElement(
+									__(
+										'The term metas added here are sent with each term of the indexed taxonomies, and can be used in the <code>meta_query</code> of a term query and to sort it.',
+										'meiliscout'
+									),
+									{ code: <code /> }
+								) }
+							</p>
+						</div>
+						{ draft.taxonomies.length > 0 ? (
+							<MetaKeys
+								kind="term"
+								keys={ draft.term_meta_keys }
+								missed={ missedTermKeys }
+								scope={ draft.taxonomies }
+								total={ data.term_meta_key_total }
+								labels={ taxonomyLabels }
+								onAdd={ addTermKey }
+								onRemove={ removeTermKey }
+								emptyNote={ __(
+									'No field selected: every meta of the terms is sent. Select the ones your term queries need.',
+									'meiliscout'
+								) }
+							/>
 						) : (
 							<p
 								className="ms-inline-note"
 								style={ { margin: '16px 24px' } }
 							>
 								{ __(
-									'No field selected: every meta of the content is sent, private ones included. Select the ones your queries need.',
+									'Turn a taxonomy on to index its terms and their fields.',
 									'meiliscout'
 								) }
 							</p>
 						) }
-
-						<MetaKeyPicker
-							postTypes={ draft.post_types }
-							exclude={ selectedKeys }
-							total={ data.meta_key_total }
-							labels={ labels }
-							onAdd={ addKey }
-						/>
 					</section>
 
 					<section

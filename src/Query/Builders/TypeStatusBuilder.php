@@ -23,6 +23,10 @@ use Pollora\MeiliScout\Services\IndexNames;
  * When private posts are indexed, a logged-in user gets them as WordPress
  * gives them: all of a type whose private posts they may read, their own
  * otherwise.
+ *
+ * On a taxonomy archive that may hold attachments, WordPress gives an
+ * attachment ('inherit') whose parent has one of the statuses asked for:
+ * documents carry the parent's status for that.
  */
 class TypeStatusBuilder implements QueryBuilderInterface
 {
@@ -48,7 +52,7 @@ class TypeStatusBuilder implements QueryBuilderInterface
         }
 
         // Private posts a user may only see their own of, as WP_Query::get_posts() restricts them
-        if (! $requested['explicit'] && $types !== 'any' && in_array('private', $statuses, true) && function_exists('current_user_can')) {
+        if (! $requested['explicit'] && ! QueryVars::wp($query)?->is_singular && $types !== 'any' && in_array('private', $statuses, true) && function_exists('current_user_can')) {
             $searchParams['filter'][] = $this->readablePrivate($types, $statuses);
 
             return;
@@ -59,7 +63,33 @@ class TypeStatusBuilder implements QueryBuilderInterface
             $searchParams['filter'][] = $this->filter('post_type', $types);
         }
 
+        if ($requested['explicit'] && self::joinsParentStatus($query)) {
+            if (IndexNames::activeSchema('posts') < 4) {
+                throw new UnsupportedQuery('schema_too_old');
+            }
+
+            $searchParams['filter'][] = "({$this->filter('post_status', $statuses)} OR (post_status = 'inherit' AND {$this->filter('parent_status', $requested['statuses'])}))";
+
+            return;
+        }
+
         $searchParams['filter'][] = $this->filter('post_status', $statuses);
+    }
+
+    /**
+     * Whether WP_Query::get_posts() reads the parent's status for 'inherit': a taxonomy archive without a post type, or with attachments.
+     */
+    private static function joinsParentStatus(QueryInterface $query): bool
+    {
+        $wp = QueryVars::wp($query);
+
+        if ($wp === null || ! $wp->is_tax) {
+            return false;
+        }
+
+        $asked = $wp->query['post_type'] ?? '';
+
+        return empty($asked) || in_array('attachment', (array) $asked, true);
     }
 
     /**
@@ -69,7 +99,14 @@ class TypeStatusBuilder implements QueryBuilderInterface
      */
     public static function statuses(QueryInterface $query): array
     {
-        return array_values(array_intersect(QuerySupport::requestedStatuses($query)['statuses'], PostIndexable::queryableStatuses()));
+        $requested = QuerySupport::requestedStatuses($query);
+
+        // A single post is not filtered on its status in SQL: WordPress checks it after the query, on ours too
+        if (! $requested['explicit'] && QueryVars::wp($query)?->is_singular) {
+            return PostIndexable::queryableStatuses();
+        }
+
+        return array_values(array_intersect($requested['statuses'], PostIndexable::queryableStatuses()));
     }
 
     /**

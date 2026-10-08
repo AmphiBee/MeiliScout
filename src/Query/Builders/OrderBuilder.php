@@ -10,6 +10,7 @@ use Pollora\MeiliScout\Query\PhpOrder;
 use Pollora\MeiliScout\Query\QueryVars;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\MetaValueFlags;
 
 /**
  * Translates orderby and order into a Meilisearch sort.
@@ -176,6 +177,10 @@ class OrderBuilder implements QueryBuilderInterface
         }
 
         if (! is_string($metaKey) || $metaKey === '' || ! in_array($metaKey, (array) Settings::get('indexed_meta_keys', []), true)) {
+            throw new UnsupportedQuery('unsupported_orderby:'.$field);
+        }
+
+        if (! MetaValueFlags::sortable($metaKey)) {
             throw new UnsupportedQuery('unsupported_orderby:'.$field);
         }
 

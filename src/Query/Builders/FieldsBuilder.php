@@ -6,6 +6,9 @@ namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Contracts\QueryInterface;
 use Pollora\MeiliScout\Query\PhpOrder;
+use Pollora\MeiliScout\Query\UnsupportedQuery;
+use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\IndexSettings;
 
 use function apply_filters;
 
@@ -31,7 +34,15 @@ class FieldsBuilder implements QueryBuilderInterface
         $attributes = $query->get('fields') === 'id=>parent' ? ['ID', 'post_parent'] : ['ID'];
         $order = PhpOrder::of($query);
 
-        $searchParams['attributesToRetrieve'] = array_values(array_unique([...$attributes, ...($order?->attributes() ?? [])]));
+        $attributes = array_values(array_unique([...$attributes, ...($order?->attributes() ?? [])]));
+        $missing = IndexSettings::firstUncovered(IndexSettings::displayed(IndexNames::active('posts')), $attributes);
+
+        // An indexable may narrow displayedAttributes: a field the index does not return cannot be read back
+        if ($missing !== null) {
+            throw new UnsupportedQuery("undisplayed_attribute:{$missing}");
+        }
+
+        $searchParams['attributesToRetrieve'] = $attributes;
     }
 
     /**

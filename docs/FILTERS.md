@@ -45,6 +45,8 @@ add_filter('meiliscout/indexables', function($indexables) {
 });
 ```
 
+An indexable's `getIndexSettings()` is what queries rely on. Start from the parent's settings and add to them: queries read back what the index pushed last, and fall back to MySQL when it lacks a field they need. Keep `ID`, `post_parent` and `taxonomies` in `displayedAttributes` (`get_terms()` with `object_ids`, `fields => 'id=>parent'`), `post_title`, `post_excerpt` and `content_text` in `searchableAttributes` (`search_columns`), and `pagination.maxTotalHits` no lower than `IndexSettings::maxTotalHits()`: a query without LIMIT stops at the lower of the two.
+
 ### meiliscout/post_single_indexer
 Replace default PostSingleIndexer.
 
@@ -141,6 +143,30 @@ to build a `tax_query` or a `meta_query`.
 ```php
 add_filter('meiliscout/supported_query_vars', fn (array $vars) => [...$vars, 'lang']);
 ```
+
+### meiliscout/ignored_sql_filters
+
+The SQL filters of `WP_Query` that do not stop Meilisearch from serving a query. A plugin changing a query's SQL through `posts_where`, `posts_clauses`... sends it to MySQL (`sql_filter:<hook>`), unless its callback is listed here: a hook name (every callback on it), a callback's name (`'my_function'`, `'My_Class::method'`) or the closure itself. List a callback whose change the site translates in `meiliscout/search_params`. Default: empty.
+
+```php
+add_filter('meiliscout/ignored_sql_filters', fn (array $ignored) => [...$ignored, 'My_Plugin::posts_where']);
+```
+
+### meiliscout/skip_term_query_integration, meiliscout/integrate_term_query
+
+As `meiliscout/skip_query_integration` and `meiliscout/integrate_query`, for `get_terms()` calls that do not ask with `use_meilisearch`. They get the `WP_Term_Query`. See [TERM_QUERY.md](TERM_QUERY.md).
+
+### meiliscout/ignored_term_sql_filters
+
+As `meiliscout/ignored_sql_filters`, for `terms_clauses`, `list_terms_exclusions`, `get_terms_orderby` and `get_terms_fields`.
+
+### meiliscout/term/ranking_rules
+
+The ranking rules of the taxonomies index. Default: `['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness']`, `sort` first so that an order is followed strictly.
+
+### meiliscout/term/document
+
+The document of a term, before it is sent. Gets the document and the `WP_Term`.
 
 ### meiliscout/search_params
 The parameters of the Meilisearch search a query becomes.
@@ -276,9 +302,12 @@ give it access to the new names first.
 Facets are no longer computed on every query: ask for them with
 `meilisearch_facets`.
 
-Documents also carry fields for `WP_Query` arguments (schema 3: ids, authors,
-parents, dates as timestamps and parts, `post_title_sort`). Queries using them
-run on MySQL until the full indexation is done. A query Meilisearch cannot
+Documents also carry fields for `WP_Query` arguments (posts schema 3: ids,
+authors, parents, dates as timestamps and parts, `post_title_sort`; schema 4:
+every value of a meta key, empty ones included, and the title and comment
+statuses filterable). Queries using them run on MySQL until the full
+indexation is done. Each index has its own format version: `wp meiliscout
+status` shows them, and a full indexation moves only the indexes it rebuilt. A query Meilisearch cannot
 answer as MySQL would now runs on MySQL instead of returning other posts: see
 [WP_QUERY.md](WP_QUERY.md). Posts are loaded from the database rather than
 built from the documents (`meiliscout/hydrate_from_documents` to go back).

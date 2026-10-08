@@ -16,8 +16,11 @@ use Pollora\MeiliScout\Services\TaxonomySingleIndexer;
 
 use function add_action;
 use function apply_filters;
+use function get_children;
 use function get_post;
 use function get_term;
+use function get_ancestors;
+use function get_term_by;
 
 /**
  * Service provider for managing automatic single-item indexing operations.
@@ -63,6 +66,13 @@ class SingleIndexingServiceProvider extends ServiceProvider
      * @var array<int, array{name: string, slug: string, parent: int}>
      */
     private array $termsBeforeEdit = [];
+
+    /**
+     * Ancestors of the terms being deleted, recorded before: their tree counts change.
+     *
+     * @var array<int, list<int>>
+     */
+    private array $ancestorsBeforeDelete = [];
 
     /**
      * Tasks waiting for the end of the request, one per post or term (sync mode).
@@ -136,6 +146,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
         // Hook for post saves (create and update)
         add_action('save_post', [$this, 'handlePostSave'], 10, 3);
 
+        // Hook for attachments, which wp_insert_post() saves without save_post
+        add_action('add_attachment', [$this, 'handlePostReindex'], 10, 1);
+        add_action('edit_attachment', [$this, 'handlePostReindex'], 10, 1);
+
         // Hook for post deletions
         add_action('delete_post', [$this, 'handlePostDelete'], 10, 1);
 
@@ -149,6 +163,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
 
         // Hook for a post another plugin says changed, such as the parent of a product variation
         add_action('meiliscout/reindex_post', [$this, 'handlePostReindex'], 10, 1);
+
+        // Hook for terms given to or taken from a post outside a save: documents carry its terms
+        add_action('set_object_terms', [$this, 'handleObjectTermsSet'], 10, 6);
+        add_action('deleted_term_relationships', [$this, 'handleObjectTermsRemoved'], 10, 3);
     }
 
     /**
@@ -166,7 +184,14 @@ class SingleIndexingServiceProvider extends ServiceProvider
         add_action('edit_terms', [$this, 'rememberTermBeforeEdit'], 10, 2);
         add_action('edited_term', [$this, 'handleTermSave'], self::EDITED_TERM_PRIORITY, 3);
 
+        // Hook for term counts, updated when a post gets or loses the term (wp_update_term_count_now())
+        add_action('edited_term_taxonomy', [$this, 'handleTermCountUpdate'], 10, 2);
+
+        // Hook for the children of a deleted term, given its parent
+        add_action('edited_term_taxonomies', [$this, 'handleTermsReparented'], 10, 1);
+
         // Hook for term deletions
+        add_action('pre_delete_term', [$this, 'rememberAncestorsBeforeDelete'], 10, 2);
         add_action('delete_term', [$this, 'handleTermDelete'], 10, 4);
 
         // Hook for term meta updates
@@ -242,6 +267,14 @@ class SingleIndexingServiceProvider extends ServiceProvider
         }
 
         $this->queue('post', 'index', $post->ID);
+
+        // Its attachments carry its status, which WordPress reads for theirs ('inherit')
+        if ($newStatus !== $oldStatus && $post->post_type !== 'attachment'
+            && in_array('attachment', (array) Settings::get('indexed_post_types', []), true)) {
+            foreach (get_children(['post_parent' => $post->ID, 'post_type' => 'attachment', 'fields' => 'ids', 'post_status' => 'any']) as $attachment) {
+                $this->queue('post', 'index', (int) $attachment);
+            }
+        }
     }
 
     /**
@@ -307,6 +340,51 @@ class SingleIndexingServiceProvider extends ServiceProvider
     }
 
     /**
+     * Re-indexes a post whose terms changed (wp_set_object_terms()), when they did.
+     *
+     * @param  int  $objectId  The post ID
+     * @param  array<mixed>  $terms
+     * @param  array<int|string>  $ttIds  The term taxonomy IDs now
+     * @param  string  $taxonomy
+     * @param  bool  $append
+     * @param  array<int|string>  $oldTtIds  The term taxonomy IDs before
+     */
+    public function handleObjectTermsSet(int $objectId, array $terms, array $ttIds, string $taxonomy, bool $append, array $oldTtIds): void
+    {
+        $now = array_map('intval', $ttIds);
+        $before = array_map('intval', $oldTtIds);
+        sort($now);
+        sort($before);
+
+        if ($now !== $before) {
+            $this->reindexObjectOf($objectId, $taxonomy);
+        }
+    }
+
+    /**
+     * Re-indexes the post an object id stands for, when the taxonomy is one of its type's: a taxonomy may be the users'.
+     */
+    private function reindexObjectOf(int $objectId, string $taxonomy): void
+    {
+        $post = get_post($objectId);
+
+        if ($post instanceof \WP_Post && is_object_in_taxonomy($post->post_type, $taxonomy)) {
+            $this->handlePostReindex($objectId);
+        }
+    }
+
+    /**
+     * Re-indexes a post that lost terms (wp_remove_object_terms()).
+     *
+     * @param  int  $objectId  The post ID
+     * @param  array<int>  $ttIds
+     */
+    public function handleObjectTermsRemoved(int $objectId, array $ttIds, string $taxonomy): void
+    {
+        $this->reindexObjectOf($objectId, $taxonomy);
+    }
+
+    /**
      * Handles taxonomy term creation.
      *
      * Only the term itself is indexed: a term that was just created has no
@@ -363,9 +441,20 @@ class SingleIndexingServiceProvider extends ServiceProvider
             return;
         }
 
+        $before = $this->termsBeforeEdit[$termId] ?? null;
         $reindexPosts = $this->termFieldsChanged($termId, $taxonomy);
 
         $this->queue('term', 'index', $termId);
+
+        // Moved: the tree counts of its former and new ancestors change
+        $term = get_term($termId, $taxonomy);
+        if ($before !== null && $term instanceof \WP_Term && (int) $term->parent !== $before['parent']) {
+            foreach ([$before['parent'], ...get_ancestors($before['parent'], $taxonomy, 'taxonomy'), ...get_ancestors($termId, $taxonomy, 'taxonomy')] as $ancestor) {
+                if ((int) $ancestor > 0) {
+                    $this->queue('term', 'index', (int) $ancestor);
+                }
+            }
+        }
 
         if ($reindexPosts) {
             $this->queue('posts_for_term', 'reindex', $termId, ['taxonomy' => $taxonomy]);
@@ -407,6 +496,70 @@ class SingleIndexingServiceProvider extends ServiceProvider
     }
 
     /**
+     * Re-indexes a term whose post count changed: term queries filter (hide_empty) and sort on it.
+     *
+     * Fired for each term of a post that is published, unpublished or gets
+     * other terms, and by wp_update_term() too. The tasks wait for the end of
+     * the request, where a term changed several times is indexed once.
+     *
+     * @param int $ttId The term taxonomy ID
+     * @param string $taxonomy The taxonomy name
+     * @return void
+     */
+    public function handleTermCountUpdate(int $ttId, string $taxonomy): void
+    {
+        if ($this->shouldSkipIndexing() || ! in_array($taxonomy, (array) Settings::get('indexed_taxonomies', []), true)) {
+            return;
+        }
+
+        $term = get_term_by('term_taxonomy_id', $ttId, $taxonomy);
+
+        if ($term instanceof \WP_Term) {
+            $this->queueWithAncestors((int) $term->term_id, $taxonomy);
+        }
+    }
+
+    /**
+     * Re-indexes the children a deleted term left to its parent: their parent changed.
+     *
+     * @param  array<int>  $ttIds  Term taxonomy IDs
+     */
+    public function handleTermsReparented(array $ttIds): void
+    {
+        if ($this->shouldSkipIndexing()) {
+            return;
+        }
+
+        foreach ($ttIds as $ttId) {
+            $term = get_term_by('term_taxonomy_id', (int) $ttId);
+
+            if ($term instanceof \WP_Term && in_array($term->taxonomy, (array) Settings::get('indexed_taxonomies', []), true)) {
+                $this->queue('term', 'index', (int) $term->term_id);
+            }
+        }
+    }
+
+    /**
+     * Records the ancestors of a term about to be deleted, whose tree counts will change.
+     */
+    public function rememberAncestorsBeforeDelete(int $termId, string $taxonomy): void
+    {
+        $this->ancestorsBeforeDelete[$termId] = array_map('intval', get_ancestors($termId, $taxonomy, 'taxonomy'));
+    }
+
+    /**
+     * Queues a term, and its ancestors: their tree counts (tree_count) include its posts.
+     */
+    private function queueWithAncestors(int $termId, string $taxonomy): void
+    {
+        $this->queue('term', 'index', $termId);
+
+        foreach (get_ancestors($termId, $taxonomy, 'taxonomy') as $ancestor) {
+            $this->queue('term', 'index', (int) $ancestor);
+        }
+    }
+
+    /**
      * Handles taxonomy term deletion operations.
      *
      * This method removes the term from the search index. Its posts are not
@@ -426,6 +579,11 @@ class SingleIndexingServiceProvider extends ServiceProvider
         }
 
         $this->queue('term', 'remove', $termId, ['label' => $deletedTerm->name]);
+
+        foreach ($this->ancestorsBeforeDelete[$termId] ?? [] as $ancestor) {
+            $this->queue('term', 'index', $ancestor);
+        }
+        unset($this->ancestorsBeforeDelete[$termId]);
     }
 
     /**

@@ -326,3 +326,57 @@ test('LIKE and NOT LIKE become CONTAINS when the instance has it', function () {
         ->and(metaFilter(['meta_query' => [['key' => 'title', 'value' => '', 'compare' => 'LIKE']]]))->toBe('(metas.title EXISTS)')
         ->and(fn () => metaFilter(['meta_query' => [['key' => 'title', 'value' => 'x', 'compare' => 'REGEXP']]]))->toThrow(UnsupportedQuery::class);
 });
+
+test('what the indexed values of a key are like sends the comparisons Meilisearch makes otherwise to MySQL', function (array $flags, array $clause, ?string $reason) {
+    update_option('meiliscout/meta_value_flags', ['color' => $flags]);
+    $query = new MockWPQuery(['meta_query' => [['key' => 'color', ...$clause]]]);
+
+    if ($reason === null) {
+        expect((new MeiliQueryBuilder)->build($query)['filter'])->toContain('metas.color');
+
+        return;
+    }
+
+    expect(fn () => (new MeiliQueryBuilder)->build($query))->toThrow(UnsupportedQuery::class, $reason);
+})->with([
+    'several values, =' => [['multiple' => true, 'non_numeric' => true], ['value' => 'red'], null],
+    'several values, IN' => [['multiple' => true, 'non_numeric' => true], ['value' => ['red', 'blue'], 'compare' => 'IN'], null],
+    'several values, !=' => [['multiple' => true], ['value' => 'red', 'compare' => '!='], 'multivalued_meta:color'],
+    'several values, NOT IN' => [['multiple' => true], ['value' => ['red'], 'compare' => 'NOT IN'], 'multivalued_meta:color'],
+    'several values, BETWEEN text' => [['multiple' => true], ['value' => ['a', 'c'], 'compare' => 'BETWEEN'], 'multivalued_meta:color'],
+    'several values, NOT EXISTS' => [['multiple' => true], ['compare' => 'NOT EXISTS'], null],
+    'serialized values' => [['structured' => true], ['value' => 'red'], 'structured_meta:color'],
+    'serialized values, EXISTS' => [['structured' => true], ['compare' => 'EXISTS'], null],
+    'text, NUMERIC' => [['non_numeric' => true, 'numeric' => true], ['value' => 0, 'type' => 'NUMERIC'], 'meta_not_numeric:color'],
+    'text, > a number' => [['non_numeric' => true], ['value' => 5, 'compare' => '>'], 'meta_not_numeric:color'],
+    'text, >= a date' => [['non_numeric' => true], ['value' => '2024-01-01', 'compare' => '>=', 'type' => 'DATE'], null],
+    'text, = a number' => [['non_numeric' => true, 'numeric' => true], ['value' => '5'], null],
+    'changed by the site, EXISTS' => [['altered' => true], ['compare' => 'EXISTS'], 'altered_meta:color'],
+    'changed by the site, =' => [['altered' => true], ['value' => 'red'], 'altered_meta:color'],
+]);
+
+test('a range over several numeric values matches one value in the range', function () {
+    update_option('meiliscout/meta_value_flags', ['size' => ['multiple' => true, 'numeric' => true]]);
+    $query = new MockWPQuery(['meta_query' => [['key' => 'size', 'value' => [10, 20], 'compare' => 'BETWEEN', 'type' => 'NUMERIC']]]);
+
+    expect((new MeiliQueryBuilder)->build($query)['filter'])->toEndWith('(metas.size 10 TO 20)');
+});
+
+test('a sort on a key with several values, serialized ones, or numbers mixed with text runs on MySQL', function (array $flags, bool $served) {
+    update_option('meiliscout/meta_value_flags', ['price' => $flags]);
+    $query = new MockWPQuery(['meta_key' => 'price', 'orderby' => 'meta_value_num']);
+
+    if ($served) {
+        expect((new MeiliQueryBuilder)->build($query)['sort'])->toBe(['metas.price:desc']);
+
+        return;
+    }
+
+    expect(fn () => (new MeiliQueryBuilder)->build($query))->toThrow(UnsupportedQuery::class, 'unsupported_orderby:meta_value_num');
+})->with([
+    'numbers' => [['numeric' => true], true],
+    'text' => [['non_numeric' => true], true],
+    'several values' => [['multiple' => true, 'numeric' => true], false],
+    'serialized' => [['structured' => true], false],
+    'numbers and text' => [['numeric' => true, 'non_numeric' => true], false],
+]);

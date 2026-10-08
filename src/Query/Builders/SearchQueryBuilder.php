@@ -7,6 +7,8 @@ namespace Pollora\MeiliScout\Query\Builders;
 use Pollora\MeiliScout\Config\SearchableAttributes;
 use Pollora\MeiliScout\Contracts\QueryInterface;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
+use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\IndexSettings;
 
 use function apply_filters;
 
@@ -78,10 +80,11 @@ class SearchQueryBuilder implements QueryBuilderInterface
         }
 
         $attributes = array_map(static fn (string $column) => self::COLUMNS[$column], $columns);
-        $searchable = SearchableAttributes::configured();
+        // As pushed to the index, which an indexable may have set otherwise than the admin
+        $searchable = IndexSettings::searchable(IndexNames::active('posts')) ?? SearchableAttributes::forIndex();
 
         // Meilisearch searches only searchable attributes
-        if ($searchable !== null && array_diff($attributes, $searchable) !== []) {
+        if (IndexSettings::firstUncovered($searchable, $attributes) !== null) {
             throw new UnsupportedQuery('unsupported_arg:search_columns');
         }
 
