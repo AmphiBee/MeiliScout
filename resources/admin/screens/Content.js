@@ -785,16 +785,27 @@ const Content = ( { refreshOverview } ) => {
 								} )
 							}
 							meta={ ( type ) =>
-								sprintf(
-									/* translators: %s: number of published posts */
-									_n(
-										'%s published',
-										'%s published',
-										type.count,
-										'meiliscout'
-									),
-									number( type.count )
-								)
+								type.name === 'attachment'
+									? sprintf(
+											/* translators: %s: number of media files */
+											_n(
+												'%s file',
+												'%s files',
+												type.count,
+												'meiliscout'
+											),
+											number( type.count )
+									  )
+									: sprintf(
+											/* translators: %s: number of published posts */
+											_n(
+												'%s published',
+												'%s published',
+												type.count,
+												'meiliscout'
+											),
+											number( type.count )
+									  )
 							}
 						/>
 						<div className="ms-row">

@@ -61,12 +61,6 @@ final class QuerySupport
      * @var array<string, array<string, mixed>>
      */
     public const UNTRANSLATED = [
-        // Attachments (status inherit) are not indexed
-        'attachment' => ['attachment' => 'a-file'],
-        'attachment_id' => ['attachment_id' => 1],
-        'subpost' => ['subpost' => 'a-file'],
-        'subpost_id' => ['subpost_id' => 1],
-        'post_mime_type' => ['post_mime_type' => 'image/jpeg'],
         // Permissions and passwords: not in the documents
         'perm' => ['perm' => 'readable'],
         'post_password' => ['post_password' => 'secret'],
@@ -218,7 +212,7 @@ final class QuerySupport
         $indexed = PostIndexable::queryableStatuses();
         $requested = self::requestedStatuses($query);
 
-        if (self::singularUnindexed($query, array_values(array_intersect($requested['statuses'], $indexed)))) {
+        if (self::singularUnindexed($query, $indexed)) {
             return 'unindexed_status:singular';
         }
 
@@ -245,13 +239,13 @@ final class QuerySupport
     }
 
     /**
-     * A single post asked for, that exists with a status the query does not get from the index.
+     * A single post asked for, that exists with a status the index does not hold.
      *
      * WordPress does not filter a single post on its status in SQL: it shows a
      * draft or a private post to whoever may read it, after the query, and
      * counts it in found_posts even for those who may not.
      *
-     * @param  list<string>  $indexed  The statuses the query gets from the index
+     * @param  list<string>  $indexed  The statuses the index holds every post of
      */
     private static function singularUnindexed(QueryInterface $query, array $indexed): bool
     {

@@ -16,6 +16,7 @@ use Pollora\MeiliScout\Services\TaxonomySingleIndexer;
 
 use function add_action;
 use function apply_filters;
+use function get_children;
 use function get_post;
 use function get_term;
 use function get_ancestors;
@@ -145,6 +146,10 @@ class SingleIndexingServiceProvider extends ServiceProvider
         // Hook for post saves (create and update)
         add_action('save_post', [$this, 'handlePostSave'], 10, 3);
 
+        // Hook for attachments, which wp_insert_post() saves without save_post
+        add_action('add_attachment', [$this, 'handlePostReindex'], 10, 1);
+        add_action('edit_attachment', [$this, 'handlePostReindex'], 10, 1);
+
         // Hook for post deletions
         add_action('delete_post', [$this, 'handlePostDelete'], 10, 1);
 
@@ -262,6 +267,14 @@ class SingleIndexingServiceProvider extends ServiceProvider
         }
 
         $this->queue('post', 'index', $post->ID);
+
+        // Its attachments carry its status, which WordPress reads for theirs ('inherit')
+        if ($newStatus !== $oldStatus && $post->post_type !== 'attachment'
+            && in_array('attachment', (array) Settings::get('indexed_post_types', []), true)) {
+            foreach (get_children(['post_parent' => $post->ID, 'post_type' => 'attachment', 'fields' => 'ids', 'post_status' => 'any']) as $attachment) {
+                $this->queue('post', 'index', (int) $attachment);
+            }
+        }
     }
 
     /**

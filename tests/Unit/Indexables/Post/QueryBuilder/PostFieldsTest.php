@@ -91,4 +91,19 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder {
 
         expect(fn () => fieldFilter(['title' => 'Hello']))->toThrow(UnsupportedQuery::class, 'schema_too_old');
     });
+
+    test('post_mime_type, as wp_post_mime_type_where() reads it', function () {
+        expect(fieldFilter(['post_mime_type' => 'image']))->toBe(" AND (mime_group = 'image')")
+            ->and(fieldFilter(['post_mime_type' => 'image/*']))->toBe(" AND (mime_group = 'image')")
+            ->and(fieldFilter(['post_mime_type' => 'application/pdf, image/png']))->toBe(" AND (post_mime_type = 'application/pdf' OR post_mime_type = 'image/png')")
+            ->and(fieldFilter(['post_mime_type' => ['*/svg+xml']]))->toBe(" AND (mime_subgroup = 'svg+xml')")
+            ->and(fieldFilter(['post_mime_type' => '*']))->toBe('')
+            ->and(fn () => fieldFilter(['post_mime_type' => 'im*ge/jpeg']))->toThrow(UnsupportedQuery::class, 'unsupported_arg:post_mime_type');
+    });
+
+    test('an attachment by slug or id, as WordPress turns it into name or p', function () {
+        expect(fieldFilter(['attachment' => 'photo']))->toBe(" AND post_name = 'photo'")
+            ->and(fieldFilter(['attachment_id' => 9]))->toBe(' AND ID = 9')
+            ->and(fieldFilter(['subpost_id' => 4]))->toBe(' AND ID = 4');
+    });
 }

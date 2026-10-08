@@ -79,6 +79,7 @@ final class SiteData
             'multivalued_meta' => self::multivaluedMeta(),
             'structured_meta' => self::structuredMeta(),
             'empty_meta' => self::emptyMeta(),
+            'attachment' => self::attachment(),
             'search_word' => $words[0] ?? null,
             'search_phrase' => count($words) >= 2 ? $words[0].' '.$words[1] : null,
         ];
@@ -296,6 +297,36 @@ final class SiteData
         }
 
         return null;
+    }
+
+    /**
+     * An attachment with a published parent, and a term of a taxonomy attachments share, with attachments.
+     *
+     * @return array{id: int, slug: string, parent: int, taxonomy: string|null, term: string|null}|null
+     */
+    private static function attachment(): ?array
+    {
+        global $wpdb;
+
+        $row = $wpdb->get_row("SELECT a.ID, a.post_name, a.post_parent FROM {$wpdb->posts} a JOIN {$wpdb->posts} p ON p.ID = a.post_parent
+            WHERE a.post_type = 'attachment' AND a.post_status = 'inherit' AND p.post_status = 'publish' ORDER BY a.ID LIMIT 1");
+
+        if ($row === null) {
+            return null;
+        }
+
+        $term = $wpdb->get_row("SELECT tt.taxonomy, t.slug FROM {$wpdb->term_relationships} tr
+            JOIN {$wpdb->term_taxonomy} tt USING (term_taxonomy_id) JOIN {$wpdb->terms} t USING (term_id)
+            JOIN {$wpdb->posts} a ON a.ID = tr.object_id
+            WHERE a.post_type = 'attachment' AND tt.taxonomy NOT IN ('category', 'post_tag') LIMIT 1");
+
+        return [
+            'id' => (int) $row->ID,
+            'slug' => (string) $row->post_name,
+            'parent' => (int) $row->post_parent,
+            'taxonomy' => $term !== null ? (string) $term->taxonomy : null,
+            'term' => $term !== null ? (string) $term->slug : null,
+        ];
     }
 
     /**

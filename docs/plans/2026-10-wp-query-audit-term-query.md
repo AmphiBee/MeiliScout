@@ -162,6 +162,6 @@ Branche `feat/term-query`, partie de `feat/wp-query-parity`, un commit par étap
 
 **État mesuré sur la démo :** articles 141 OK, 38 replis voulus, 7 INFO, 0 DIFF ; termes 75 OK, 12 replis voulus, 1 INFO (recherche sans CONTAINS), 0 DIFF. Tests : 276 unitaires, 285 d'intégration, PHPStan propre.
 
-**Reste :**
-- 2.6, pièces jointes : non fait, à décider selon la demande.
-- 2.7, passage du banc avec un cache objet persistant (Redis) : la démo n'en a pas ; à faire après l'ajout de l'add-on DDEV.
+**Points restés ouverts, traités ensuite :**
+- 2.7, Redis : add-on DDEV et Redis Object Cache sur la démo. Bancs et suite d'intégration identiques, à froid et à chaud, sauf un cas : WordPress numérote autrement les termes de `pad_counts` selon qu'il lit son cache ou non ; MeiliScout renvoie la forme du cache (`ffb727f`).
+- 2.6, pièces jointes : Médias sélectionnables dans Contenus ; statut `inherit`, statut du parent (`parent_status`) et groupe MIME indexés ; jointure du statut du parent émulée sur les archives de taxonomie ; `post_mime_type`, `attachment`, `attachment_id`, `subpost(_id)` traduits ; hooks `add_attachment` et `edit_attachment`, pièces jointes réindexées quand le statut du parent change. Une requête singulière demande désormais tous les statuts de l'index, WordPress contrôlant le statut après la requête.

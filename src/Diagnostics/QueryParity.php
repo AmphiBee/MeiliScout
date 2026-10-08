@@ -306,6 +306,24 @@ final class QueryParity
             $fallback('meta serialized =', $when($structured !== null, ['post_type' => $structured['type'] ?? 'post', 'meta_query' => [['key' => $structured['key'] ?? '', 'value' => '1']]])),
             $case('meta serialized EXISTS', $when($structured !== null, ['post_type' => $structured['type'] ?? 'post', 'meta_query' => [['key' => $structured['key'] ?? '', 'compare' => 'EXISTS']]]), self::MODE_SET),
 
+            // Media
+            $case('attachments, inherit', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'posts_per_page' => -1])),
+            $case('media library (inherit, private)', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit,private', '_user' => $d['admin']])),
+            $case('attachments, default status (none)', $when($d['attachment'] !== null, ['post_type' => 'attachment'])),
+            $case('post_mime_type image', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => 'image'])),
+            $case('post_mime_type image/jpeg', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => 'image/jpeg'])),
+            $case('post_mime_type image/*', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => 'image/*'])),
+            $case('post_mime_type list', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => 'application/pdf, image/png'])),
+            $case('post_mime_type array and */svg+xml', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => ['application', '*/svg+xml']])),
+            $case('post_mime_type * (no restriction)', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => '*'])),
+            $fallback('post_mime_type with a wildcard inside', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'post_mime_type' => 'im*ge/jpeg'])),
+            $case('attachment by slug', $when($d['attachment'] !== null, ['attachment' => $d['attachment']['slug'] ?? ''])),
+            $case('attachment_id', $when($d['attachment'] !== null, ['attachment_id' => $d['attachment']['id'] ?? 0])),
+            $case('subpost', $when($d['attachment'] !== null, ['subpost' => $d['attachment']['slug'] ?? ''])),
+            $case('attachments of a post', $when($d['attachment'] !== null, ['post_type' => 'attachment', 'post_status' => 'inherit', 'post_parent' => $d['attachment']['parent'] ?? 0])),
+            $case('post_type any, post_status any (media included)', ['post_type' => 'any', 'post_status' => 'any', 'posts_per_page' => -1], self::MODE_SET),
+            $case('taxonomy archive, media whose parent is published', $when(($d['attachment']['term'] ?? null) !== null, [($d['attachment']['taxonomy'] ?? '') => $d['attachment']['term'] ?? '', 'post_status' => 'publish', 'posts_per_page' => -1]), self::MODE_SET),
+
             // Clauses nothing translates
             $fallback('tax_query without a taxonomy', $when($cat !== null, ['tax_query' => [['field' => 'term_taxonomy_id', 'terms' => [$cat['tt_id'] ?? 0]]]])),
             $fallback('date_query on a GMT column, by parts', $when($year > 0, ['date_query' => [['column' => 'post_date_gmt', 'year' => $year]]])),

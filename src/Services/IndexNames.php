@@ -36,7 +36,8 @@ final class IndexNames
      * `taxonomies.<taxonomy>`. 3, fields for WP_Query arguments (ids and
      * counts as numbers, has_password, date timestamps and parts, post_title_sort).
      * 4, every value of a meta key (a list when there are several, '' kept),
-     * title and comment statuses filterable.
+     * title and comment statuses filterable, attachments' mime groups and
+     * parent statuses.
      *
      * Terms: up to 3, the term's fields as WordPress gives them. 4, the fields of
      * term queries (ids and counts as numbers, name_sort, description_sort,

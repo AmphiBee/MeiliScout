@@ -112,3 +112,30 @@ test('terms given to a post outside a save reach its document, and object_ids', 
         waitForMeilisearch();
     }
 })->group('integration');
+
+test("an attachment's document follows its parent's status, which WordPress reads for 'inherit'", function () {
+    if (! in_array('attachment', (array) get_option('meiliscout/indexed_post_types', []), true)) {
+        $this->markTestSkipped('Media are not indexed on this site.');
+    }
+
+    $parent = wp_insert_post(['post_title' => 'Fraîcheur parent', 'post_status' => 'publish']);
+    $attachment = wp_insert_attachment(['post_title' => 'Fraîcheur média', 'post_mime_type' => 'image/png', 'post_status' => 'inherit'], 'fraicheur.png', $parent);
+    $index = \Pollora\MeiliScout\Services\ClientFactory::getClient()->index(\Pollora\MeiliScout\Services\IndexNames::active('posts'));
+    $parentStatus = static fn (): ?string => $index->getDocument($attachment, ['parent_status'])['parent_status'] ?? null;
+
+    try {
+        runQueuedIndexing();
+        waitForMeilisearch();
+        expect($parentStatus())->toBe('publish');
+
+        wp_update_post(['ID' => $parent, 'post_status' => 'draft']);
+        runQueuedIndexing();
+        waitForMeilisearch();
+        expect($parentStatus())->toBe('draft');
+    } finally {
+        wp_delete_attachment($attachment, true);
+        wp_delete_post($parent, true);
+        runQueuedIndexing();
+        waitForMeilisearch();
+    }
+})->group('integration');

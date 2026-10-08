@@ -18,6 +18,7 @@ use function get_object_taxonomies;
 use function get_option;
 use function get_permalink;
 use function get_post_meta;
+use function get_post_status;
 use function get_posts;
 use function get_term;
 use function is_wp_error;
@@ -46,6 +47,11 @@ class PostIndexable implements Indexable
     public static function indexableStatuses(): array
     {
         $statuses = Settings::get(self::INDEX_PRIVATE, false) ? ['publish', 'private'] : ['publish'];
+
+        // Attachments, once media are indexed: their status follows their parent's
+        if (in_array('attachment', (array) Settings::get('indexed_post_types', []), true)) {
+            $statuses[] = 'inherit';
+        }
 
         return apply_filters('meiliscout/indexable_post_statuses', $statuses);
     }
@@ -115,6 +121,10 @@ class PostIndexable implements Indexable
             'post_title_sort',
             'comment_status',
             'ping_status',
+            'post_mime_type',
+            'mime_group',
+            'mime_subgroup',
+            'parent_status',
         ];
 
         foreach ($filterableMetaKeys as $metaKey) {
@@ -504,6 +514,23 @@ class PostIndexable implements Indexable
         }
 
         $fields['post_title_sort'] = self::titleSortKey((string) $post->post_title);
+
+        // An attachment's type, by group (post_mime_type LIKE 'image/%'), and its parent's status, which WordPress reads for 'inherit'
+        $mimeType = (string) $post->post_mime_type;
+
+        if ($mimeType !== '') {
+            [$group, $subgroup] = array_pad(explode('/', strtolower($mimeType), 2), 2, '');
+            $fields['mime_group'] = $group;
+            $fields['mime_subgroup'] = $subgroup;
+        }
+
+        if ((int) $post->post_parent > 0) {
+            $parentStatus = get_post_status((int) $post->post_parent);
+
+            if (is_string($parentStatus)) {
+                $fields['parent_status'] = $parentStatus;
+            }
+        }
 
         return $fields;
     }

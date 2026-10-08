@@ -178,7 +178,7 @@ final class ContentController extends Controller
     }
 
     /**
-     * Public post types, but attachments: they are never published.
+     * Public post types; attachments (media) are counted in their own status, inherit.
      *
      * @return array<string, array{name: string, label: string, count: int}>
      */
@@ -187,14 +187,12 @@ final class ContentController extends Controller
         $types = [];
 
         foreach (get_post_types(['public' => true], 'objects') as $name => $type) {
-            if ($name === 'attachment') {
-                continue;
-            }
+            $counts = wp_count_posts($name);
 
             $types[$name] = [
                 'name' => $name,
                 'label' => (string) $type->labels->name,
-                'count' => (int) (wp_count_posts($name)->publish ?? 0),
+                'count' => (int) ($name === 'attachment' ? ($counts->inherit ?? 0) : ($counts->publish ?? 0)),
             ];
         }
 

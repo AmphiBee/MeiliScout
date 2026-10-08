@@ -45,7 +45,8 @@ Arguments marked *v3* (*v4*) need the posts index in schema 3 (4): until a full 
 | `post_status` | ✅ | Indexed statuses only: `publish`, and `private` when Content › Index private content is on. Drafts, pending and scheduled posts → MySQL (`unindexed_status:<status>`). Default statuses as WordPress works them out: a logged-in user who can see private posts gets them, the admin's "All" list gets drafts; when the index lacks them and the site has some, MySQL |
 | `comment_status`, `ping_status` | ✅ *(v4)* | |
 | `title` | ✅ *(v4)* | The whole title, case and accents aside, as MySQL's collation compares it |
-| `perm`, `post_password`, `post_mime_type` | ❌ | MySQL |
+| `post_mime_type` | ✅ *(v4)* | As `wp_post_mime_type_where()` reads it: a group (`image`, `image/*`), a whole type, a subgroup (`*/svg+xml`), lists. Another wildcard → MySQL |
+| `perm`, `post_password` | ❌ | MySQL |
 
 ### Posts, slugs, parents, authors *(v3)*
 
@@ -56,8 +57,12 @@ Arguments marked *v3* (*v4*) need the posts index in schema 3 (4): until a full 
 | `post_parent` (0 included), `post_parent__in`, `post_parent__not_in` | ✅ | |
 | `author` (list, negative ids), `author__in`, `author__not_in`, `author_name` | ✅ | `author__not_in` wins over `author__in`, as in WordPress |
 | `has_password`, `comment_count` (number or `value`/`compare`), `menu_order` | ✅ | |
-| `attachment`, `attachment_id`, `subpost`, `subpost_id` | ❌ | MySQL: attachments are not indexed |
+| `attachment`, `attachment_id`, `subpost`, `subpost_id` | ✅ | When media are indexed (Content › Post types › Media) |
 | `withcomments` (a comment feed of several posts) | ❌ | MySQL |
+
+### Media
+
+Attachments are indexed when Content › Post types has Media on, with their status (`inherit`), their type by group and subgroup, and their parent's status. The media library (`post_status => 'inherit,private'`), `get_children()`, attachments by type or parent are served. On a taxonomy archive that may hold media, WordPress gives an attachment whose parent has one of the statuses asked for: so does MeiliScout. A parent changing status indexes its attachments again. Without Media, a query on attachments runs on MySQL (`unindexed_type:attachment`).
 
 ### Taxonomies
 
