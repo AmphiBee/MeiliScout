@@ -35,7 +35,7 @@ final class QuerySupport
         // Type and status: checked below
         'post_type', 'post_status',
         // Search, and what WP_Query::parse_search() stores
-        's', 'search_terms', 'search_terms_count', 'search_orderby_title',
+        's', 'sentence', 'search_columns', 'search_terms', 'search_terms_count', 'search_orderby_title',
         // Taxonomies and metas
         'tax_query', 'meta_query', 'meta_key', 'meta_value', 'meta_value_num', 'meta_compare', 'meta_type',
         // Order and paging
@@ -152,10 +152,10 @@ final class QuerySupport
      */
     private static function unindexedStatus(QueryInterface $query): ?string
     {
-        $indexed = PostIndexable::indexableStatuses();
+        $indexed = PostIndexable::queryableStatuses();
         $requested = self::requestedStatuses($query);
 
-        if (self::singularUnindexed($query, $indexed)) {
+        if (self::singularUnindexed($query, array_values(array_intersect($requested['statuses'], $indexed)))) {
             return 'unindexed_status:singular';
         }
 
@@ -182,13 +182,13 @@ final class QuerySupport
     }
 
     /**
-     * A single post asked for, that exists with a status the index lacks.
+     * A single post asked for, that exists with a status the query does not get from the index.
      *
      * WordPress does not filter a single post on its status in SQL: it shows a
      * draft or a private post to whoever may read it, after the query, and
      * counts it in found_posts even for those who may not.
      *
-     * @param  list<string>  $indexed
+     * @param  list<string>  $indexed  The statuses the query gets from the index
      */
     private static function singularUnindexed(QueryInterface $query, array $indexed): bool
     {
@@ -200,7 +200,7 @@ final class QuerySupport
 
         global $wpdb;
 
-        $statuses = implode(', ', array_map(static fn (string $status) => $wpdb->prepare('%s', $status), $indexed));
+        $statuses = implode(', ', array_map(static fn (string $status) => $wpdb->prepare('%s', $status), $indexed ?: ['publish']));
         $id = abs((int) $query->get('p'));
         $name = (string) $query->get('name');
 

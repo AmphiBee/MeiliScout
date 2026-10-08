@@ -59,6 +59,15 @@ namespace {
     if (! function_exists('_prime_post_caches')) {
         function _prime_post_caches($ids, $terms = true, $meta = true) { $GLOBALS['primed'] = $ids; }
     }
+    if (! function_exists('current_user_can')) {
+        function current_user_can($capability, ...$args) { return in_array($capability, $GLOBALS['capabilities'] ?? [], true); }
+    }
+    if (! function_exists('get_post_type_object')) {
+        function get_post_type_object($type) { return (object) ['cap' => (object) ['read_private_posts' => "read_private_{$type}s"], 'hierarchical' => $type === 'page']; }
+    }
+    if (! function_exists('get_current_user_id')) {
+        function get_current_user_id() { return $GLOBALS['current_user_id'] ?? 0; }
+    }
     if (! function_exists('apply_filters_ref_array')) {
         function apply_filters_ref_array($hook, $args) { return $GLOBALS['filters'][$hook] ?? $args[0]; }
     }
@@ -137,6 +146,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
         $GLOBALS['posts'] = [];
         $GLOBALS['logged_in'] = false;
         $GLOBALS['post_counts'] = [];
+        $GLOBALS['capabilities'] = [];
         SearchFallbacks::reset();
         $this->errorLog = ini_set('error_log', '/dev/null');
     });
@@ -373,6 +383,33 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
 
         expect($integration->interceptQuery(null, $query))->toBeNull()
             ->and($query->meiliscout['reason'])->toBe('unsupported_orderby:rand');
+    });
+
+    test('indexed private posts: a logged-in user gets those they may read, as WordPress gives them', function () {
+        $GLOBALS['logged_in'] = true;
+        $GLOBALS['current_user_id'] = 4;
+        $GLOBALS['capabilities'] = ['read_private_pages'];
+        update_option('meiliscout/index_private', true);
+        update_option('meiliscout/last_indexing_structure', ['statuses' => ['publish', 'private']]);
+        update_option('meiliscout/schema_version', 3);
+        publishedPosts(1);
+        $integration = integrationWith(clientReturning(searchResult([1], 1), $this, $searches));
+
+        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true, 'post_type' => ['post', 'page']]));
+
+        expect($searches[0]['filter'])->toStartWith(
+            "((post_type = 'page' AND post_status IN ['publish', 'private']) OR (post_type = 'post' AND (post_status = 'publish' OR (post_status = 'private' AND post_author = 4))))"
+        );
+    });
+
+    test('private posts made indexable run on MySQL until a full indexation sends them', function () {
+        $GLOBALS['logged_in'] = true;
+        $GLOBALS['post_counts'] = ['post' => ['publish' => 4, 'private' => 2]];
+        update_option('meiliscout/index_private', true);
+        $query = new \WP_Query(['use_meilisearch' => true]);
+
+        expect(integrationWith(clientReturning(searchResult([1], 1), $this))->interceptQuery(null, $query))->toBeNull()
+            ->and($query->meiliscout['reason'])->toBe('unindexed_status:private');
     });
 
     test('another plugin\'s answer is left alone', function () {

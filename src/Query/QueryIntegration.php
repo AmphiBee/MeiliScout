@@ -278,7 +278,7 @@ class QueryIntegration
 
         _prime_post_caches($ids, (bool) $query->get('update_post_term_cache', true), (bool) $query->get('update_post_meta_cache', true));
 
-        $statuses = PostIndexable::indexableStatuses();
+        $statuses = PostIndexable::queryableStatuses();
         $posts = [];
 
         foreach ($ids as $id) {

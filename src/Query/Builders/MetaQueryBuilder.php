@@ -8,6 +8,7 @@ use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\QueryInterface;
 use Pollora\MeiliScout\Query\QueryVars;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
+use Pollora\MeiliScout\Services\ContainsFilter;
 use Pollora\MeiliScout\Services\MissedMetaKeys;
 
 /**
@@ -18,8 +19,9 @@ use Pollora\MeiliScout\Services\MissedMetaKeys;
  * asks for the key to exist, and '!=' or NOT IN for a key the post must have.
  *
  * Only indexed meta keys can be filtered on: any other key, and the
- * operators Meilisearch has no equivalent for (LIKE, REGEXP), send the
- * query to MySQL.
+ * operators Meilisearch has no equivalent for (REGEXP), send the query to
+ * MySQL. LIKE and NOT LIKE become CONTAINS when the instance has the feature
+ * turned on (ContainsFilter), and run on MySQL otherwise.
  */
 class MetaQueryBuilder extends AbstractFilterBuilder
 {
@@ -78,7 +80,11 @@ class MetaQueryBuilder extends AbstractFilterBuilder
             return "{$attribute} EXISTS";
         }
 
-        if (in_array($compare, ['LIKE', 'NOT LIKE', 'REGEXP', 'NOT REGEXP', 'RLIKE'], true)) {
+        if (in_array($compare, ['LIKE', 'NOT LIKE'], true)) {
+            return $this->like($attribute, $compare, $clause['value']);
+        }
+
+        if (in_array($compare, ['REGEXP', 'NOT REGEXP', 'RLIKE'], true)) {
             throw new UnsupportedQuery('unsupported_compare:'.$compare);
         }
 
@@ -107,6 +113,31 @@ class MetaQueryBuilder extends AbstractFilterBuilder
             'NOT BETWEEN' => "({$attribute} < {$literal($value[0] ?? '')} OR {$attribute} > {$literal($value[1] ?? '')})",
             default => throw new UnsupportedQuery('unsupported_compare:'.$compare),
         };
+    }
+
+    /**
+     * LIKE '%value%', as WordPress builds it: the value anywhere in the field's.
+     */
+    private function like(string $attribute, string $compare, mixed $value): string
+    {
+        if (! ContainsFilter::enabled()) {
+            throw new UnsupportedQuery('unsupported_compare:'.$compare);
+        }
+
+        if (! is_scalar($value)) {
+            throw new UnsupportedQuery('unsupported_meta_value');
+        }
+
+        $value = trim((string) $value);
+
+        // '%%' matches any value, when the post has the key
+        if ($value === '') {
+            return $compare === 'LIKE' ? "{$attribute} EXISTS" : 'post_type IN []';
+        }
+
+        return $compare === 'LIKE'
+            ? "{$attribute} CONTAINS {$this->quote($value)}"
+            : "({$attribute} EXISTS AND {$attribute} NOT CONTAINS {$this->quote($value)})";
     }
 
     /**

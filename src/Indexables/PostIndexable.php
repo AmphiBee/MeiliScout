@@ -14,6 +14,7 @@ use WP_Term;
 
 use function apply_filters;
 use function get_object_taxonomies;
+use function get_option;
 use function get_permalink;
 use function get_post_meta;
 use function get_posts;
@@ -32,11 +33,36 @@ class PostIndexable implements Indexable
     private array $metaKeys = [];
 
     /**
+     * Setting that adds private posts to the index (Content screen).
+     */
+    public const INDEX_PRIVATE = 'index_private';
+
+    /**
+     * The statuses of the posts sent to the index: published ones, and private ones when the admin chose to.
+     *
      * @return string[]
      */
     public static function indexableStatuses(): array
     {
-        return apply_filters('meiliscout/indexable_post_statuses', ['publish']);
+        $statuses = Settings::get(self::INDEX_PRIVATE, false) ? ['publish', 'private'] : ['publish'];
+
+        return apply_filters('meiliscout/indexable_post_statuses', $statuses);
+    }
+
+    /**
+     * The statuses the index holds every post of: the indexable ones the last full indexation sent.
+     *
+     * A status made indexable since only has the posts saved since: queries
+     * that include it run on MySQL until a full indexation sends them all.
+     *
+     * @return list<string>
+     */
+    public static function queryableStatuses(): array
+    {
+        $structure = get_option('meiliscout/last_indexing_structure', []);
+        $indexed = is_array($structure) && isset($structure['statuses']) ? (array) $structure['statuses'] : ['publish'];
+
+        return array_values(array_intersect(self::indexableStatuses(), $indexed));
     }
 
     /**

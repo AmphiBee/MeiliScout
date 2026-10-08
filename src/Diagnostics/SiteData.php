@@ -38,6 +38,7 @@ final class SiteData
         $authorUser = $author > 0 ? get_user_by('id', $author) : false;
 
         $admins = get_users(['role' => 'administrator', 'number' => 1, 'fields' => 'ID']);
+        $writers = get_users(['role__in' => ['author', 'contributor'], 'number' => 1, 'fields' => 'ID']);
 
         $firstDate = $posts !== [] ? (string) get_post_field('post_date', $posts[0]) : '';
         $parentCategory = self::parentCategory();
@@ -54,6 +55,7 @@ final class SiteData
             'other_parent' => $otherParent,
             'page_path' => $childPage > 0 ? get_page_uri($childPage) : null,
             'admin' => (int) ($admins[0] ?? 0),
+            'writer' => (int) ($writers[0] ?? 0),
             'private_post' => (int) $wpdb->get_var("SELECT ID FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status = 'private' ORDER BY ID LIMIT 1"),
             'author' => $author,
             'author2' => $author2,

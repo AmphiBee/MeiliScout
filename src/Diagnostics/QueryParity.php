@@ -112,6 +112,7 @@ final class QueryParity
             $case('post_status private', ['post_status' => 'private']),
             $case('post_status comma list', ['post_status' => 'publish,private']),
             $case('logged in: default statuses (private included)', $when($d['admin'] > 0, ['_user' => $d['admin']])),
+            $case('logged in, own private posts only', $when($d['writer'] > 0, ['_user' => $d['writer'], 'post_type' => ['post', 'page'], 'posts_per_page' => -1]), self::MODE_SET),
 
             // Single post, slugs
             $case('p', $when($hasPosts, ['p' => $posts[5] ?? 0])),

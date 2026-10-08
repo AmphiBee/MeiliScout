@@ -162,7 +162,7 @@ test('meta query with NOT EXISTS operator is correctly formatted', function () {
     expect($params['filter'])->toBe('post_type = \'post\' AND post_status = \'publish\' AND (metas.rating NOT EXISTS)');
 });
 
-test('LIKE and REGEXP have no Meilisearch equivalent: the query runs on MySQL', function (string $compare) {
+test('LIKE, without CONTAINS on the instance, and REGEXP have no Meilisearch equivalent: the query runs on MySQL', function (string $compare) {
     $query = new MockWPQuery([
         'meta_query' => [['key' => 'title', 'value' => 'test', 'compare' => $compare]],
     ]);
@@ -316,4 +316,13 @@ test('in an OR group, a clause that cannot be translated is not dropped', functi
 test('an empty group gives no filter', function () {
     expect((new MeiliQueryBuilder)->build(new MockWPQuery(['meta_query' => ['relation' => 'OR', []]]))['filter'])
         ->toBe("post_type = 'post' AND post_status = 'publish'");
+});
+
+test('LIKE and NOT LIKE become CONTAINS when the instance has it', function () {
+    update_option('meiliscout/contains_filter', true);
+
+    expect(metaFilter(['meta_query' => [['key' => 'title', 'value' => " 50% d'eau ", 'compare' => 'like']]]))->toBe("(metas.title CONTAINS '50% d\\'eau')")
+        ->and(metaFilter(['meta_query' => [['key' => 'title', 'value' => 'x', 'compare' => 'NOT LIKE']]]))->toBe("((metas.title EXISTS AND metas.title NOT CONTAINS 'x'))")
+        ->and(metaFilter(['meta_query' => [['key' => 'title', 'value' => '', 'compare' => 'LIKE']]]))->toBe('(metas.title EXISTS)')
+        ->and(fn () => metaFilter(['meta_query' => [['key' => 'title', 'value' => 'x', 'compare' => 'REGEXP']]]))->toThrow(UnsupportedQuery::class);
 });

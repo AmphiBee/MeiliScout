@@ -626,6 +626,7 @@ class Indexer
             'taxonomies' => Settings::get('indexed_taxonomies', []),
             'meta_keys' => Settings::get('indexed_meta_keys', []),
             'searchable' => SearchableAttributes::configured(),
+            'statuses' => PostIndexable::indexableStatuses(),
             'last_indexed' => current_time('mysql'),
         ];
 
@@ -694,6 +695,17 @@ class Indexer
             $changes['searchable'] = [
                 'added' => array_values(array_diff(SearchableAttributes::configured() ?? [], $lastStructure['searchable'] ?? [])),
                 'removed' => array_values(array_diff($lastStructure['searchable'] ?? [], SearchableAttributes::configured() ?? [])),
+            ];
+        }
+
+        // Private posts added or removed: sites indexed before it was recorded had published posts only
+        $statuses = PostIndexable::indexableStatuses();
+        $lastStatuses = (array) ($lastStructure['statuses'] ?? ['publish']);
+        if (array_diff($statuses, $lastStatuses) !== [] || array_diff($lastStatuses, $statuses) !== []) {
+            $hasChanged = true;
+            $changes['statuses'] = [
+                'added' => array_values(array_diff($statuses, $lastStatuses)),
+                'removed' => array_values(array_diff($lastStatuses, $statuses)),
             ];
         }
 

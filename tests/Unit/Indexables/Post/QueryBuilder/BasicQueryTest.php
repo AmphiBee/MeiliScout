@@ -85,8 +85,13 @@ test('a status the index does not hold sends the query to MySQL', function () {
         ->toThrow(UnsupportedQuery::class, 'unindexed_status:private');
 });
 
-test('indexed statuses are filtered on', function () {
+test('indexed statuses are filtered on, once a full indexation sent them', function () {
     $GLOBALS['filters']['meiliscout/indexable_post_statuses'] = ['publish', 'private'];
+
+    expect(fn () => (new MeiliQueryBuilder)->build(new MockWPQuery(['post_status' => 'publish,private'])))
+        ->toThrow(UnsupportedQuery::class, 'unindexed_status:private');
+
+    update_option('meiliscout/last_indexing_structure', ['statuses' => ['publish', 'private']]);
 
     expect((new MeiliQueryBuilder)->build(new MockWPQuery(['post_status' => 'publish,private']))['filter'])
         ->toBe("post_type = 'post' AND post_status IN ['publish', 'private']");

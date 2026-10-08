@@ -6,7 +6,14 @@ import {
 import { __, sprintf } from '@wordpress/i18n';
 
 import { post, errorMessage } from '../api';
-import { Banner, Icon, Skeleton, useResource, useToast } from '../components';
+import {
+	Banner,
+	Icon,
+	Skeleton,
+	Switch,
+	useResource,
+	useToast,
+} from '../components';
 
 const REALTIME_MODES = [
 	{
@@ -55,6 +62,7 @@ const fromData = ( data ) => ( {
 	timeout: data.timeout,
 	batch_size: data.batch_size,
 	max_total_hits: data.max_total_hits,
+	contains_filter: data.contains_filter.enabled,
 } );
 
 const ConnectionTest = ( { result } ) => {
@@ -563,6 +571,48 @@ const Settings = ( { refreshOverview, overview } ) => {
 								</span>
 							</div>
 						</div>
+						{ data.contains_filter.available && (
+							<div className="ms-row">
+								<Switch
+									checked={ form.contains_filter }
+									onChange={ ( on ) =>
+										setForm( {
+											...form,
+											contains_filter: on,
+										} )
+									}
+									label={ __(
+										'Partial filters on fields (LIKE)',
+										'meiliscout'
+									) }
+								/>
+								<div className="ms-row__label">
+									<strong>
+										{ __(
+											'Partial filters on fields (LIKE)',
+											'meiliscout'
+										) }
+									</strong>
+									<span>
+										{ __(
+											'Serves meta_query LIKE and NOT LIKE with the CONTAINS filter, an experimental feature of Meilisearch turned on for the whole instance. Off, these queries run on MySQL.',
+											'meiliscout'
+										) }
+									</span>
+								</div>
+								<span className="ms-row__meta">
+									{ data.contains_filter.enabled
+										? __(
+												'On on the instance',
+												'meiliscout'
+										  )
+										: __(
+												'Off on the instance',
+												'meiliscout'
+										  ) }
+								</span>
+							</div>
+						) }
 					</div>
 				</section>
 

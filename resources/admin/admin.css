@@ -1457,3 +1457,15 @@
 		animation: none;
 	}
 }
+
+/* Lists in running text */
+
+.meiliscout-admin .ms-list {
+	margin: 4px 0 0;
+	padding-left: 18px;
+	list-style: disc;
+}
+
+.meiliscout-admin .ms-list li {
+	margin: 4px 0;
+}

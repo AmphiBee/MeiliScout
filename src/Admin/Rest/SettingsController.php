@@ -9,6 +9,7 @@ use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Config\RealtimeIndexing;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Services\ClientFactory;
+use Pollora\MeiliScout\Services\ContainsFilter;
 use Pollora\MeiliScout\Services\Indexer;
 use Pollora\MeiliScout\Services\IndexNames;
 use Pollora\MeiliScout\Services\IndexSettings;
@@ -94,6 +95,12 @@ final class SettingsController extends Controller
 
         if (IndexSettings::maxTotalHits() !== $previousMaxTotalHits) {
             $this->pushMaxTotalHits();
+        }
+
+        // An experimental feature of the instance: changed there, only when asked to change
+        $contains = $request->get_param('contains_filter');
+        if (is_bool($contains) && $contains !== ContainsFilter::state()['enabled']) {
+            ContainsFilter::set($contains);
         }
 
         return $this->respond($this->payload());
@@ -204,6 +211,8 @@ final class SettingsController extends Controller
             'timeout' => ClientFactory::timeout(),
             'batch_size' => Indexer::batchSize(),
             'max_total_hits' => IndexSettings::maxTotalHits(),
+            // The instance's state, which can be changed outside the plugin
+            'contains_filter' => ContainsFilter::state(),
         ];
     }
 }
