@@ -123,8 +123,21 @@ Aucun argument documenté n'est ignoré en silence : ce qui n'est pas traduit to
 - **T4, recherche et métas :** `search`, `name__like`, `description__like`, `meta_query`, `orderby` sur les métas.
 - **T5, intégration et documentation :** réglages, Query Monitor, testeur admin (mode « arguments get_terms »), `docs/TERM_QUERY.md`.
 
-### Questions à trancher avant T2
-1. **`search` :** viser la parité stricte (`CONTAINS`, donc la fonctionnalité expérimentale requise) ou assumer la recherche classée de Meilisearch comme pour `s` ?
-2. **Métas de termes :** une sélection séparée des métas d'articles (recommandé), ou commune ?
-3. **`object_ids` :** le servir via l'index des articles (termes des articles donnés), ou le laisser en repli ?
-4. **Version de schéma :** `IndexNames::SCHEMA_VERSION` est commune aux deux index. Passer à 4 force une indexation complète des articles aussi : faut-il une version par index ?
+### Décisions (prises le 2026-10-08)
+1. **`search` :** parité stricte quand la fonctionnalité expérimentale `containsFilter` est activée sur l'instance (`ContainsFilter::enabled()`). `search` devient alors `(name CONTAINS s OR slug CONTAINS s)`, avec un ordre et des totaux identiques à MySQL. Sinon, c'est la recherche Meilisearch, classée par pertinence, comme pour `s` côté articles. Dans le banc, le premier cas est comparé strictement, le second en INFO. `name__like` et `description__like` suivent la même règle de disponibilité ; sans `CONTAINS`, ils repassent sur MySQL, car ce ne sont pas des recherches.
+2. **Métas de termes :** sélection séparée de celle des métas d'articles.
+   - nouveau réglage `indexed_term_meta_keys`, choisi dans l'écran Contenus, avec un catalogue des clés de métas de termes sur le modèle de `MetaKeyCatalog` ;
+   - les clés de termes manquées par les requêtes sont proposées comme pour les articles.
+   
+   Cela corrige au passage le bug qui faisait reprendre aux termes la sélection des métas d'articles.
+3. **`object_ids` :** même règle que pour WP_Query, traduire fidèlement ou se replier.
+   - **Traduction :** via l'index des articles, qui porte `taxonomies.<taxonomie>.term_id`. On récupère les termes des articles donnés, puis on filtre l'index des termes sur ces ids.
+   - **Condition :** que l'index connaisse tous ces articles. Si l'un d'eux a un type ou un statut non indexé (vérification en base, comme `QuerySupport`), repli (`unindexed_object`).
+   - **Restent en repli :** `fields => all_with_object_id` et `orderby => term_order`, qui dépendent de `term_relationships`.
+   - **Calendrier :** `object_ids` reste en repli en T2 et est traduit en T4.
+4. **Version de schéma par index :**
+   - `IndexNames` passe d'une version commune à une version par index : `SCHEMA_VERSIONS = ['posts' => 3, 'taxonomies' => 4]` ;
+   - l'option `meiliscout/schema_version` devient un tableau par base, en relisant l'entier actuel comme la version de chaque index ;
+   - `activeSchema($base)` et `migrationPending()` se lisent index par index, et une indexation complète n'active que les index qu'elle a reconstruits ;
+   - passer les termes en v4 n'impose pas de réindexer les articles ;
+   - à faire en T1, avant le schéma 4 des termes.
