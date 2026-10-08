@@ -180,12 +180,7 @@ class OrderBuilder implements QueryBuilderInterface
             throw new UnsupportedQuery('unsupported_orderby:'.$field);
         }
 
-        $flags = MetaValueFlags::of($metaKey);
-
-        // Several values per post (MySQL sorts on any of its rows), serialized values,
-        // or numbers mixed with text (MySQL sorts them all as text, or casts the text to 0)
-        if (isset($flags[MetaValueFlags::MULTIPLE]) || isset($flags[MetaValueFlags::STRUCTURED])
-            || (isset($flags[MetaValueFlags::NUMERIC]) && isset($flags[MetaValueFlags::NON_NUMERIC]))) {
+        if (! MetaValueFlags::sortable($metaKey)) {
             throw new UnsupportedQuery('unsupported_orderby:'.$field);
         }
 

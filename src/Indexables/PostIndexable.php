@@ -404,10 +404,11 @@ class PostIndexable implements Indexable
      * the values are like is noted for queries (MetaValueFlags).
      *
      * @param  list<mixed>  $values  Unserialized
+     * @param  'post'|'term'  $objectType  Whose meta
      */
-    public static function documentValue(string $key, array $values): mixed
+    public static function documentValue(string $key, array $values, string $objectType = 'post'): mixed
     {
-        MetaValueFlags::note($key, $values);
+        MetaValueFlags::note($key, $values, $objectType);
 
         // INF, -INF and NAN cannot be JSON encoded: kept as text
         $values = array_map(static fn (mixed $value) => is_numeric($value) && is_finite((float) $value) ? $value + 0 : $value, $values);

@@ -38,12 +38,14 @@ final class IndexNames
      * 4, every value of a meta key (a list when there are several, '' kept),
      * title and comment statuses filterable.
      *
-     * Terms: up to 3, the term's fields as WordPress gives them.
+     * Terms: up to 3, the term's fields as WordPress gives them. 4, the fields of
+     * term queries (ids and counts as numbers, name_sort, description_sort,
+     * tree_count) and every value of a term meta key.
      *
      * Versions were shared by every index up to 3: an index moves to the next
      * one on its own, and only its own indexation is needed.
      */
-    public const SCHEMA_VERSIONS = ['posts' => 4, 'taxonomies' => 3];
+    public const SCHEMA_VERSIONS = ['posts' => 4, 'taxonomies' => 4];
 
     /**
      * The indexes of the plugin, by base name.

@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Commands;
 
 use Pollora\MeiliScout\Diagnostics\QueryParity;
+use Pollora\MeiliScout\Diagnostics\TermQueryParity;
 use WP_CLI;
 
 /**
- * Compares WP_Query results on MySQL and on Meilisearch.
+ * Compares WP_Query (and get_terms()) results on MySQL and on Meilisearch.
  */
 class CheckQueriesCommand
 {
@@ -25,11 +26,14 @@ class CheckQueriesCommand
      *
      * ## OPTIONS
      *
+     * [--terms]
+     * : Term queries (get_terms(), WP_Term_Query) instead of post queries.
+     *
      * [--case=<filter>]
      * : Only the cases whose label contains this text.
      *
      * [--args=<json>]
-     * : Runs this WP_Query instead of the built-in cases, e.g. '{"cat":3}'.
+     * : Runs this WP_Query (with --terms, these get_terms() arguments) instead of the built-in cases, e.g. '{"cat":3}'.
      *
      * [--mode=<mode>]
      * : With --args: order (same posts in the same order), set, count, search, sorted or fallback (must fall back).
@@ -58,6 +62,7 @@ class CheckQueriesCommand
      *     $ wp meiliscout check-queries
      *     $ wp meiliscout check-queries --case=tax_query
      *     $ wp meiliscout check-queries --args='{"post_type":"page","orderby":"menu_order"}'
+     *     $ wp meiliscout check-queries --terms --args='{"taxonomy":"category","child_of":3}'
      *
      * @param  array<int, string>  $args
      * @param  array<string, string>  $assocArgs
@@ -71,9 +76,11 @@ class CheckQueriesCommand
                 WP_CLI::error('--args must be a JSON object of WP_Query arguments.');
             }
 
-            $results = [['case' => $assocArgs['args'], ...QueryParity::compare($queryArgs, $assocArgs['mode'] ?? QueryParity::MODE_ORDER)]];
+            $mode = $assocArgs['mode'] ?? QueryParity::MODE_ORDER;
+            $compared = isset($assocArgs['terms']) ? TermQueryParity::compare($queryArgs, $mode) : QueryParity::compare($queryArgs, $mode);
+            $results = [['case' => $assocArgs['args'], ...$compared]];
         } else {
-            $results = QueryParity::runCases($assocArgs['case'] ?? null);
+            $results = isset($assocArgs['terms']) ? TermQueryParity::runCases($assocArgs['case'] ?? null) : QueryParity::runCases($assocArgs['case'] ?? null);
         }
 
         $tally = QueryParity::tally($results);

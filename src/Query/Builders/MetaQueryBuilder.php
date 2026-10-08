@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
 use Pollora\MeiliScout\Query\QueryVars;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\ContainsFilter;
@@ -44,6 +45,32 @@ class MetaQueryBuilder extends AbstractFilterBuilder
      * Casts whose values are numbers.
      */
     private const NUMERIC_CASTS = ['SIGNED', 'UNSIGNED', 'DECIMAL'];
+
+    /**
+     * @param  'post'|'term'  $objectType  Whose metas: the posts' (posts index) or the terms' (taxonomies index)
+     */
+    public function __construct(private readonly string $objectType = 'post') {}
+
+    /**
+     * The meta keys documents carry, which queries can filter and sort on.
+     *
+     * @param  'post'|'term'  $objectType
+     * @return list<string>
+     */
+    public static function indexedKeys(string $objectType = 'post'): array
+    {
+        $setting = $objectType === 'term' ? TaxonomyIndexable::META_KEYS_SETTING : 'indexed_meta_keys';
+
+        return array_values(array_filter((array) Settings::get($setting, []), 'is_string'));
+    }
+
+    /**
+     * A filter no document of the index matches.
+     */
+    private function matchNothing(): string
+    {
+        return $this->objectType === 'term' ? 'taxonomy IN []' : self::MATCH_NOTHING;
+    }
 
     protected function queries(QueryInterface $query): array
     {
@@ -124,7 +151,7 @@ class MetaQueryBuilder extends AbstractFilterBuilder
             'IN' => "{$attribute} IN [".implode(', ', array_map($literal, $value)).']',
             'NOT IN' => "({$attribute} EXISTS AND {$attribute} NOT IN [".implode(', ', array_map($literal, $value)).'])',
             // One value of a list in the range, as MySQL matches one row
-            'BETWEEN' => MetaValueFlags::has($key, MetaValueFlags::MULTIPLE)
+            'BETWEEN' => MetaValueFlags::has($key, MetaValueFlags::MULTIPLE, $this->objectType)
                 ? "{$attribute} {$literal($value[0] ?? '')} TO {$literal($value[1] ?? '')}"
                 : "({$attribute} >= {$literal($value[0] ?? '')} AND {$attribute} <= {$literal($value[1] ?? '')})",
             'NOT BETWEEN' => "({$attribute} < {$literal($value[0] ?? '')} OR {$attribute} > {$literal($value[1] ?? '')})",
@@ -154,7 +181,7 @@ class MetaQueryBuilder extends AbstractFilterBuilder
         }
 
         // IS EMPTY matches a list that is empty, not one that holds ''
-        if (MetaValueFlags::has($key, MetaValueFlags::MULTIPLE)) {
+        if (MetaValueFlags::has($key, MetaValueFlags::MULTIPLE, $this->objectType)) {
             throw new UnsupportedQuery('multivalued_meta:'.$key);
         }
 
@@ -177,7 +204,7 @@ class MetaQueryBuilder extends AbstractFilterBuilder
      */
     private function assertComparable(string $key, string $compare, string $cast, mixed $value): void
     {
-        $flags = MetaValueFlags::of($key);
+        $flags = MetaValueFlags::of($key, $this->objectType);
 
         // MySQL compares the serialized text
         if (isset($flags[MetaValueFlags::STRUCTURED])) {
@@ -229,7 +256,7 @@ class MetaQueryBuilder extends AbstractFilterBuilder
 
         // '%%' matches any value, when the post has the key
         if ($value === '') {
-            return $compare === 'LIKE' ? "{$attribute} EXISTS" : 'post_type IN []';
+            return $compare === 'LIKE' ? "{$attribute} EXISTS" : $this->matchNothing();
         }
 
         return $compare === 'LIKE'
@@ -309,8 +336,8 @@ class MetaQueryBuilder extends AbstractFilterBuilder
      */
     private function assertIndexed(string $key): void
     {
-        if (! in_array($key, (array) Settings::get('indexed_meta_keys', []), true)) {
-            MissedMetaKeys::record($key);
+        if (! in_array($key, self::indexedKeys($this->objectType), true)) {
+            MissedMetaKeys::record($key, $this->objectType);
 
             throw new UnsupportedQuery('unindexed_meta:'.$key);
         }

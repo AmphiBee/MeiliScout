@@ -12,7 +12,8 @@ use function update_option;
 /**
  * What the indexed values of each meta key are like, for queries to tell when Meilisearch compares them as MySQL does.
  *
- * Recorded while posts are indexed (schema 4), for the keys documents carry:
+ * Recorded while posts and terms are indexed (posts schema 4, terms schema 4),
+ * for the keys documents carry, apart for post and term metas:
  *  - multiple: a post has several values for the key (a list in the document).
  *    Meilisearch matches a list when one of its values matches, as MySQL
  *    matches a post when one of its rows does; but a negation (!=, NOT IN)
@@ -24,6 +25,7 @@ use function update_option;
  *    in a numeric comparison or sort; Meilisearch never compares it to a number.
  *  - numeric: a value is a number. With non_numeric, the key mixes both:
  *    MySQL sorts them all as text, Meilisearch the numbers first.
+ *  - empty: a value is ''. Meilisearch sorts it last, MySQL first.
  *
  * A flag is only ever added by real-time indexing. A full indexation records
  * them anew, and replaces the previous ones once it is done.
@@ -38,40 +40,67 @@ final class MetaValueFlags
 
     public const NUMERIC = 'numeric';
 
-    private const OPTION = 'meiliscout/meta_value_flags';
-
-    private const RUN_OPTION = 'meiliscout/meta_value_flags_run';
+    public const EMPTY = 'empty';
 
     /**
-     * Flags noted during this request, not written yet.
+     * Options holding the flags, by object type.
+     */
+    private const OPTIONS = ['post' => 'meiliscout/meta_value_flags', 'term' => 'meiliscout/term_meta_value_flags'];
+
+    /**
+     * Suffix of the options a full indexation fills.
+     */
+    private const RUN_SUFFIX = '_run';
+
+    /**
+     * Flags noted during this request, not written yet, by object type and key.
      *
-     * @var array<string, array<string, true>>
+     * @var array<string, array<string, array<string, true>>>
      */
     private static array $pending = [];
 
     /**
      * The flags of a meta key.
      *
+     * @param  'post'|'term'  $objectType  Whose meta key
      * @return array<string, true>
      */
-    public static function of(string $key): array
+    public static function of(string $key, string $objectType = 'post'): array
     {
-        $flags = get_option(self::OPTION, []);
+        $flags = get_option(self::option($objectType), []);
 
         return is_array($flags) && isset($flags[$key]) && is_array($flags[$key]) ? $flags[$key] : [];
     }
 
-    public static function has(string $key, string $flag): bool
+    /**
+     * @param  'post'|'term'  $objectType
+     */
+    public static function has(string $key, string $flag, string $objectType = 'post'): bool
     {
-        return isset(self::of($key)[$flag]);
+        return isset(self::of($key, $objectType)[$flag]);
     }
 
     /**
-     * Notes the values of a key, as one post has them (unserialized).
+     * Whether Meilisearch sorts on a key as MySQL does: one value per post, not serialized,
+     * not numbers mixed with text (MySQL orders them all as text), none empty.
+     *
+     * @param  'post'|'term'  $objectType
+     */
+    public static function sortable(string $key, string $objectType = 'post'): bool
+    {
+        $flags = self::of($key, $objectType);
+
+        return ! isset($flags[self::MULTIPLE]) && ! isset($flags[self::STRUCTURED]) && ! isset($flags[self::EMPTY])
+            && ! (isset($flags[self::NUMERIC]) && isset($flags[self::NON_NUMERIC]));
+    }
+
+    /**
+     * Notes the values of a key, as one post (or term) has them, unserialized.
      *
      * @param  list<mixed>  $values
+     * @param  'post'|'term'  $objectType
      */
-    public static function note(string $key, array $values): void
+    public static function note(string $key, array $values, string $objectType = 'post'): void
     {
         $flags = [];
 
@@ -86,6 +115,10 @@ final class MetaValueFlags
                 $flags[self::NUMERIC] = true;
             } else {
                 $flags[self::NON_NUMERIC] = true;
+
+                if ($value === '') {
+                    $flags[self::EMPTY] = true;
+                }
             }
         }
 
@@ -97,7 +130,7 @@ final class MetaValueFlags
             add_action('shutdown', [self::class, 'flush']);
         }
 
-        self::$pending[$key] = [...(self::$pending[$key] ?? []), ...$flags];
+        self::$pending[$objectType][$key] = [...(self::$pending[$objectType][$key] ?? []), ...$flags];
     }
 
     /**
@@ -108,14 +141,13 @@ final class MetaValueFlags
         $pending = self::$pending;
         self::$pending = [];
 
-        if ($pending === []) {
-            return;
-        }
+        foreach ($pending as $objectType => $flags) {
+            $option = self::option($objectType);
+            self::merge($option, $flags, true);
 
-        self::merge(self::OPTION, $pending);
-
-        if (get_option(self::RUN_OPTION, null) !== null) {
-            self::merge(self::RUN_OPTION, $pending);
+            if (get_option($option.self::RUN_SUFFIX, null) !== null) {
+                self::merge($option.self::RUN_SUFFIX, $flags, false);
+            }
         }
     }
 
@@ -125,27 +157,40 @@ final class MetaValueFlags
     public static function startRun(): void
     {
         self::flush();
-        update_option(self::RUN_OPTION, [], false);
+
+        foreach (self::OPTIONS as $option) {
+            update_option($option.self::RUN_SUFFIX, [], false);
+        }
     }
 
     /**
      * A full indexation is done: its flags are the current ones.
+     *
+     * @param  list<'post'|'term'>  $objectTypes  The metas it indexed: the posts', the terms', or both
      */
-    public static function finishRun(): void
+    public static function finishRun(array $objectTypes = ['post', 'term']): void
     {
         self::flush();
-        $run = get_option(self::RUN_OPTION, null);
 
-        if (is_array($run)) {
-            update_option(self::OPTION, $run);
-            delete_option(self::RUN_OPTION);
+        foreach (self::OPTIONS as $objectType => $option) {
+            $run = get_option($option.self::RUN_SUFFIX, null);
+            delete_option($option.self::RUN_SUFFIX);
+
+            if (is_array($run) && in_array($objectType, $objectTypes, true)) {
+                update_option($option, $run);
+            }
         }
+    }
+
+    private static function option(string $objectType): string
+    {
+        return self::OPTIONS[$objectType] ?? self::OPTIONS['post'];
     }
 
     /**
      * @param  array<string, array<string, true>>  $flags
      */
-    private static function merge(string $option, array $flags): void
+    private static function merge(string $option, array $flags, bool $autoload): void
     {
         $saved = get_option($option, []);
         $saved = is_array($saved) ? $saved : [];
@@ -156,7 +201,7 @@ final class MetaValueFlags
         }
 
         if ($merged !== $saved) {
-            update_option($option, $merged, $option === self::OPTION);
+            update_option($option, $merged, $autoload);
         }
     }
 

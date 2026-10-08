@@ -281,7 +281,7 @@ class Indexer
         $migrating = array_intersect(IndexNames::pendingBases(), $bases);
 
         IndexNames::activate($bases);
-        MetaValueFlags::finishRun();
+        MetaValueFlags::finishRun(array_map(static fn (string $base) => $base === 'posts' ? 'post' : 'term', $bases));
 
         if ($migrating !== []) {
             $this->log('success', sprintf('Searches now use %s', implode(', ', array_map([IndexNames::class, 'name'], $migrating))));
@@ -804,7 +804,10 @@ class Indexer
         }
         
         if ($indexable instanceof TaxonomyIndexable) {
-            return $this->taxonomySingleIndexer->indexTerms($items, $indexable);
+            $statistics = $this->taxonomySingleIndexer->indexTerms($items, $indexable);
+            MetaValueFlags::flush();
+
+            return $statistics;
         }
 
         // Fallback to old method for unknown indexable types

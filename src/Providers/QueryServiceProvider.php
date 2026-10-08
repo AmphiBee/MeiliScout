@@ -11,6 +11,8 @@ use Pollora\MeiliScout\Integrations\QueryMonitor\QueryMonitor;
 use Pollora\MeiliScout\Query\AutoIntegration;
 use Pollora\MeiliScout\Query\DebugHeader;
 use Pollora\MeiliScout\Query\QueryIntegration;
+use Pollora\MeiliScout\Query\Terms\TermAutoIntegration;
+use Pollora\MeiliScout\Query\Terms\TermQueryIntegration;
 
 /**
  * Service provider for registering query integration functionality.
@@ -41,10 +43,17 @@ class QueryServiceProvider extends ServiceProvider
             new QueryIntegration($queryBuilder);
         }
 
-        // The REST API's searches, for the indexed post types
+        // get_terms(), from the taxonomies index
+        new TermQueryIntegration;
+
+        // The REST API's searches, for the indexed post types and taxonomies
         add_action('rest_api_init', static function (): void {
             foreach ((array) Settings::get('indexed_post_types', []) as $type) {
                 add_filter("rest_{$type}_query", [AutoIntegration::class, 'restQuery']);
+            }
+
+            foreach ((array) Settings::get('indexed_taxonomies', []) as $taxonomy) {
+                add_filter("rest_{$taxonomy}_query", [TermAutoIntegration::class, 'restQuery']);
             }
         });
 

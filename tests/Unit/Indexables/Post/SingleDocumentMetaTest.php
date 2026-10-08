@@ -57,7 +57,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {
 
         expect($document['metas'])->toBe(['color' => ['red', 'blue'], 'note' => '', 'size' => 12])
             ->and(\Pollora\MeiliScout\Services\MetaValueFlags::of('color'))->toBe(['multiple' => true, 'non_numeric' => true])
-            ->and(\Pollora\MeiliScout\Services\MetaValueFlags::of('note'))->toBe(['non_numeric' => true])
+            ->and(\Pollora\MeiliScout\Services\MetaValueFlags::of('note'))->toBe(['non_numeric' => true, 'empty' => true])
             ->and(\Pollora\MeiliScout\Services\MetaValueFlags::of('size'))->toBe(['numeric' => true]);
     });
 

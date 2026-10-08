@@ -6,9 +6,10 @@ namespace Pollora\MeiliScout\Query;
 
 use Pollora\MeiliScout\Config\Config;
 use WP_Query;
+use WP_Term_Query;
 
 /**
- * The queries of this request that asked for Meilisearch, for debugging tools (Query Monitor).
+ * The queries of this request that asked for Meilisearch, posts and terms, for debugging tools (Query Monitor).
  */
 final class QueryLog
 {
@@ -18,14 +19,14 @@ final class QueryLog
     private const LIMIT = 200;
 
     /**
-     * @var list<array{info: array<string, mixed>, query: WP_Query}>
+     * @var list<array{info: array<string, mixed>, query: WP_Query|WP_Term_Query}>
      */
     private static array $entries = [];
 
     /**
      * Records what MeiliScout did with a query: called once it served it, or left it to MySQL.
      */
-    public static function record(WP_Query $query): void
+    public static function record(WP_Query|WP_Term_Query $query): void
     {
         if (count(self::$entries) < self::LIMIT && is_array($query->meiliscout ?? null)) {
             self::$entries[] = ['info' => $query->meiliscout, 'query' => $query];
@@ -35,18 +36,20 @@ final class QueryLog
     /**
      * The queries recorded, with their total once WordPress counted it.
      *
-     * @return list<array{served: bool, reason: string|null, params: array<string, mixed>|null, index: string|null, time: float|null, main: bool, found_posts: int}>
+     * @return list<array{kind: string, served: bool, reason: string|null, params: array<string, mixed>|null, index: string|null, time: float|null, main: bool, found_posts: int}>
      */
     public static function entries(): array
     {
         return array_map(static fn (array $entry) => [
+            'kind' => $entry['query'] instanceof WP_Term_Query ? 'terms' : 'posts',
             'served' => ! empty($entry['info']['served']),
             'reason' => $entry['info']['reason'] ?? null,
             'params' => $entry['info']['params'] ?? null,
             'index' => $entry['info']['index'] ?? null,
             'time' => $entry['info']['time'] ?? null,
-            'main' => $entry['query']->is_main_query(),
-            'found_posts' => (int) $entry['query']->found_posts,
+            'main' => $entry['query'] instanceof WP_Query && $entry['query']->is_main_query(),
+            // The posts found, or the terms returned
+            'found_posts' => $entry['query'] instanceof WP_Query ? (int) $entry['query']->found_posts : (int) ($entry['info']['found'] ?? 0),
         ], self::$entries);
     }
 
