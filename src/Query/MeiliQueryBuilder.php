@@ -93,7 +93,13 @@ class MeiliQueryBuilder
             $params['filter'] = implode(' AND ', $filters);
         }
 
-        return $params;
+        /**
+         * Filters the parameters of the Meilisearch search a WP_Query becomes.
+         *
+         * @param  array<string, mixed>  $params
+         * @param  QueryInterface  $query
+         */
+        return apply_filters('meiliscout/search_params', $params, $query);
     }
 
     /**

@@ -67,10 +67,12 @@ class QueryIntegration
         }
 
         $searchParams = $this->buildSearchParams($query);
+        $query->meiliscout = ['served' => false, 'reason' => null, 'params' => $searchParams];
 
         // If non-indexable meta keys are found, fall back to classic WP_Query mode
         if ($this->builder->hasNonIndexableMetaKeys()) {
             $query->query_vars['use_meilisearch'] = false;
+            $query->meiliscout['reason'] = 'unindexed_meta';
             SearchFallbacks::record(SearchFallbacks::UNINDEXED_META);
 
             return $posts;
@@ -90,10 +92,12 @@ class QueryIntegration
             // Let WordPress run the query on MySQL rather than break the page
             error_log('MeiliScout: search failed, falling back to MySQL: '.$e->getMessage());
             SearchFallbacks::record(SearchFallbacks::ERROR);
+            $query->meiliscout['reason'] = 'engine_error';
 
             return $posts;
         }
 
+        $query->meiliscout['served'] = true;
         $hits = $results->getHits();
         $limit = $results->getLimit();
 

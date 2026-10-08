@@ -1,18 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Integration tests: a real WordPress and a real Meilisearch, e.g. the demo site. See tests/Integration/bootstrap.php -->
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.3/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
 >
     <testsuites>
-        <testsuite name="Unit">
-            <directory suffix="Test.php">./tests/Unit</directory>
+        <testsuite name="Integration">
+            <directory suffix="Test.php">./tests/Integration</directory>
         </testsuite>
     </testsuites>
-    <source>
-        <include>
-            <directory suffix=".php">./resources</directory>
-            <directory suffix=".php">./src</directory>
-        </include>
-    </source>
 </phpunit>

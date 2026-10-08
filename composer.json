@@ -30,6 +30,7 @@
     "scripts": {
         "test:types": "phpstan analyse --ansi",
         "test:unit": "pest --colors=always",
+        "test:integration": "pest --colors=always -c phpunit.integration.xml",
         "test": [
             "@test:types",
             "@test:unit"

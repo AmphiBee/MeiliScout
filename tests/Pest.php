@@ -1,5 +1,14 @@
 <?php
 
+// The integration suite runs against a real WordPress, which must load before
+// the stand-ins below are declared. Pest loads this file before PHPUnit reads
+// its configuration: the configuration file is looked for in the arguments.
+if (getenv('MEILISCOUT_INTEGRATION') || preg_grep('/phpunit\.integration\.xml$/', $_SERVER['argv'] ?? [])) {
+    require __DIR__.'/Integration/bootstrap.php';
+
+    return;
+}
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -59,7 +68,15 @@ if (! class_exists('WP_Post', false)) {
 // Declared once for the whole suite: a file declaring its own that ignores `$GLOBALS['filters']`
 // silently disarmed the filters every later file set.
 if (! function_exists('apply_filters')) {
-    function apply_filters($hook, $value, ...$args) { return $GLOBALS['filters'][$hook] ?? $value; }
+    function apply_filters($hook, $value, ...$args)
+    {
+        // The integration suite checks that Meilisearch parses every filter the builders produce
+        if ($hook === 'meiliscout/search_params' && getenv('MEILISCOUT_RECORD_FILTERS') && ! empty($value['filter'])) {
+            file_put_contents(getenv('MEILISCOUT_RECORD_FILTERS'), $value['filter'].PHP_EOL, FILE_APPEND);
+        }
+
+        return $GLOBALS['filters'][$hook] ?? $value;
+    }
 }
 
 uses()->beforeEach(function () {

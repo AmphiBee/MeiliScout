@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Providers;
 
+use Pollora\MeiliScout\Commands\CheckQueriesCommand;
 use Pollora\MeiliScout\Commands\IndexCommand;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
 
@@ -23,6 +24,7 @@ class CommandServiceProvider extends ServiceProvider
             \WP_CLI::add_command('meiliscout index-chunk', [$indexCommand, 'index_chunk']);
             \WP_CLI::add_command('meiliscout status', [$indexCommand, 'status']);
             \WP_CLI::add_command('meiliscout delete-legacy-indexes', [$indexCommand, 'delete_legacy_indexes']);
+            \WP_CLI::add_command('meiliscout check-queries', new CheckQueriesCommand);
         }
     }
 }
