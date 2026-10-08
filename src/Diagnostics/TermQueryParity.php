@@ -261,6 +261,8 @@ final class TermQueryParity
                     $notes[] = 'different order: '.json_encode(array_slice($sortKeys($mysql['values']), 0, 4), JSON_UNESCAPED_UNICODE).' vs '.json_encode(array_slice($sortKeys($meili['values']), 0, 4), JSON_UNESCAPED_UNICODE);
                 }
             }
+        } elseif (! empty($args['pad_counts']) && array_values($mysql['values']) === array_values($meili['values'])) {
+            // WordPress numbers padded terms one way when it runs the query, another when it reads its cache
         } elseif ($mysql['values'] !== $meili['values']) {
             $notes[] = sprintf('MySQL %s vs Meilisearch %s', self::excerpt($mysql['values']), self::excerpt($meili['values']));
         }

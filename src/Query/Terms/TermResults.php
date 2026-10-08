@@ -64,7 +64,14 @@ final class TermResults
             return $this->format($terms, $plan->fields);
         }
 
-        return $this->format($this->load($this->inPhp($params, $plan), $plan), $plan->fields);
+        $terms = $this->load($this->inPhp($params, $plan), $plan);
+
+        // WordPress caches padded terms as a list: keys are renumbered from the second call on, and with a persistent cache
+        if ($plan->padCounts && $plan->fields === 'all') {
+            $terms = array_values($terms);
+        }
+
+        return $this->format($terms, $plan->fields);
     }
 
     /**

@@ -70,6 +70,7 @@ A term is indexed again when it is saved, when its post count changes (a post pu
 
 ## Known differences with MySQL
 
+- **Keys with `pad_counts`.** WordPress returns the padded terms with gaps in their keys when it runs the query, and numbered from 0 when it reads them from its cache (a second call, or a persistent object cache). MeiliScout returns the latter.
 - **Ties.** Terms that tie on the order (the same count) come in any order, on MySQL too.
 - **Collation.** Names are folded (lowercase, without accents) for `name`, ordering and `LIKE`; MySQL's collation is close, not identical, for some characters.
 - **Search without CONTAINS.** Ranked by relevance, words matched from their start, with typos: `press` finds PrestaShop, not WordPress. Turn Partial filters on for MySQL's matching.
