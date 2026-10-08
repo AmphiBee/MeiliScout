@@ -164,7 +164,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
         $integration = integrationWith(clientReturning(new \RuntimeException('Meilisearch is down'), $this));
 
         $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true]));
-        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true, 'author' => 3]));
+        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true, 'title' => 'Hello']));
         $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true, 'meta_query' => [['key' => 'nope', 'value' => 1]]]));
 
         expect(SearchFallbacks::lastDay()['total'])->toBe(0);
@@ -175,23 +175,29 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
             'total' => 3,
             'error' => 1,
             'meta' => 1,
-            'reasons' => ['engine_error' => 1, 'unsupported_arg:author' => 1, 'unindexed_meta:nope' => 1],
+            'reasons' => ['engine_error' => 1, 'unsupported_arg:title' => 1, 'unindexed_meta:nope' => 1],
         ]);
     });
 
     test('an argument nothing translates sends the query to MySQL, without asking Meilisearch', function (array $vars, string $reason) {
         $client = $this->createMock(Client::class);
         $client->expects($this->never())->method('index');
+
+        if (isset($vars['_schema'])) {
+            update_option('meiliscout/schema_version', $vars['_schema']);
+            unset($vars['_schema']);
+        }
+
         $query = new \WP_Query(['use_meilisearch' => true, ...$vars]);
 
         expect(integrationWith($client)->interceptQuery(null, $query))->toBeNull()
             ->and($query->meiliscout['reason'])->toBe($reason);
     })->with([
-        'author' => [['author' => 2], 'unsupported_arg:author'],
-        'post__in' => [['post__in' => [1, 2]], 'unsupported_arg:post__in'],
-        'a date' => [['year' => 2024], 'unsupported_arg:year'],
-        'top-level pages' => [['post_type' => 'page', 'post_parent' => 0], 'unsupported_arg:post_parent'],
+        'title' => [['title' => 'Hello'], 'unsupported_arg:title'],
+        'post_mime_type' => [['post_mime_type' => 'image/png'], 'unsupported_arg:post_mime_type'],
+        'exact' => [['s' => 'x', 'exact' => true], 'unsupported_arg:exact'],
         'a plugin\'s var' => [['lang' => 'fr'], 'unsupported_arg:lang'],
+        'a date before schema 3' => [['year' => 2024, '_schema' => 2], 'schema_too_old'],
         'drafts' => [['post_status' => 'draft'], 'unindexed_status:draft'],
         'a type not indexed' => [['post_type' => 'product'], 'unindexed_type:product'],
         'a type that cannot be translated' => [['meta_query' => [['key' => 'k', 'value' => true, 'compare' => 'REGEXP']]], 'unindexed_meta:k'],
@@ -346,6 +352,27 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
 
         expect($integration->skipFoundRowsQuery('SELECT FOUND_ROWS()', $query))->toBe('SELECT FOUND_ROWS()')
             ->and($integration->foundPosts(11, $query))->toBe(11);
+    });
+
+    test('a list order fetches every result, puts them in order and cuts out the page', function () {
+        publishedPosts(1, 2, 3, 4, 5);
+        $integration = integrationWith(clientReturning(searchResult([1, 2, 3, 4, 5], 5), $this, $searches));
+        $query = new \WP_Query(['use_meilisearch' => true, 'post__in' => [5, 4, 3, 2, 1], 'orderby' => 'post__in', 'posts_per_page' => 2, 'paged' => 2]);
+
+        $posts = $integration->interceptQuery(null, $query);
+
+        expect(array_map(fn ($post) => $post->ID, $posts))->toBe([3, 2])
+            ->and($searches[0])->toMatchArray(['hitsPerPage' => 1000, 'page' => 1])
+            ->and($searches[0])->not->toHaveKey('sort')
+            ->and([$query->found_posts, $query->max_num_pages])->toBe([5, 3]);
+    });
+
+    test('a random order on more results than can be put in order runs on MySQL', function () {
+        $integration = integrationWith(clientReturning(searchResult([1, 2], 5000), $this));
+        $query = new \WP_Query(['use_meilisearch' => true, 'orderby' => 'rand']);
+
+        expect($integration->interceptQuery(null, $query))->toBeNull()
+            ->and($query->meiliscout['reason'])->toBe('unsupported_orderby:rand');
     });
 
     test('another plugin\'s answer is left alone', function () {

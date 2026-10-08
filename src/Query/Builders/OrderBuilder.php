@@ -6,8 +6,10 @@ namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Query\PhpOrder;
 use Pollora\MeiliScout\Query\QueryVars;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
+use Pollora\MeiliScout\Services\IndexNames;
 
 /**
  * Translates orderby and order into a Meilisearch sort.
@@ -24,33 +26,34 @@ use Pollora\MeiliScout\Query\UnsupportedQuery;
 class OrderBuilder implements QueryBuilderInterface
 {
     /**
-     * WordPress orderby values, mapped to document attributes when the index can sort on them.
+     * WordPress orderby values, mapped to the document attributes they sort on (from schema 3 for most).
      *
-     * @var array<string, string|null>
+     * @var array<string, string>
      */
     private const FIELDS = [
         'date' => 'post_date',
         'post_date' => 'post_date',
-        'title' => 'post_title',
-        'post_title' => 'post_title',
-        'name' => null,
-        'post_name' => null,
-        'author' => null,
-        'post_author' => null,
-        'modified' => null,
-        'post_modified' => null,
-        'parent' => null,
-        'post_parent' => null,
-        'type' => null,
-        'post_type' => null,
-        'ID' => null,
-        'menu_order' => null,
-        'comment_count' => null,
-        'rand' => null,
-        'post__in' => null,
-        'post_parent__in' => null,
-        'post_name__in' => null,
+        'title' => 'post_title_sort',
+        'post_title' => 'post_title_sort',
+        'name' => 'post_name',
+        'post_name' => 'post_name',
+        'author' => 'post_author',
+        'post_author' => 'post_author',
+        'modified' => 'post_modified',
+        'post_modified' => 'post_modified',
+        'parent' => 'post_parent',
+        'post_parent' => 'post_parent',
+        'type' => 'post_type',
+        'post_type' => 'post_type',
+        'ID' => 'ID',
+        'menu_order' => 'menu_order',
+        'comment_count' => 'comment_count',
     ];
+
+    /**
+     * Orders applied in PHP (PhpOrder) when they are the only one.
+     */
+    private const PHP_ORDERS = ['rand', 'post__in', 'post_parent__in', 'post_name__in'];
 
     /**
      * Builds the sort parameter.
@@ -66,6 +69,11 @@ class OrderBuilder implements QueryBuilderInterface
 
         if ($isSearch && (empty($orderby) || $orderby === 'relevance')) {
             // Relevance, as WordPress orders a search by default
+            return;
+        }
+
+        // Random, or the order of a list: put in order in PHP
+        if (PhpOrder::of($query) !== null) {
             return;
         }
 
@@ -133,12 +141,18 @@ class OrderBuilder implements QueryBuilderInterface
      */
     private function attribute(string $field, QueryInterface $query): ?string
     {
-        if (array_key_exists($field, self::FIELDS)) {
-            return self::FIELDS[$field] ?? throw new UnsupportedQuery('unsupported_orderby:'.$field);
+        if (isset(self::FIELDS[$field])) {
+            return $this->v3Attribute(self::FIELDS[$field]);
         }
 
-        if (preg_match('/^RAND\(\d+\)$/i', $field)) {
-            throw new UnsupportedQuery('unsupported_orderby:rand');
+        if (in_array($field, self::PHP_ORDERS, true) || preg_match('/^RAND\(\d+\)$/i', $field)) {
+            // An order on an empty list is ignored by WordPress
+            if ($field !== 'rand' && ! preg_match('/^RAND/i', $field) && empty($query->get($field))) {
+                return null;
+            }
+
+            // In PHP only on its own
+            throw new UnsupportedQuery('unsupported_orderby:'.(str_starts_with(strtolower($field), 'rand') ? 'rand' : $field));
         }
 
         $clauses = self::metaClauses(QueryVars::metaQuery($query));
@@ -166,6 +180,27 @@ class OrderBuilder implements QueryBuilderInterface
         }
 
         return "metas.{$metaKey}";
+    }
+
+    /**
+     * An attribute to sort on; all but the date need the fields of schema 3.
+     */
+    private function v3Attribute(string $attribute): string
+    {
+        if ($attribute === 'post_date') {
+            return $attribute;
+        }
+
+        if (IndexNames::activeSchema() < 3) {
+            // Indexes built before had the raw title sortable, and nothing else
+            if ($attribute === 'post_title_sort') {
+                return 'post_title';
+            }
+
+            throw new UnsupportedQuery('schema_too_old');
+        }
+
+        return $attribute;
     }
 
     /**

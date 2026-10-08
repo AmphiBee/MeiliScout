@@ -7,6 +7,8 @@ namespace Pollora\MeiliScout\Query;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Contracts\QueryInterface;
 use Pollora\MeiliScout\Indexables\PostIndexable;
+use Pollora\MeiliScout\Query\Builders\DateQueryBuilder;
+use Pollora\MeiliScout\Query\Builders\PostFieldsBuilder;
 
 use function apply_filters;
 
@@ -94,11 +96,20 @@ final class QuerySupport
      */
     private static function handledVars(QueryInterface $query): array
     {
-        $handled = self::HANDLED;
+        $handled = [...self::HANDLED, ...PostFieldsBuilder::VARS, ...DateQueryBuilder::VARS];
 
         // WordPress parsed these into tax_query clauses, which are translated
         if ($query instanceof WPQueryAdapter) {
             $handled = [...$handled, ...self::TAXONOMY_SHORTCUTS];
+
+            // A post type's query var: WordPress turned it into name or pagename
+            foreach (get_post_types([], 'objects') as $type) {
+                $queryVar = is_object($type) ? ($type->query_var ?: null) : null; // @phpstan-ignore function.alreadyNarrowedType
+
+                if (is_string($queryVar)) {
+                    $handled[] = $queryVar;
+                }
+            }
 
             foreach (get_taxonomies([], 'objects') as $taxonomy) {
                 // Taxonomy objects, though a stand-in for WordPress may give names
@@ -144,6 +155,10 @@ final class QuerySupport
         $indexed = PostIndexable::indexableStatuses();
         $requested = self::requestedStatuses($query);
 
+        if (self::singularUnindexed($query, $indexed)) {
+            return 'unindexed_status:singular';
+        }
+
         if ($requested['explicit']) {
             // Asked for by name: no index holds drafts, pending or scheduled posts
             foreach ($requested['statuses'] as $status) {
@@ -164,6 +179,39 @@ final class QuerySupport
         }
 
         return null;
+    }
+
+    /**
+     * A single post asked for, that exists with a status the index lacks.
+     *
+     * WordPress does not filter a single post on its status in SQL: it shows a
+     * draft or a private post to whoever may read it, after the query, and
+     * counts it in found_posts even for those who may not.
+     *
+     * @param  list<string>  $indexed
+     */
+    private static function singularUnindexed(QueryInterface $query, array $indexed): bool
+    {
+        $wp = QueryVars::wp($query);
+
+        if ($wp === null || ! $wp->is_singular || ! empty($query->get('post_status'))) {
+            return false;
+        }
+
+        global $wpdb;
+
+        $statuses = implode(', ', array_map(static fn (string $status) => $wpdb->prepare('%s', $status), $indexed));
+        $id = abs((int) $query->get('p'));
+        $name = (string) $query->get('name');
+
+        $where = match (true) {
+            $id > 0 => $wpdb->prepare('ID = %d', $id),
+            $name !== '' => $wpdb->prepare('post_name = %s', $name),
+            default => null,
+        };
+
+        return $where !== null
+            && (int) $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE {$where} AND post_status NOT IN ({$statuses})") > 0;
     }
 
     /**

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query;
 
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Query\Builders\DateQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\FieldsBuilder;
 use Pollora\MeiliScout\Query\Builders\MetaQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\OrderBuilder;
 use Pollora\MeiliScout\Query\Builders\PaginationBuilder;
+use Pollora\MeiliScout\Query\Builders\PostFieldsBuilder;
 use Pollora\MeiliScout\Query\Builders\SearchQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\TaxQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\TypeStatusBuilder;
@@ -38,8 +40,10 @@ class MeiliQueryBuilder
             new PaginationBuilder,
             new SearchQueryBuilder,
             new TypeStatusBuilder,
+            new PostFieldsBuilder,
             new TaxQueryBuilder,
             new MetaQueryBuilder,
+            new DateQueryBuilder,
             new OrderBuilder,
             new FieldsBuilder,
         ];

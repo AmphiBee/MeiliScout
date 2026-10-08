@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Query\Builders;
 
 use Pollora\MeiliScout\Contracts\QueryInterface;
+use Pollora\MeiliScout\Query\PhpOrder;
 
 use function apply_filters;
 
@@ -27,7 +28,10 @@ class FieldsBuilder implements QueryBuilderInterface
             return;
         }
 
-        $searchParams['attributesToRetrieve'] = $query->get('fields') === 'id=>parent' ? ['ID', 'post_parent'] : ['ID'];
+        $attributes = $query->get('fields') === 'id=>parent' ? ['ID', 'post_parent'] : ['ID'];
+        $order = PhpOrder::of($query);
+
+        $searchParams['attributesToRetrieve'] = array_values(array_unique([...$attributes, ...($order?->attributes() ?? [])]));
     }
 
     /**

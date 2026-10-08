@@ -74,6 +74,16 @@ class PostIndexable implements Indexable
         $filterableAttributes = [
             'post_type',
             'post_status',
+            // WP_Query arguments, from schema 3
+            'ID',
+            'post_name',
+            'post_author',
+            'post_parent',
+            'menu_order',
+            'comment_count',
+            'has_password',
+            ...array_map(fn (string $column) => "{$column}_ts", PostDates::COLUMNS),
+            'date_parts',
         ];
 
         foreach ($filterableMetaKeys as $metaKey) {
@@ -89,6 +99,15 @@ class PostIndexable implements Indexable
             'sortableAttributes' => array_values(array_unique([
                 'post_title',
                 'post_date',
+                'ID',
+                'post_name',
+                'post_author',
+                'post_parent',
+                'post_modified',
+                'post_type',
+                'menu_order',
+                'comment_count',
+                'post_title_sort',
                 ...array_map(fn($key) => "metas.{$key}", $filterableMetaKeys),
             ])),
             'displayedAttributes' => apply_filters(
@@ -378,6 +397,7 @@ class PostIndexable implements Indexable
         }
 
         $document = $this->withoutProtectedText(get_object_vars($item));
+        $document = [...$document, ...$this->queryFields($item)];
 
         $document['url'] = get_permalink($item);
         $document['content_text'] = $this->plainText((string) $document['post_content']);
@@ -386,6 +406,58 @@ class PostIndexable implements Indexable
         $document['metas'] = $this->getMetaData($item);
 
         return apply_filters('meiliscout/post/document', $document, $item);
+    }
+
+    /**
+     * Fields WP_Query arguments are translated against (schema 3).
+     *
+     * Numbers as numbers, for sorts and comparisons to be numeric; whether the
+     * post has a password, without the password; the dates as timestamps and
+     * parts; and the title folded the way MySQL's collation compares it.
+     *
+     * @return array<string, mixed>
+     */
+    private function queryFields(WP_Post $post): array
+    {
+        $fields = [];
+
+        foreach (['ID', 'post_author', 'post_parent', 'menu_order', 'comment_count'] as $field) {
+            if (isset($post->$field)) {
+                $fields[$field] = (int) $post->$field;
+            }
+        }
+
+        $fields['has_password'] = (string) $post->post_password !== '';
+
+        foreach (PostDates::COLUMNS as $column) {
+            $timestamp = PostDates::timestamp((string) ($post->$column ?? ''));
+
+            if ($timestamp !== null) {
+                $fields["{$column}_ts"] = $timestamp;
+            }
+        }
+
+        foreach (PostDates::PART_COLUMNS as $column) {
+            $parts = PostDates::parts((string) ($post->$column ?? ''));
+
+            if ($parts !== null) {
+                $fields['date_parts'][$column] = $parts;
+            }
+        }
+
+        $fields['post_title_sort'] = self::titleSortKey((string) $post->post_title);
+
+        return $fields;
+    }
+
+    /**
+     * A title folded for sorting: lowercase and without accents, close to how MySQL's collations order titles.
+     */
+    public static function titleSortKey(string $title): string
+    {
+        $title = function_exists('remove_accents') ? remove_accents($title) : $title;
+
+        return mb_strtolower(trim($title));
     }
 
     /**

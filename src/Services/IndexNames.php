@@ -33,8 +33,10 @@ final class IndexNames
      * Version of the documents' format.
      *
      * 1: terms in a flat `terms` list. 2: terms grouped in `taxonomies.<taxonomy>`.
+     * 3: fields for WP_Query arguments (ids and counts as numbers, has_password,
+     * date timestamps and parts, post_title_sort).
      */
-    public const SCHEMA_VERSION = 2;
+    public const SCHEMA_VERSION = 3;
 
     /**
      * The indexes of the plugin, by base name.

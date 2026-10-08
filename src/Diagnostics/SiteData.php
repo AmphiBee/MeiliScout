@@ -54,6 +54,7 @@ final class SiteData
             'other_parent' => $otherParent,
             'page_path' => $childPage > 0 ? get_page_uri($childPage) : null,
             'admin' => (int) ($admins[0] ?? 0),
+            'private_post' => (int) $wpdb->get_var("SELECT ID FROM {$wpdb->posts} WHERE post_type = 'post' AND post_status = 'private' ORDER BY ID LIMIT 1"),
             'author' => $author,
             'author2' => $author2,
             'author_nicename' => $authorUser ? $authorUser->user_nicename : null,

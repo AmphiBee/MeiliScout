@@ -119,7 +119,19 @@ class QueryIntegration
             return $this->fallBack($query, 'engine_error');
         }
 
-        $posts = $this->posts($results->getHits(), $query, FieldsBuilder::hydrateFromDocuments($adapter));
+        $hits = $results->getHits();
+        $order = PhpOrder::of($adapter);
+
+        if ($order !== null) {
+            // Every result is needed to put them in order
+            if ($total > count($hits)) {
+                return $this->fallBack($query, 'unsupported_orderby:'.$order->kind);
+            }
+
+            $hits = $this->page($order->sort($hits), $adapter);
+        }
+
+        $posts = $this->posts($hits, $query, FieldsBuilder::hydrateFromDocuments($adapter));
         $this->setFoundPosts($query, $adapter, $posts, $total);
 
         $query->facet_distribution = $results->getFacetDistribution();
@@ -207,6 +219,7 @@ class QueryIntegration
             return (int) $results->getTotalHits();
         }
 
+
         if (! empty($query->get('no_found_rows'))) {
             return 0;
         }
@@ -214,6 +227,25 @@ class QueryIntegration
         $count = array_diff_key($params, array_flip(['limit', 'offset', 'sort', 'attributesToRetrieve', 'facets']));
 
         return (int) $this->search($index, [...$count, 'hitsPerPage' => 0, 'page' => 1])->getTotalHits();
+    }
+
+    /**
+     * The page asked for, out of every result put in order.
+     *
+     * @param  list<array<string, mixed>>  $hits
+     * @return list<array<string, mixed>>
+     */
+    private function page(array $hits, WPQueryAdapter $query): array
+    {
+        if (QueryVars::isUnpaged($query)) {
+            return $hits;
+        }
+
+        $postsPerPage = PaginationBuilder::postsPerPage($query);
+        $offset = $query->get('offset');
+        $start = is_numeric($offset) ? abs((int) $offset) : (max(1, abs((int) $query->get('paged', 1))) - 1) * $postsPerPage;
+
+        return array_slice($hits, $start, $postsPerPage);
     }
 
     /**

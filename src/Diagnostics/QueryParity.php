@@ -60,6 +60,11 @@ final class QueryParity
     public const MODE_SEARCH = 'search';
 
     /**
+     * Same sort keys in the same order: posts that tie may come in any order, on MySQL too.
+     */
+    public const MODE_SORTED = 'sorted';
+
+    /**
      * Fields of the first WP_Post compared between the two engines.
      */
     private const POST_FIELDS = [
@@ -72,12 +77,13 @@ final class QueryParity
      *
      * A case whose data is missing has null args, and is skipped.
      *
-     * @return list<array{label: string, args: array<string, mixed>|null, mode: string}>
+     * @return list<array{label: string, args: array<string, mixed>|null, mode: string, keys: list<string>}>
      */
     public static function cases(): array
     {
         $d = SiteData::collect();
-        $case = static fn (string $label, ?array $args, string $mode = self::MODE_ORDER): array => ['label' => $label, 'args' => $args, 'mode' => $mode];
+        $case = static fn (string $label, ?array $args, string $mode = self::MODE_ORDER, array $keys = []): array => ['label' => $label, 'args' => $args, 'mode' => $mode, 'keys' => $keys];
+        $sorted = static fn (string $label, ?array $args, string ...$keys): array => $case($label, $args, self::MODE_SORTED, $keys);
         $when = static fn (bool $ok, array $args): ?array => $ok ? $args : null;
 
         $posts = $d['posts'];
@@ -109,6 +115,8 @@ final class QueryParity
 
             // Single post, slugs
             $case('p', $when($hasPosts, ['p' => $posts[5] ?? 0])),
+            $case('p, a private post, logged out', $when($d['private_post'] > 0, ['p' => $d['private_post']])),
+            $case('p, a private post, logged in', $when($d['private_post'] > 0 && $d['admin'] > 0, ['p' => $d['private_post'], '_user' => $d['admin']])),
             $case('name', $when($d['post_name'] !== null, ['name' => $d['post_name']])),
             $case('pagename (hierarchical path)', $when($d['page_path'] !== null, ['pagename' => $d['page_path']])),
             $case('page_id', $when($d['child_page'] > 0, ['page_id' => $d['child_page']])),
@@ -221,22 +229,24 @@ final class QueryParity
             $case('s + search_columns title', $when($d['search_word'] !== null, ['s' => $d['search_word'], 'search_columns' => ['post_title']]), self::MODE_SEARCH),
 
             // Order
-            $case('orderby title ASC', ['orderby' => 'title', 'order' => 'ASC']),
-            $case('orderby name', ['orderby' => 'name', 'order' => 'ASC']),
-            $case('orderby date ASC', ['orderby' => 'date', 'order' => 'ASC']),
-            $case('orderby modified', ['orderby' => 'modified']),
+            $sorted('orderby title ASC', ['orderby' => 'title', 'order' => 'ASC'], 'title'),
+            $sorted('orderby title DESC, all', ['orderby' => 'title', 'posts_per_page' => -1], 'title'),
+            $sorted('orderby name', ['orderby' => 'name', 'order' => 'ASC'], 'post_name'),
+            $sorted('orderby date ASC', ['orderby' => 'date', 'order' => 'ASC'], 'post_date'),
+            $sorted('orderby modified', ['orderby' => 'modified'], 'post_modified'),
             $case('orderby ID', ['orderby' => 'ID', 'order' => 'ASC']),
-            $case('orderby author', ['orderby' => 'author']),
-            $case('orderby menu_order (pages)', ['post_type' => 'page', 'orderby' => 'menu_order', 'order' => 'ASC']),
-            $case('orderby parent', ['post_type' => 'page', 'orderby' => 'parent', 'order' => 'ASC']),
-            $case('orderby comment_count', ['orderby' => 'comment_count']),
-            $case('orderby type', ['post_type' => 'any', 'orderby' => 'type']),
+            $sorted('orderby author', ['orderby' => 'author'], 'post_author'),
+            $case('orderby author, ID (no tie)', ['orderby' => ['author' => 'DESC', 'ID' => 'ASC']]),
+            $sorted('orderby menu_order (pages)', ['post_type' => 'page', 'orderby' => 'menu_order', 'order' => 'ASC'], 'menu_order'),
+            $sorted('orderby parent', ['post_type' => 'page', 'orderby' => 'parent', 'order' => 'ASC'], 'post_parent'),
+            $sorted('orderby comment_count', ['orderby' => 'comment_count'], 'comment_count'),
+            $sorted('orderby type', ['post_type' => 'any', 'orderby' => 'type'], 'post_type'),
             $case('orderby rand', ['orderby' => 'rand', 'ignore_sticky_posts' => true], self::MODE_COUNT),
             $case('orderby rand, all on one page', ['orderby' => 'rand', 'post_type' => 'page', 'posts_per_page' => -1], self::MODE_SET),
-            $case('orderby array', ['orderby' => ['menu_order' => 'ASC', 'title' => 'DESC'], 'post_type' => 'page']),
-            $case('orderby meta_value_num', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_key' => $num['key'] ?? '', 'orderby' => 'meta_value_num', 'order' => 'ASC'])),
+            $sorted('orderby array', ['orderby' => ['menu_order' => 'ASC', 'title' => 'DESC'], 'post_type' => 'page'], 'menu_order', 'title'),
+            $sorted('orderby meta_value_num', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_key' => $num['key'] ?? '', 'orderby' => 'meta_value_num', 'order' => 'ASC']), 'meta:'.($num['key'] ?? '')),
             $case('orderby meta_value', $when($str !== null, ['post_type' => $str['type'] ?? 'post', 'meta_key' => $str['key'] ?? '', 'orderby' => 'meta_value', 'order' => 'ASC']), self::MODE_SET),
-            $case('orderby named meta clause', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => ['num_clause' => ['key' => $num['key'] ?? '', 'compare' => 'EXISTS', 'type' => 'NUMERIC']], 'orderby' => 'num_clause', 'order' => 'DESC'])),
+            $sorted('orderby named meta clause', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => ['num_clause' => ['key' => $num['key'] ?? '', 'compare' => 'EXISTS', 'type' => 'NUMERIC']], 'orderby' => 'num_clause', 'order' => 'DESC']), 'meta:'.($num['key'] ?? '')),
             // Without a type, MySQL sorts numbers as text; Meilisearch sorts them as numbers
             $case('orderby named meta clause, no type', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => ['num_clause' => ['key' => $num['key'] ?? '', 'compare' => 'EXISTS']], 'orderby' => 'num_clause', 'order' => 'DESC', 'posts_per_page' => -1]), self::MODE_SET),
             // Unordered: which sticky posts are already on the page varies, and with it post_count
@@ -277,7 +287,7 @@ final class QueryParity
 
             $results[] = $case['args'] === null
                 ? ['case' => $case['label'], 'outcome' => self::SKIP, 'notes' => ['the site lacks the data for this case']]
-                : ['case' => $case['label'], ...self::compare($case['args'], $case['mode'])];
+                : ['case' => $case['label'], ...self::compare($case['args'], $case['mode'], $case['keys'])];
         }
 
         return $results;
@@ -289,12 +299,18 @@ final class QueryParity
      * The pseudo-argument `_user` runs the query as that user.
      *
      * @param  array<string, mixed>  $args
+     * @param  list<string>  $keys  For MODE_SORTED: the fields sorted on (title, post_author, meta:price...)
      * @return array{outcome: string, mysql_found?: int, meili_found?: int, reason?: string|null, notes: list<string>, params?: array<string, mixed>|null}
      */
-    public static function compare(array $args, string $mode = self::MODE_ORDER): array
+    public static function compare(array $args, string $mode = self::MODE_ORDER, array $keys = []): array
     {
         $previousUser = get_current_user_id();
         $notes = [];
+
+        // Sticky posts go to the top when they are on the page: with ties, whether they are varies
+        if ($mode === self::MODE_SORTED) {
+            $args += ['ignore_sticky_posts' => true];
+        }
 
         try {
             $mysql = self::run($args, false);
@@ -324,7 +340,14 @@ final class QueryParity
         sort($sortedA);
         sort($sortedB);
 
-        if ($mode === self::MODE_COUNT) {
+        if ($mode === self::MODE_SORTED) {
+            $sortKeys = static fn (array $ids): array => array_map(static fn (int $id): string => self::sortKey($id, $keys), $ids);
+
+            if ($sortKeys($mysql['ids']) !== $sortKeys($meili['ids'])) {
+                $outcome = self::DIFF;
+                $notes[] = 'different order: '.json_encode(array_slice($sortKeys($mysql['ids']), 0, 4), JSON_UNESCAPED_UNICODE).' vs '.json_encode(array_slice($sortKeys($meili['ids']), 0, 4), JSON_UNESCAPED_UNICODE);
+            }
+        } elseif ($mode === self::MODE_COUNT) {
             if ($mysql['count'] !== $meili['count']) {
                 $outcome = self::DIFF;
                 $notes[] = "post_count MySQL {$mysql['count']} vs Meilisearch {$meili['count']}";
@@ -407,6 +430,28 @@ final class QueryParity
             'first' => $posts[0] ?? null,
             'shape' => self::shape($posts[0] ?? null),
         ];
+    }
+
+    /**
+     * The values a post is sorted on, as one string: posts that tie have the same.
+     *
+     * @param  list<string>  $keys
+     */
+    private static function sortKey(int $id, array $keys): string
+    {
+        $post = get_post($id);
+        $values = [];
+
+        foreach ($keys as $key) {
+            $values[] = match (true) {
+                str_starts_with($key, 'meta:') => (string) get_post_meta($id, substr($key, 5), true),
+                // As MySQL's collation compares titles
+                $key === 'title' => \Pollora\MeiliScout\Indexables\PostIndexable::titleSortKey((string) $post?->post_title),
+                default => $post instanceof WP_Post ? (string) ($post->$key ?? '') : '',
+            };
+        }
+
+        return implode(' | ', $values);
     }
 
     private static function shape(mixed $post): string
