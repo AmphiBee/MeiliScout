@@ -1,5 +1,7 @@
 # Plan d'intervention : parité WP_Query ↔ Meilisearch (`use_meilisearch`)
 
+**État : exécuté le 2026-10-08 (PR #37). Bilan et suite : `2026-10-wp-query-audit-term-query.md`.**
+
 Étude du 2026-10-08. À exécuter dans une nouvelle session, **une fois la PR #36 (admin) fusionnée**, sur une branche partant de `main` (`feat/wp-query-parity`).
 
 ## 1. Constat
