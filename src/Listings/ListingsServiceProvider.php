@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Listings;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
+use Pollora\MeiliScout\Listings\Blocks\BlockListings;
 use Pollora\MeiliScout\Listings\Template\Blade;
 use Pollora\MeiliScout\Listings\Template\TwigExtension;
 
@@ -35,6 +36,7 @@ final class ListingsServiceProvider extends ServiceProvider
 
         // Also when off: the templates calling them print nothing rather than break
         Blade::boot();
+        BlockListings::boot();
         if (class_exists(\Twig\Extension\AbstractExtension::class)) {
             TwigExtension::boot();
         }

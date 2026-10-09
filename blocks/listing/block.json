@@ -1,0 +1,96 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "meiliscout/listing",
+	"title": "Filterable listing",
+	"category": "theme",
+	"description": "Posts with facets counted by Meilisearch: holds a Post Template, its pagination, and facets.",
+	"keywords": [
+		"facets",
+		"filters",
+		"meilisearch",
+		"query",
+		"loop"
+	],
+	"textdomain": "meiliscout",
+	"attributes": {
+		"align": {
+			"type": "string",
+			"default": "wide"
+		},
+		"listingId": {
+			"type": "string",
+			"default": ""
+		},
+		"queryId": {
+			"type": "number"
+		},
+		"query": {
+			"type": "object",
+			"default": {
+				"perPage": 12,
+				"pages": 0,
+				"offset": 0,
+				"postType": "post",
+				"order": "desc",
+				"orderBy": "date",
+				"inherit": false
+			}
+		},
+		"postTypes": {
+			"type": "array",
+			"default": [
+				"post"
+			]
+		},
+		"perPage": {
+			"type": "number",
+			"default": 12
+		},
+		"sorts": {
+			"type": "array",
+			"default": []
+		},
+		"defaultSort": {
+			"type": "string",
+			"default": ""
+		},
+		"transport": {
+			"type": "string",
+			"default": "fragment",
+			"enum": [
+				"fragment",
+				"page"
+			]
+		},
+		"apply": {
+			"type": "string",
+			"default": "instant",
+			"enum": [
+				"instant",
+				"button"
+			]
+		}
+	},
+	"providesContext": {
+		"queryId": "queryId",
+		"query": "query",
+		"meiliscout/listing": "listingId"
+	},
+	"supports": {
+		"align": [
+			"wide",
+			"full"
+		],
+		"html": false,
+		"spacing": {
+			"margin": true,
+			"padding": true
+		},
+		"interactivity": {
+			"clientNavigation": true
+		}
+	},
+	"editorScript": "meiliscout-listings-editor",
+	"style": "meiliscout-listings"
+}

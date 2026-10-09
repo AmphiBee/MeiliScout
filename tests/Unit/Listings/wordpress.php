@@ -81,3 +81,7 @@ if (! class_exists('WP_Rewrite', false)) {
         public function using_permalinks(): bool { return true; }
     }
 }
+
+if (! function_exists('sanitize_key')) {
+    function sanitize_key($key) { return (string) preg_replace('/[^a-z0-9_\-]/', '', strtolower((string) $key)); }
+}

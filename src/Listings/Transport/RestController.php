@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Listings\Transport;
 
+use Pollora\MeiliScout\Listings\Blocks\BlockListings;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\InvalidListing;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
@@ -82,10 +83,14 @@ final class RestController
         $page = preg_match('#/page/(\d+)/?$#', $path, $m) ? (int) $m[1] : 1;
         $state = UrlCodec::fromQueryString($definition, $query, $page);
         $base = $definition->route !== [] ? Listings::baseUrl($definition) : home_url(user_trailingslashit((string) preg_replace('#/page/\d+/?$#', '', $path)));
-        $result = ListingQuery::run($definition, $state);
+        // A block listing renders its block again (its Post Template, its pagination); the router takes its regions
+        $region = BlockListings::isBlock($definition->id) ? BlockListings::fragment($definition->id, $state, $base) : null;
 
-        Store::add($result, $base);
-        $region = wp_interactivity_process_directives(Renderer::region($result));
+        if ($region === null) {
+            $result = ListingQuery::run($definition, $state);
+            Store::add($result, $base);
+            $region = wp_interactivity_process_directives(Renderer::region($result));
+        }
 
         // The router reads its URL from this state after setting the one it navigated to (prototype P1)
         $data = ['state' => ['core/router' => ['url' => UrlCodec::url($definition, $state, $base)]]];
@@ -111,8 +116,9 @@ final class RestController
      */
     private static function title(ListingDefinition $definition, int $page): string
     {
-        $title = isset($definition->route['page'])
-            ? get_the_title($definition->route['page'])
+        $post = $definition->route['page'] ?? $definition->route['post'] ?? null;
+        $title = $post !== null
+            ? get_the_title($post)
             : (string) (get_post_type_object((string) ($definition->route['archive'] ?? ''))?->labels->name ?? '');
 
         $parts = array_filter([

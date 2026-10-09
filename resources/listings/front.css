@@ -1,0 +1,334 @@
+/**
+ * The listings' default look (design §6.6): generic enough for any theme,
+ * pleasant without one.
+ *
+ * - Everything inherits the theme: font, size, color; theme.json presets
+ *   when the theme has them, currentColor otherwise.
+ * - A few tokens a theme sets in a line (--meiliscout-color-accent...); the
+ *   plugin presets them from the theme's palette (Listings::themeColors()).
+ * - The look under :where() (no specificity): any rule of the theme wins.
+ *   The structure (lists without bullets, a link-like button) with one
+ *   class, which a theme's rules on bare elements (ul, button, fieldset)
+ *   do not undo, and its rules on these classes still do. No global reset,
+ *   no !important. Native controls, lightly dressed.
+ * - Off with Settings › Listings › Default styles, or the
+ *   meiliscout/listings/load_styles filter.
+ */
+
+:where(.meiliscout-listing, .meiliscout-part, .meiliscout-listing__filters) {
+	--meiliscout-accent: var(--meiliscout-color-accent, var(--wp--preset--color--primary, currentColor));
+	--meiliscout-accent-contrast: var(--meiliscout-color-accent-contrast, var(--wp--preset--color--base, #fff));
+	--meiliscout-text: var(--meiliscout-color-text, inherit);
+	--meiliscout-muted: var(--meiliscout-color-muted, color-mix(in srgb, currentColor 62%, transparent));
+	--meiliscout-background: var(--meiliscout-color-background, transparent);
+	--meiliscout-border: var(--meiliscout-color-border, color-mix(in srgb, currentColor 18%, transparent));
+	--meiliscout-radius: var(--meiliscout-border-radius, 0.375em);
+	--meiliscout-gap: var(--meiliscout-spacing, var(--wp--preset--spacing--30, 1rem));
+	--meiliscout-gap-small: calc(var(--meiliscout-gap) / 2);
+}
+
+/* The whole listing: filters beside the results when there is room */
+
+:where(.meiliscout-listing) {
+	display: grid;
+	gap: calc(var(--meiliscout-gap) * 1.5);
+	color: var(--meiliscout-text);
+}
+
+@media (min-width: 782px) {
+	:where(.meiliscout-listing:has(> .meiliscout-listing__filters fieldset)) {
+		grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+		align-items: start;
+	}
+
+	:where(.meiliscout-listing > .meiliscout-pagination) {
+		grid-column: 2;
+	}
+}
+
+:where(.meiliscout-listing__filters) {
+	display: grid;
+	gap: var(--meiliscout-gap);
+	align-content: start;
+}
+
+:where(.meiliscout-listing__filters:empty) {
+	display: none;
+}
+
+/* Facets */
+
+:where(.meiliscout-facet) {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	min-width: 0;
+}
+
+:where(.meiliscout-facet__title) {
+	padding: 0;
+	margin-bottom: var(--meiliscout-gap-small);
+	font-weight: 600;
+}
+
+:where(.meiliscout-facet__options) {
+	display: grid;
+	gap: 0.25em;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+:where(.meiliscout-facet__option[data-depth="1"]) {
+	padding-inline-start: 1.25em;
+}
+
+:where(.meiliscout-facet__option[data-depth="2"]) {
+	padding-inline-start: 2.5em;
+}
+
+:where(.meiliscout-facet__option[data-depth="3"]) {
+	padding-inline-start: 3.75em;
+}
+
+:where(.meiliscout-facet__label) {
+	display: flex;
+	align-items: baseline;
+	gap: 0.5em;
+	cursor: pointer;
+}
+
+:where(.meiliscout-facet__input) {
+	accent-color: var(--meiliscout-accent);
+	margin: 0;
+	flex: none;
+}
+
+:where(.meiliscout-facet__text) {
+	flex: 1;
+	min-width: 0;
+	/* Whole words: a narrow column wraps between them, not inside */
+	word-break: normal;
+	overflow-wrap: break-word;
+	hyphens: manual;
+}
+
+:where(.meiliscout-facet__count) {
+	color: var(--meiliscout-muted);
+	font-size: 0.875em;
+	font-variant-numeric: tabular-nums;
+}
+
+:where(.meiliscout-facet__more) {
+	margin-top: var(--meiliscout-gap-small);
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--meiliscout-accent);
+	font: inherit;
+	font-size: 0.875em;
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+	cursor: pointer;
+}
+
+/* Fields */
+
+:where(.meiliscout-search, .meiliscout-sort, .meiliscout-range__bound) {
+	display: grid;
+	gap: 0.25em;
+}
+
+:where(.meiliscout-search__label, .meiliscout-sort__label, .meiliscout-range__label) {
+	font-size: 0.875em;
+	color: var(--meiliscout-muted);
+}
+
+:where(.meiliscout-search__input, .meiliscout-range__input, .meiliscout-sort__select) {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 2.5em;
+	padding: 0.4em 0.6em;
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-radius);
+	background: var(--meiliscout-background);
+	color: inherit;
+	font: inherit;
+}
+
+:where(.meiliscout-range) {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--meiliscout-gap-small);
+}
+
+/* The toolbar: total, active filters, sort, buttons */
+
+:where(.meiliscout-listing__toolbar) {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--meiliscout-gap-small) var(--meiliscout-gap);
+}
+
+:where(.meiliscout-listing__total) {
+	margin: 0;
+	font-weight: 600;
+}
+
+:where(.meiliscout-active) {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--meiliscout-gap-small);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+:where(.meiliscout-active__remove) {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	padding: 0.2em 0.7em;
+	border: 1px solid var(--meiliscout-border);
+	border-radius: 999px;
+	background: var(--meiliscout-background);
+	color: inherit;
+	font: inherit;
+	font-size: 0.875em;
+	cursor: pointer;
+}
+
+:where(.meiliscout-listing__apply) {
+	padding: 0.5em 1.1em;
+	border: 1px solid var(--meiliscout-accent);
+	border-radius: var(--meiliscout-radius);
+	background: var(--meiliscout-accent);
+	color: var(--meiliscout-accent-contrast);
+	font: inherit;
+	cursor: pointer;
+}
+
+:where(.meiliscout-listing__reset) {
+	color: var(--meiliscout-accent);
+	font-size: 0.875em;
+}
+
+/* Results and pagination */
+
+:where(.meiliscout-results) {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+	gap: var(--meiliscout-gap);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+:where(.meiliscout-listing__results[aria-busy="true"]) {
+	opacity: 0.6;
+	transition: opacity 0.2s 0.15s;
+}
+
+:where(.meiliscout-results__empty) {
+	color: var(--meiliscout-muted);
+}
+
+:where(.meiliscout-card__title) {
+	margin: 0 0 0.25em;
+	font-size: inherit;
+}
+
+:where(.meiliscout-card__meta) {
+	margin: 0 0 0.5em;
+	color: var(--meiliscout-muted);
+	font-size: 0.875em;
+}
+
+:where(.meiliscout-pagination) {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25em;
+	margin-top: var(--meiliscout-gap);
+}
+
+:where(.meiliscout-pagination__link) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.25em;
+	min-height: 2.25em;
+	padding: 0 0.6em;
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-radius);
+	color: inherit;
+	text-decoration: none;
+}
+
+:where(.meiliscout-pagination__link[aria-current="page"]) {
+	border-color: var(--meiliscout-accent);
+	background: var(--meiliscout-accent);
+	color: var(--meiliscout-accent-contrast);
+}
+
+:where(.meiliscout-pagination__dots) {
+	border-color: transparent;
+}
+
+/* Focus, visible on every control */
+
+:where(.meiliscout-listing, .meiliscout-part, .meiliscout-listing__filters) :where(a, button, input, select):focus-visible {
+	outline: 2px solid var(--meiliscout-accent);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:where(.meiliscout-listing__results[aria-busy="true"]) {
+		transition: none;
+	}
+}
+
+/* Structure: one class, above a theme's rules on bare elements */
+
+.meiliscout-facet {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.meiliscout-facet__options,
+.meiliscout-active,
+.meiliscout-results {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.meiliscout-facet__option,
+.meiliscout-active__item,
+.meiliscout-result {
+	margin: 0;
+}
+
+.meiliscout-facet__option::marker,
+.meiliscout-active__item::marker,
+.meiliscout-result::marker {
+	content: none;
+}
+
+/* Themes style every button: two classes keep this one a link */
+.meiliscout-facet .meiliscout-facet__more {
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--meiliscout-accent);
+	font: inherit;
+	font-size: 0.875em;
+	text-decoration: underline;
+	text-transform: none;
+	letter-spacing: normal;
+}
+

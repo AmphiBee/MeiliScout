@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "meiliscout/facet",
+	"title": "Facet",
+	"category": "theme",
+	"description": "A filter of the listing: a taxonomy's terms, a field's values, a range of numbers, a yes/no.",
+	"keywords": [ "filter", "taxonomy", "category", "meta", "range" ],
+	"textdomain": "meiliscout",
+	"ancestor": [ "meiliscout/listing" ],
+	"usesContext": [ "meiliscout/listing" ],
+	"attributes": {
+		"source": { "type": "string", "default": "" },
+		"type": { "type": "string", "default": "list", "enum": [ "list", "range", "boolean" ] },
+		"logic": { "type": "string", "default": "or", "enum": [ "or", "and" ] },
+		"hierarchy": { "type": "string", "default": "tree", "enum": [ "tree", "flat" ] },
+		"label": { "type": "string", "default": "" },
+		"limit": { "type": "number", "default": 0 },
+		"decimals": { "type": "number", "default": 0 },
+		"key": { "type": "string", "default": "" },
+		"param": { "type": "string", "default": "" }
+	},
+	"supports": {
+		"html": false,
+		"color": { "text": true, "background": true },
+		"typography": { "fontSize": true, "lineHeight": true },
+		"spacing": { "margin": true, "padding": true },
+		"__experimentalBorder": { "color": true, "radius": true, "style": true, "width": true },
+		"interactivity": { "clientNavigation": true }
+	},
+	"editorScript": "meiliscout-listings-editor",
+	"style": "meiliscout-listings"
+}

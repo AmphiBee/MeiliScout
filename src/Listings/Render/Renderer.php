@@ -105,6 +105,20 @@ final class Renderer
     }
 
     /**
+     * The listing's form, empty, when no part printed it yet on this page.
+     */
+    public static function formOnce(ListingResult $result, string $base): string
+    {
+        if (isset(self::$forms[$result->definition->id])) {
+            return '';
+        }
+
+        self::$forms[$result->definition->id] = true;
+
+        return self::form($result, $base, '');
+    }
+
+    /**
      * The router region alone: the results (a fragment's body).
      */
     public static function region(ListingResult $result): string

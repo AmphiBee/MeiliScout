@@ -68,8 +68,103 @@ const fromData = ( data ) => ( {
 	listings: {
 		enabled: data.listings.enabled,
 		public_host: data.listings.public_host,
+		styles: data.listings.styles,
+		colors: data.listings.colors,
 	},
 } );
+
+const COLOR_TOKENS = [
+	{ id: 'accent', label: __( 'Accent', 'meiliscout' ) },
+	{ id: 'accent-contrast', label: __( 'Text on the accent', 'meiliscout' ) },
+	{ id: 'text', label: __( 'Text', 'meiliscout' ) },
+	{ id: 'background', label: __( 'Background of the fields', 'meiliscout' ) },
+];
+
+/**
+ * A token's color: automatic (the theme's palette), a palette color, or one of its own.
+ *
+ * @param {Object}   props
+ * @param {Object}   props.token
+ * @param {Object}   props.listings The settings' data.
+ * @param {string}   props.value    '', preset:<slug> or #hex.
+ * @param {Function} props.onChange
+ */
+const ColorField = ( { token, listings, value, onChange } ) => {
+	const detected = listings.detected[ token.id ];
+	const palette = listings.palette;
+	const custom = value.startsWith( '#' );
+	const swatch = custom
+		? value
+		: palette.find(
+				( color ) =>
+					color.slug === ( value ? value.slice( 7 ) : detected )
+		  )?.color;
+	const id = 'ms-listings-color-' + token.id;
+
+	return (
+		<div className="ms-field">
+			<label htmlFor={ id }>{ token.label }</label>
+			<div
+				className="ms-field__row"
+				style={ { alignItems: 'center', gap: 8 } }
+			>
+				<span
+					aria-hidden="true"
+					style={ {
+						width: 24,
+						height: 24,
+						borderRadius: 6,
+						border: '1px solid rgba(0,0,0,.15)',
+						background: swatch || 'transparent',
+						flex: 'none',
+					} }
+				/>
+				<select
+					id={ id }
+					className="ms-input"
+					value={ custom ? 'custom' : value }
+					onChange={ ( event ) =>
+						onChange(
+							event.target.value === 'custom'
+								? swatch || '#000000'
+								: event.target.value
+						)
+					}
+				>
+					<option value="">
+						{ detected
+							? sprintf(
+									/* translators: %s: a color of the theme */
+									__( 'Automatic: %s', 'meiliscout' ),
+									palette.find( ( c ) => c.slug === detected )
+										?.name || detected
+							  )
+							: __( 'Automatic: the theme’s', 'meiliscout' ) }
+					</option>
+					{ palette.map( ( color ) => (
+						<option
+							key={ color.slug }
+							value={ 'preset:' + color.slug }
+						>
+							{ color.name }
+						</option>
+					) ) }
+					<option value="custom">
+						{ __( 'A color of its own…', 'meiliscout' ) }
+					</option>
+				</select>
+				{ custom && (
+					<input
+						type="color"
+						aria-label={ token.label }
+						value={ value }
+						onChange={ ( event ) => onChange( event.target.value ) }
+					/>
+				) }
+			</div>
+		</div>
+	);
+};
 
 const ListingsCard = ( { data, form, setForm, onRotate, rotating } ) => {
 	const listings = data.listings;
@@ -194,6 +289,46 @@ const ListingsCard = ( { data, form, setForm, onRotate, rotating } ) => {
 						) }
 					</span>
 				</div>
+
+				<div className="ms-row" style={ { paddingInline: 0 } }>
+					<Switch
+						checked={ form.listings.styles }
+						onChange={ ( on ) => setListings( { styles: on } ) }
+						label={ __( 'Default styles', 'meiliscout' ) }
+					/>
+					<div className="ms-row__label ms-row__label--text">
+						<strong>
+							{ __( 'Default styles', 'meiliscout' ) }
+						</strong>
+						<span>
+							{ __(
+								'A light look that follows the theme: its fonts, its palette, its spacing. Off, the theme styles the listings entirely.',
+								'meiliscout'
+							) }
+						</span>
+					</div>
+				</div>
+
+				{ form.listings.styles && (
+					<div className="ms-form-grid">
+						{ COLOR_TOKENS.map( ( token ) => (
+							<ColorField
+								key={ token.id }
+								token={ token }
+								listings={ listings }
+								value={ form.listings.colors[ token.id ] || '' }
+								onChange={ ( value ) =>
+									setListings( {
+										colors: {
+											...form.listings.colors,
+											[ token.id ]: value,
+										},
+									} )
+								}
+							/>
+						) ) }
+					</div>
+				) }
 
 				{ listings.hydration_ignored && (
 					<p className="ms-inline-note">

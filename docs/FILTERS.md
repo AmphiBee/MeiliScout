@@ -396,3 +396,13 @@ has no Blade application (Pollora, Acorn) or no Timber: a
 `Illuminate\Contracts\View\Factory`, a `Twig\Environment`. See
 [LISTINGS.md](LISTINGS.md#cards).
 
+### meiliscout/listings/load_styles, meiliscout/listings/theme_colors
+Whether the front listings' default look is loaded (default: Settings ›
+Listings › Default styles), and its colors by token (`accent`,
+`accent-contrast`, `text`, `muted`, `background`, `border`). See
+[LISTINGS.md](LISTINGS.md#styles).
+
+```php
+add_filter('meiliscout/listings/theme_colors', fn (array $colors) => ['accent' => 'var(--brand-500)'] + $colors);
+```
+
