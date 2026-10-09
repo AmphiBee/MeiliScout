@@ -1,0 +1,179 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Pollora\MeiliScout\Listings\Render;
+
+use Pollora\MeiliScout\Listings\Query\ListingResult;
+use Pollora\MeiliScout\Listings\State\UrlCodec;
+use Pollora\MeiliScout\Listings\Transport\TenantTokens;
+
+/**
+ * The Interactivity API state of the listings on a page, in the
+ * meiliscout/listing store: state.listings[id]. Only text: labels decoded,
+ * no HTML (data-wp-text would print entities as they are).
+ */
+final class Store
+{
+    public const NAMESPACE = 'meiliscout/listing';
+
+    /**
+     * Adds a listing to the store, and the derived values its directives read.
+     */
+    public static function add(ListingResult $result, string $base): void
+    {
+        $definition = $result->definition;
+        $state = $result->state;
+        $token = $result->template === null ? null : TenantTokens::forListing($definition);
+
+        $facets = [];
+        foreach ($definition->facets as $facet) {
+            $range = $state->rangeOf($facet->key);
+            $facets[$facet->key] = [
+                'options' => $result->facets[$facet->key]['options'] ?? [],
+                'stats' => $result->facets[$facet->key]['stats'] ?? null,
+                'min' => isset($range['min']) ? UrlCodec::number($facet, $range['min']) : '',
+                'max' => isset($range['max']) ? UrlCodec::number($facet, $range['max']) : '',
+            ];
+        }
+
+        wp_interactivity_state(self::NAMESPACE, [
+            'listings' => [
+                $definition->id => [
+                    'template' => $result->template,
+                    'values' => (object) $state->values,
+                    'ranges' => (object) $state->ranges,
+                    'sort' => $state->sort !== '' ? $state->sort : $definition->defaultSort,
+                    'search' => $state->search,
+                    'page' => $state->page,
+                    'total' => $result->total(),
+                    'pages' => $result->pages(),
+                    'facets' => $facets,
+                    'base' => $base,
+                    'url' => UrlCodec::url($definition, $state, $base),
+                    'transport' => $result->template === null ? 'page' : $definition->transport,
+                    'host' => $token === null ? null : TenantTokens::publicHost(),
+                    'token' => $token,
+                    'endpoints' => [
+                        'fragment' => rest_url('meiliscout/v1/listings/'.$definition->id.'/fragment'),
+                        'token' => rest_url('meiliscout/v1/listings/'.$definition->id.'/token'),
+                    ],
+                    'busy' => false,
+                ],
+            ],
+            'i18n' => [
+                'total' => [
+                    // Plural forms of this language for 0, 1 and more
+                    'zero' => _n('%d result', '%d results', 0, 'meiliscout'),
+                    'one' => _n('%d result', '%d results', 1, 'meiliscout'),
+                    'many' => _n('%d result', '%d results', 2, 'meiliscout'),
+                ],
+                'remove' => __('Remove filter: %s', 'meiliscout'),
+                /* translators: 1: a facet's label, 2: its value */
+                'facetValue' => __('%1$s: %2$s', 'meiliscout'),
+            ],
+        ]);
+
+        self::derived();
+    }
+
+    /**
+     * The values the directives read, computed the same way here (first
+     * render) and in the client (resources/listings/view.js).
+     */
+    private static function derived(): void
+    {
+        static $added = false;
+
+        if ($added) {
+            return;
+        }
+        $added = true;
+
+        $listing = function (): array {
+            $context = wp_interactivity_get_context();
+            $state = wp_interactivity_state(self::NAMESPACE);
+
+            return $state['listings'][$context['listing'] ?? ''] ?? [];
+        };
+
+        wp_interactivity_state(self::NAMESPACE, [
+            'options' => function () use ($listing): array {
+                $context = wp_interactivity_get_context();
+
+                return $listing()['facets'][$context['facet'] ?? '']['options'] ?? [];
+            },
+            'optionHidden' => function (): bool {
+                $option = wp_interactivity_get_context()['option'] ?? [];
+
+                return (int) ($option['count'] ?? 0) === 0 && empty($option['selected']);
+            },
+            'rangeMin' => function () use ($listing): string {
+                return (string) ($listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['min'] ?? '');
+            },
+            'rangeMax' => function () use ($listing): string {
+                return (string) ($listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['max'] ?? '');
+            },
+            'rangeMinLimit' => function () use ($listing): string {
+                $stats = $listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['stats'] ?? null;
+
+                return $stats === null ? '' : (string) $stats['min'];
+            },
+            'rangeMaxLimit' => function () use ($listing): string {
+                $stats = $listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['stats'] ?? null;
+
+                return $stats === null ? '' : (string) $stats['max'];
+            },
+            'activeFilters' => function () use ($listing): array {
+                $current = $listing();
+                $remove = wp_interactivity_state(self::NAMESPACE)['i18n']['remove'];
+                $filters = [];
+
+                foreach ((array) ($current['template']['facets'] ?? []) as $facet) {
+                    $key = $facet['key'];
+
+                    foreach ((array) (((array) ($current['values'] ?? []))[$key] ?? []) as $value) {
+                        $label = ((array) $facet['values'])[$value]['label'] ?? $value;
+                        $filters[] = ['id' => $key.':'.$value, 'facet' => $key, 'value' => $value, 'label' => $label, 'removeLabel' => sprintf($remove, $label)];
+                    }
+
+                    $range = ((array) ($current['ranges'] ?? []))[$key] ?? null;
+                    if ($range) {
+                        $label = sprintf(wp_interactivity_state(self::NAMESPACE)['i18n']['facetValue'], $facet['label'] ?? $key, self::rangeLabel((string) ($current['facets'][$key]['min'] ?? ''), (string) ($current['facets'][$key]['max'] ?? '')));
+                        $filters[] = ['id' => $key.':range', 'facet' => $key, 'value' => '', 'label' => $label, 'removeLabel' => sprintf($remove, $label)];
+                    }
+                }
+
+                if (($current['search'] ?? '') !== '') {
+                    $label = '« '.$current['search'].' »';
+                    $filters[] = ['id' => 'search', 'facet' => '', 'value' => '', 'label' => $label, 'removeLabel' => sprintf($remove, $label)];
+                }
+
+                return $filters;
+            },
+            'totalLabel' => function () use ($listing): string {
+                $total = (int) ($listing()['total'] ?? 0);
+                $labels = wp_interactivity_state(self::NAMESPACE)['i18n']['total'];
+
+                return sprintf($total === 0 ? $labels['zero'] : ($total === 1 ? $labels['one'] : $labels['many']), $total);
+            },
+            'hasFilters' => function () use ($listing): bool {
+                $current = $listing();
+
+                return array_filter((array) ($current['values'] ?? [])) !== [] || array_filter((array) ($current['ranges'] ?? [])) !== [] || ($current['search'] ?? '') !== '';
+            },
+        ]);
+    }
+
+    /**
+     * 1000 – 5000, ≥ 1000, ≤ 5000.
+     */
+    public static function rangeLabel(string $min, string $max): string
+    {
+        return match (true) {
+            $min !== '' && $max !== '' => $min.' – '.$max,
+            $min !== '' => '≥ '.$min,
+            default => '≤ '.$max,
+        };
+    }
+}

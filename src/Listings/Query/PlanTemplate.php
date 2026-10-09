@@ -36,6 +36,7 @@ final class PlanTemplate
                 $entry = [
                     'key' => $facet->key,
                     'param' => $facet->param,
+                    'label' => $facet->label,
                     'type' => $facet->type,
                     'logic' => $facet->logic,
                     'field' => $facet->countField(),

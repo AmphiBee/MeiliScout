@@ -38,6 +38,13 @@ final class UrlCodec
         foreach ($definition->facets as $facet) {
             $parts = $raw[$facet->param] ?? [];
 
+            // A form without JavaScript sends a range's bounds apart
+            if ($facet->type === FacetDefinition::RANGE && $parts === []) {
+                $min = self::last($raw[$facet->param.'_min'] ?? []);
+                $max = self::last($raw[$facet->param.'_max'] ?? []);
+                $parts = $min === '' && $max === '' ? [] : [$min.'..'.$max];
+            }
+
             if ($parts === []) {
                 continue;
             }
@@ -157,7 +164,10 @@ final class UrlCodec
      */
     public static function canonicalQuery(ListingDefinition $definition, string $query): ?string
     {
-        $own = array_merge(array_map(fn (FacetDefinition $facet) => $facet->param, $definition->facets), [$definition->sortParam, $definition->searchParam]);
+        $own = [$definition->sortParam, $definition->searchParam];
+        foreach ($definition->facets as $facet) {
+            array_push($own, $facet->param, ...($facet->type === FacetDefinition::RANGE ? [$facet->param.'_min', $facet->param.'_max'] : []));
+        }
         $mine = [];
         $others = [];
 

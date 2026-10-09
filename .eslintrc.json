@@ -1,7 +1,15 @@
 {
 	"root": true,
-	"extends": [ "plugin:@wordpress/eslint-plugin/recommended" ],
+	"extends": [
+		"plugin:@wordpress/eslint-plugin/recommended"
+	],
 	"rules": {
 		"jsx-a11y/label-has-associated-control": [ "error", { "assert": "either", "depth": 3 } ]
+	},
+	"settings": {
+		"import/core-modules": [
+			"@wordpress/interactivity",
+			"@wordpress/interactivity-router"
+		]
 	}
 }
