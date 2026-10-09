@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### WP_Query
+
+- The same search asked twice in a request reaches Meilisearch once (`meiliscout/search_memo`): a Query Loop's pagination blocks run its query again, 3 searches out of 4 on a paginated loop. Forgotten when a post or its terms change during the request.
+
 ## 2.0.0 (unreleased)
 
 ### WP_Query

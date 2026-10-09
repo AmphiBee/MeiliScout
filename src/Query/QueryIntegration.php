@@ -113,7 +113,7 @@ class QueryIntegration
         $query->meiliscout['params'] = $params;
 
         try {
-            $results = $this->search($index, $params);
+            $results = $this->search($index, $params, $query);
             $total = $this->total($results, $index, $params, $query);
         } catch (\Throwable $e) {
             // Let WordPress run the query on MySQL rather than break the page
@@ -204,14 +204,25 @@ class QueryIntegration
     }
 
     /**
+     * Meilisearch's answer, or the one a query of the same request already had (SearchMemo).
+     *
      * @param  array<string, mixed>  $params
      */
-    private function search(string $index, array $params): SearchResult
+    private function search(string $index, array $params, WP_Query $query): SearchResult
     {
-        $q = $params['q'] ?? '';
-        unset($params['q']);
+        $memoized = false;
+        $answer = SearchMemo::remember($index, $params, function () use ($index, $params): SearchResult {
+            $q = $params['q'] ?? '';
+            unset($params['q']);
 
-        return $this->client->index($index)->search($q, $params);
+            return $this->client->index($index)->search($q, $params);
+        }, $memoized);
+
+        if ($memoized) {
+            $query->meiliscout['memo'] = ($query->meiliscout['memo'] ?? 0) + 1;
+        }
+
+        return $answer;
     }
 
     /**
@@ -232,7 +243,7 @@ class QueryIntegration
 
         $count = array_diff_key($params, array_flip(['limit', 'offset', 'sort', 'attributesToRetrieve', 'facets']));
 
-        return (int) $this->search($index, [...$count, 'hitsPerPage' => 0, 'page' => 1])->getTotalHits();
+        return (int) $this->search($index, [...$count, 'hitsPerPage' => 0, 'page' => 1], $query)->getTotalHits();
     }
 
     /**

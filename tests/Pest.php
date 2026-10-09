@@ -83,6 +83,8 @@ if (! function_exists('apply_filters')) {
 
 uses()->beforeEach(function () {
     $GLOBALS['filters'] = [];
+    // Meilisearch's answers are kept for the request: each test is one
+    \Pollora\MeiliScout\Query\SearchMemo::reset();
 })->in('Unit');
 
 if (! class_exists('WP_Term', false)) {
