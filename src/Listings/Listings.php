@@ -294,8 +294,26 @@ final class Listings
             return '';
         }
 
-        return wp_interactivity_process_directives($render($result[0], $result[1]));
+        // A card's excerpt runs the_content, where a theme may print this listing again
+        if (isset(self::$rendering[$id])) {
+            return '';
+        }
+
+        self::$rendering[$id] = true;
+
+        try {
+            return wp_interactivity_process_directives($render($result[0], $result[1]));
+        } finally {
+            unset(self::$rendering[$id]);
+        }
     }
+
+    /**
+     * The listings being rendered, by id.
+     *
+     * @var array<string, true>
+     */
+    private static array $rendering = [];
 
     /**
      * Debug: a page printed listings without calling wp_footer().
