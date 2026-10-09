@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Listings\Admin;
 use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
+use Pollora\MeiliScout\Listings\Listings;
 use Pollora\MeiliScout\Listings\ListingsServiceProvider;
 use Pollora\MeiliScout\Listings\PublicFields;
 use Pollora\MeiliScout\Listings\Query\ArrayQuery;
@@ -57,6 +58,11 @@ final class ListingsSettings
             'fields' => PublicFields::allowlist(),
             'displayed' => IndexSettings::displayed(IndexNames::active('posts')),
             // Asked for, and ignored while the index returns only some fields
+            'styles' => (bool) Settings::get('listings_styles', true),
+            // The default look's colors: what the theme's palette gives, what was chosen
+            'palette' => Listings::palette(),
+            'detected' => (object) Listings::detectedColors(),
+            'colors' => (object) array_filter((array) Settings::get('listings_colors', []), 'is_string'),
             'hydration_ignored' => $unavailable === null && self::hydrationAsked() && ! FieldsBuilder::canHydrate(),
         ];
     }
@@ -70,6 +76,21 @@ final class ListingsSettings
     {
         if (isset($input['enabled']) && is_bool($input['enabled'])) {
             Settings::save('listings_enabled', $input['enabled']);
+        }
+
+        if (isset($input['styles']) && is_bool($input['styles'])) {
+            Settings::save('listings_styles', $input['styles']);
+        }
+
+        if (isset($input['colors']) && is_array($input['colors'])) {
+            $colors = [];
+            foreach (['accent', 'accent-contrast', 'text', 'background'] as $token) {
+                $value = (string) ($input['colors'][$token] ?? '');
+                if (str_starts_with($value, 'preset:') || sanitize_hex_color($value)) {
+                    $colors[$token] = str_starts_with($value, 'preset:') ? 'preset:'.sanitize_key(substr($value, 7)) : $value;
+                }
+            }
+            Settings::save('listings_colors', $colors);
         }
 
         if (isset($input['public_host']) && is_string($input['public_host'])) {

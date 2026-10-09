@@ -30,7 +30,7 @@ final class ListingDefinition
      * @param  array<string, array{label: string, orderby: string, order: string, meta_key?: string}>  $sorts
      * @param  list<FacetDefinition>  $facets
      * @param  list<string>  $publicMetas
-     * @param  array{page?: int, archive?: string}  $route
+     * @param  array{page?: int, post?: int, archive?: string}  $route
      */
     private function __construct(
         public readonly string $id,
@@ -147,6 +147,8 @@ final class ListingDefinition
         $route = [];
         if (isset($args['route']['page'])) {
             $route['page'] = (int) $args['route']['page'];
+        } elseif (isset($args['route']['post'])) {
+            $route['post'] = (int) $args['route']['post'];
         } elseif (isset($args['route']['archive'])) {
             $route['archive'] = (string) $args['route']['archive'];
         }
