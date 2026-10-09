@@ -10,6 +10,7 @@ use Pollora\MeiliScout\Admin\Rest\IndexationController;
 use Pollora\MeiliScout\Admin\Rest\OverviewController;
 use Pollora\MeiliScout\Admin\Rest\SearchPreviewController;
 use Pollora\MeiliScout\Admin\Rest\SettingsController;
+use Pollora\MeiliScout\Listings\Admin\ListingsController;
 use Pollora\MeiliScout\Listings\Admin\SeoRulesController;
 use Pollora\MeiliScout\Listings\ListingsServiceProvider;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
@@ -46,6 +47,7 @@ class AdminServiceProvider extends ServiceProvider
         IndexationController::class,
         SearchPreviewController::class,
         SettingsController::class,
+        ListingsController::class,
         SeoRulesController::class,
     ];
 
@@ -120,7 +122,7 @@ class AdminServiceProvider extends ServiceProvider
             'version' => MEILISCOUT_VERSION,
             'pageUrl' => admin_url('admin.php?page='.self::PAGE),
             'docsUrl' => 'https://github.com/AmphiBee/MeiliScout#readme',
-            // The SEO rules screen shows while the listings module runs
+            // The Listings and SEO rules screens show while the listings module runs
             'listings' => ListingsServiceProvider::unavailable() === null,
         ]).';', 'before');
     }
