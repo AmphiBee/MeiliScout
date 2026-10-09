@@ -46,6 +46,20 @@ final class ListingsKey
     }
 
     /**
+     * The key saved, without making one: its uid and the index it searches.
+     *
+     * @return array{uid: string, index: string}|null
+     */
+    public static function saved(): ?array
+    {
+        $saved = Settings::get(self::SETTING);
+
+        return is_array($saved) && isset($saved['uid'], $saved['index'])
+            ? ['uid' => (string) $saved['uid'], 'index' => (string) $saved['index']]
+            : null;
+    }
+
+    /**
      * Replaces the key: every token signed with the previous one is refused.
      *
      * @return array{uid: string, key: string}|null

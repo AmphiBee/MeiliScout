@@ -8,6 +8,7 @@ use Meilisearch\Contracts\IndexesQuery;
 use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Config\RealtimeIndexing;
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Listings\Admin\ListingsSettings;
 use Pollora\MeiliScout\Query\AutoIntegration;
 use Pollora\MeiliScout\Query\Terms\TermAutoIntegration;
 use Pollora\MeiliScout\Services\ClientFactory;
@@ -40,6 +41,7 @@ final class SettingsController extends Controller
         $this->route('/settings', 'GET', [$this, 'show']);
         $this->route('/settings', 'POST', [$this, 'update']);
         $this->route('/settings/test', 'POST', [$this, 'test']);
+        $this->route('/settings/listings-key', 'POST', [$this, 'rotateListingsKey']);
     }
 
     public function show(): WP_REST_Response
@@ -109,10 +111,31 @@ final class SettingsController extends Controller
             TermAutoIntegration::save($termIntegration);
         }
 
+        $listings = $request->get_param('listings');
+        if (is_array($listings)) {
+            try {
+                ListingsSettings::save($listings);
+            } catch (\InvalidArgumentException $e) {
+                return new WP_Error('meiliscout_invalid_public_host', $e->getMessage(), ['status' => 400]);
+            }
+        }
+
         // An experimental feature of the instance: changed there, only when asked to change
         $contains = $request->get_param('contains_filter');
         if (is_bool($contains) && $contains !== ContainsFilter::state()['enabled']) {
             ContainsFilter::set($contains);
+        }
+
+        return $this->respond($this->payload());
+    }
+
+    /**
+     * Replaces the listings' key: the tokens of every page cached so far are refused.
+     */
+    public function rotateListingsKey(): WP_REST_Response|WP_Error
+    {
+        if (! ListingsSettings::rotate()) {
+            return new WP_Error('meiliscout_listings_key', __('The key could not be made: check the connection and that the admin key may manage keys.', 'meiliscout'), ['status' => 503]);
         }
 
         return $this->respond($this->payload());
@@ -227,6 +250,7 @@ final class SettingsController extends Controller
             'term_query_integration' => TermAutoIntegration::settings(),
             // The instance's state, which can be changed outside the plugin
             'contains_filter' => ContainsFilter::state(),
+            'listings' => ListingsSettings::payload(),
         ];
     }
 }
