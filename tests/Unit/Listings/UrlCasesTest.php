@@ -13,22 +13,6 @@ require_once __DIR__.'/cases.php';
 // The cases resources/listings/test/codec.test.js runs too: both halves write the same URLs
 
 /**
- * A state as the cases write it.
- *
- * @return array<string, mixed>
- */
-function stateArray(ListingState $state): array
-{
-    return [
-        'values' => $state->values,
-        'ranges' => $state->ranges,
-        'sort' => $state->sort,
-        'page' => $state->page,
-        'search' => $state->search,
-    ];
-}
-
-/**
  * The cases this suite can run: the ones needing remove_accents() only with WordPress loaded.
  */
 function urlCases(): array

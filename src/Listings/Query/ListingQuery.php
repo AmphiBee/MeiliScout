@@ -132,11 +132,17 @@ final class ListingQuery
             array_pop($searches);
         }
 
-        // Each field's counts, from the search that carries it
+        // Each field's counts, from the search that carries it; a second one: what its values add
         $distributions = [];
+        $added = [];
         $stats = [];
         foreach ($searches as $i => $search) {
             foreach ($search['facets'] as $field) {
+                if (isset($distributions[$field])) {
+                    $added[$field] = $results[$i]['facetDistribution'][$field] ?? [];
+
+                    continue;
+                }
                 $distributions[$field] = $results[$i]['facetDistribution'][$field] ?? [];
                 $stats[$field] = $results[$i]['facetStats'][$field] ?? null;
             }
@@ -152,19 +158,42 @@ final class ListingQuery
             if ($facet->type === FacetDefinition::RANGE) {
                 $facets[$facet->key] = ['options' => [], 'stats' => isset($stats[$field]) ? ['min' => (float) $stats[$field]['min'], 'max' => (float) $stats[$field]['max']] : null];
             } else {
-                $facets[$facet->key] = ['options' => self::withOverflow(array_map(fn (array $value) => [
-                    'value' => $value['value'],
-                    'label' => $value['label'],
-                    'count' => (int) ($distributions[$field][$value['id']] ?? 0),
-                    'selected' => in_array($value['value'], $state->valuesOf($facet->key), true),
-                    'depth' => $value['depth'],
-                ], $values), $facet->limit), 'stats' => null];
+                $facets[$facet->key] = ['options' => self::withOverflow(array_map(fn (array $value) => self::option(
+                    $value,
+                    (int) ($distributions[$field][$value['id']] ?? 0),
+                    in_array($value['value'], $state->valuesOf($facet->key), true),
+                    isset($added[$field]) ? (int) ($added[$field][$value['id']] ?? 0) : null,
+                ), $values), $facet->limit), 'stats' => null];
             }
 
             $template[$facet->key] = $values;
         }
 
         return [$facets, $definition->transport === 'page' ? null : PlanTemplate::build($definition, $template, $universe), null, $page];
+    }
+
+    /**
+     * A facet's value as the store shows it. In an OR list with a selection,
+     * the count of a value not selected is what it adds: +3 (the client
+     * writes the same, resources/listings/view.js).
+     *
+     * @param  array{value: string, label: string, depth: int}  $value
+     * @param  int|null  $added  What it adds to its facet's selection, null without one
+     * @return array{value: string, label: string, count: int, selected: bool, depth: int, added: int|null, countLabel: string}
+     */
+    public static function option(array $value, int $count, bool $selected, ?int $added): array
+    {
+        $added = $selected ? null : $added;
+
+        return [
+            'value' => $value['value'],
+            'label' => $value['label'],
+            'count' => $count,
+            'selected' => $selected,
+            'depth' => $value['depth'],
+            'added' => $added,
+            'countLabel' => $added === null ? (string) $count : '+'.$added,
+        ];
     }
 
     /**

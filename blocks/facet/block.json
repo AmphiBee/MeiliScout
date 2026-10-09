@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "meiliscout/facet",
 	"title": "Facet",
-	"category": "theme",
+	"category": "meiliscout",
 	"description": "A filter of the listing: a taxonomy's terms, a field's values, a range of numbers, a yes/no.",
 	"keywords": [ "filter", "taxonomy", "category", "meta", "range" ],
 	"textdomain": "meiliscout",
@@ -18,7 +18,8 @@
 		"limit": { "type": "number", "default": 0 },
 		"decimals": { "type": "number", "default": 0 },
 		"key": { "type": "string", "default": "" },
-		"param": { "type": "string", "default": "" }
+		"param": { "type": "string", "default": "" },
+		"path": { "type": "string", "default": "" }
 	},
 	"supports": {
 		"html": false,

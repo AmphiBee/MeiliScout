@@ -31,6 +31,8 @@ final class AioseoAdapter extends Adapter
         add_filter('aioseo_description', fn ($description) => $this->ruleOr($description, 'description'), 20);
         add_filter('aioseo_facebook_tags', [$this, 'facebook'], 20);
         add_filter('aioseo_schema_output', [$this, 'joinGraph'], 20);
+        // Its breadcrumb, HTML and BreadcrumbList
+        add_filter('aioseo_breadcrumbs_trail', [$this, 'breadcrumb'], 20);
     }
 
     /**
@@ -48,6 +50,22 @@ final class AioseoAdapter extends Adapter
         $attributes['nofollow'] = '';
 
         return $attributes;
+    }
+
+    /**
+     * @param  mixed  $trail  [['label' => ..., 'link' => ...], ...]
+     */
+    public function breadcrumb(mixed $trail): mixed
+    {
+        if (! is_array($trail)) {
+            return $trail;
+        }
+
+        foreach ($this->view()->crumbs ?? [] as $crumb) {
+            $trail[] = ['label' => $crumb['name'], 'link' => $crumb['url'], 'type' => 'meiliscout_facet', 'subType' => '', 'reference' => null];
+        }
+
+        return $trail;
     }
 
     public function canonical(mixed $canonical): mixed

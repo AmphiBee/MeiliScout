@@ -60,6 +60,27 @@ final class BlockListings
         add_filter('query_loop_block_query_vars', [self::class, 'queryVars'], 10, 2);
         add_filter('render_block_core/post-template', [self::class, 'postTemplate'], 10, 3);
         add_filter('render_block_core/query-pagination', [self::class, 'pagination'], 10, 3);
+        add_filter('block_categories_all', [self::class, 'category']);
+    }
+
+    /**
+     * The inserter's MeiliScout category, which the listing's blocks are in.
+     *
+     * @param  array<int, array<string, mixed>>  $categories
+     * @return array<int, array<string, mixed>>
+     */
+    public static function category(array $categories): array
+    {
+        if (in_array('meiliscout', array_column($categories, 'slug'), true)) {
+            return $categories;
+        }
+
+        // Before the theme's blocks, as Woo puts its own
+        $at = array_search('theme', array_column($categories, 'slug'), true);
+        $category = ['slug' => 'meiliscout', 'title' => 'MeiliScout', 'icon' => 'search'];
+        array_splice($categories, $at === false ? count($categories) : (int) $at, 0, [$category]);
+
+        return $categories;
     }
 
     public static function registerBlocks(): void
@@ -138,8 +159,16 @@ final class BlockListings
         );
         $block = ['blockName' => BlockDefinitionReader::LISTING, 'attrs' => (array) $request->get_param('attributes'), 'innerBlocks' => $facets];
 
+        $args = BlockDefinitionReader::read($block);
+
+        // Saved with a page or a post, the block has it as its route (args()); not in a site template
+        $postType = (string) $request->get_param('postType');
+        if ($postType !== '' && ! in_array($postType, ['wp_template', 'wp_template_part', 'wp_block'], true)) {
+            $args['route'] = ['post' => 1];
+        }
+
         try {
-            ListingDefinition::fromArray('editor', BlockDefinitionReader::read($block));
+            ListingDefinition::fromArray('editor', $args);
             $errors = [];
         } catch (InvalidListing $e) {
             $errors = $e->errors;

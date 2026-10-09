@@ -50,7 +50,19 @@ final class ListingDefinition
         public readonly mixed $card = null,
         public readonly ?string $clientCard = null,
         public readonly bool $seo = true,
+        public readonly int $seoMaxDepth = 2,
+        public readonly int $seoMinResults = 3,
     ) {}
+
+    /**
+     * Its facets in the URL's path, in the definition's order.
+     *
+     * @return list<FacetDefinition>
+     */
+    public function pathFacets(): array
+    {
+        return array_values(array_filter($this->facets, fn (FacetDefinition $facet) => $facet->inPath()));
+    }
 
     /**
      * @param  array<string, mixed>  $args
@@ -145,6 +157,30 @@ final class ListingDefinition
             $errors[] = 'client_card must be the markup of a card, bound to context.hit.';
         }
 
+        // Facets in the path: taxonomy lists, prefixes no other prefix starts, on a route
+        $prefixes = [];
+        foreach ($facets as $facet) {
+            if (! $facet->inPath()) {
+                continue;
+            }
+            if (! $facet->isTaxonomy() || $facet->type !== FacetDefinition::LIST) {
+                $errors[] = sprintf('The facet "%s": only a taxonomy list may go in the path.', $facet->key);
+            }
+            if (! preg_match('/^[a-z0-9]+(-[a-z0-9]+)*$/', (string) $facet->path)) {
+                $errors[] = sprintf('The facet "%s": its path prefix may only hold lowercase letters, digits and single dashes.', $facet->key);
+            }
+            foreach ($prefixes as $other => $prefix) {
+                if ($prefix === $facet->path || str_starts_with($prefix.'-', $facet->path.'-') || str_starts_with($facet->path.'-', $prefix.'-')) {
+                    $errors[] = sprintf('The path prefixes of "%s" and "%s" cannot be told apart.', $other, $facet->key);
+                }
+            }
+            $prefixes[$facet->key] = (string) $facet->path;
+        }
+
+        $seo = $args['seo'] ?? true;
+        $seoMaxDepth = is_array($seo) ? max(0, (int) ($seo['max_depth'] ?? 2)) : 2;
+        $seoMinResults = is_array($seo) ? max(1, (int) ($seo['min_results'] ?? 3)) : 3;
+
         $route = [];
         if (isset($args['route']['page'])) {
             $route['page'] = (int) $args['route']['page'];
@@ -152,6 +188,10 @@ final class ListingDefinition
             $route['post'] = (int) $args['route']['post'];
         } elseif (isset($args['route']['archive'])) {
             $route['archive'] = (string) $args['route']['archive'];
+        }
+
+        if ($prefixes !== [] && $route === []) {
+            $errors[] = 'Facets in the path need a route: the page their segments follow.';
         }
 
         if ($errors !== []) {
@@ -175,7 +215,9 @@ final class ListingDefinition
             $searchParam,
             $card,
             $clientCard,
-            (bool) ($args['seo'] ?? true),
+            $seo !== false,
+            $seoMaxDepth,
+            $seoMinResults,
         );
     }
 
@@ -298,6 +340,12 @@ final class ListingDefinition
             limit: max(0, (int) ($args['limit'] ?? 0)),
             decimals: max(0, min(6, (int) ($args['decimals'] ?? 0))),
             booleanValue: (string) ($args['value'] ?? '1'),
+            // true: the facet's parameter name
+            path: match (true) {
+                ! isset($args['path']) || $args['path'] === false => null,
+                $args['path'] === true => (string) ($args['param'] ?? $key),
+                default => (string) $args['path'],
+            },
         );
     }
 }

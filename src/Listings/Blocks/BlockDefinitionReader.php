@@ -66,6 +66,8 @@ final class BlockDefinitionReader
                 'param' => self::param($facetAttributes, $key),
                 'limit' => isset($facetAttributes['limit']) ? (int) $facetAttributes['limit'] : null,
                 'decimals' => isset($facetAttributes['decimals']) ? (int) $facetAttributes['decimals'] : null,
+                // Its prefix in the path; empty: a parameter
+                'path' => isset($facetAttributes['path']) && $facetAttributes['path'] !== '' ? (string) $facetAttributes['path'] : null,
             ], fn ($value) => $value !== null);
         }
 

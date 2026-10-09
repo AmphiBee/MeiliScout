@@ -8,6 +8,7 @@ import {
 	RangeControl,
 	SelectControl,
 	TextControl,
+	ToggleControl,
 } from '@wordpress/components';
 import { useEntityRecords } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
@@ -293,6 +294,55 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 						) }
 						onChange={ ( param ) => setAttributes( { param } ) }
 					/>
+					{ attributes.source.startsWith( 'taxonomy:' ) &&
+						attributes.type === 'list' && (
+							<>
+								<ToggleControl
+									__nextHasNoMarginBottom
+									label={ __( 'In the path', 'meiliscout' ) }
+									help={ __(
+										'Its values go in the path (/projects/type-redesign/) rather than a parameter: with one value, a view search engines may index.',
+										'meiliscout'
+									) }
+									checked={ !! attributes.path }
+									onChange={ ( on ) =>
+										setAttributes( {
+											path: on
+												? attributes.param ||
+												  attributes.source.replace(
+														/^taxonomy:/,
+														''
+												  )
+												: '',
+										} )
+									}
+								/>
+								{ !! attributes.path && (
+									<TextControl
+										__nextHasNoMarginBottom
+										label={ __(
+											'Prefix in the path',
+											'meiliscout'
+										) }
+										help={ __(
+											'Lowercase letters, digits and dashes: {prefix}-{value}.',
+											'meiliscout'
+										) }
+										value={ attributes.path }
+										onChange={ ( path ) =>
+											setAttributes( {
+												path: path
+													.toLowerCase()
+													.replace(
+														/[^a-z0-9-]/g,
+														''
+													),
+											} )
+										}
+									/>
+								) }
+							</>
+						) }
 				</PanelBody>
 			</InspectorControls>
 			<fieldset

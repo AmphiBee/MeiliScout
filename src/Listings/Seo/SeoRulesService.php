@@ -66,8 +66,6 @@ final class SeoRulesService
     {
         $path = (string) wp_parse_url($url, PHP_URL_PATH);
         $query = (string) wp_parse_url($url, PHP_URL_QUERY);
-        $page = preg_match('#/page/(\d+)/?$#', $path, $m) ? (int) $m[1] : 1;
-        $bare = untrailingslashit((string) preg_replace('#/page/\d+/?$#', '', $path));
 
         foreach (DefinitionRegistry::ids() as $id) {
             try {
@@ -81,17 +79,19 @@ final class SeoRulesService
             }
 
             $base = Listings::baseUrl($definition);
-            if (untrailingslashit((string) wp_parse_url($base, PHP_URL_PATH)) !== $bare) {
+            // Its first page, then its facets in the path and a page
+            $state = UrlCodec::fromRequest($definition, $path, $query, $base);
+            if ($state === null) {
                 continue;
             }
 
-            $state = UrlCodec::fromQueryString($definition, $query, $page);
             $result = ListingQuery::run($definition, $state);
             $view = SeoPolicy::forResult($result, $base);
 
             return $view->toArray() + [
                 'state_url' => UrlCodec::url($definition, $state, $base),
-                'not_found' => $page > max(1, $result->pages()),
+                'not_found' => $state->page > max(1, $result->pages()),
+                'canonical_url' => UrlCodec::canonicalUrl($definition, $path, $query, $base),
                 'seo' => $definition->seo,
                 'rule_key' => $view->rule?->key,
                 'rule_label' => $view->rule !== null ? RuleKey::label($definition, $view->rule->key) : null,

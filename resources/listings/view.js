@@ -17,12 +17,12 @@ import {
 	getElement,
 	withScope,
 } from '@wordpress/interactivity';
-import { parse, url as urlOf } from './codec';
+import { linkTarget, parse, parseUrl, url as urlOf } from './codec';
 import { counts, read, results, withOverflow } from './plan';
 import { hitFromDocument, pageItems, pageLinks } from './hits';
 
 const NAMESPACE = 'meiliscout/listing';
-const CONTRACT = 2;
+const CONTRACT = 3;
 
 /** Requests in flight, by listing: a newer change aborts them. */
 const controllers = new Map();
@@ -261,6 +261,21 @@ const { state, actions } = store( NAMESPACE, {
 		},
 
 		/**
+		 * A value's link (one leading to an indexable view, design §8.5):
+		 * search engines follow it; here it ticks its box, as its label would.
+		 *
+		 * @param {MouseEvent} event
+		 */
+		follow( event ) {
+			const listing = state.listings[ getContext().listing ];
+			if ( ! ready( listing ) ) {
+				return; // The page it leads to
+			}
+			event.preventDefault();
+			event.target.closest( 'label' )?.querySelector( 'input' )?.click();
+		},
+
+		/**
 		 * A facet's values past its limit, shown or folded.
 		 */
 		toggleMore() {
@@ -483,13 +498,16 @@ const { state, actions } = store( NAMESPACE, {
 			window.addEventListener(
 				'popstate',
 				withScope( () => {
-					const query = window.location.search.replace( /^\?/, '' );
-					const page = Number(
-						( window.location.pathname.match(
-							/\/page\/(\d+)\/?$/
-						) || [] )[ 1 ] || 1
+					const next = parseUrl(
+						listing.template,
+						window.location.pathname,
+						window.location.search.replace( /^\?/, '' ),
+						listing.base
 					);
-					const next = parse( listing.template, query, page );
+					if ( ! next ) {
+						return; // Not one of the listing's URLs
+					}
+					const { page } = next;
 					if ( listing.transport === 'client' ) {
 						actions.update( id, next, 'none' );
 						return;
@@ -784,13 +802,34 @@ function applyCounts( listing, next, counted, total = true ) {
 		const selected = next.values[ facet.key ] || [];
 		const distribution = counted.distributions[ facet.field ] || {};
 		entry.options = withOverflow(
-			Object.entries( facet.values ).map( ( [ value, known ] ) => ( {
-				value,
-				label: known.label,
-				count: distribution[ known.id ] ?? 0,
-				selected: selected.includes( value ),
-				depth: known.depth,
-			} ) ),
+			Object.entries( facet.values ).map( ( [ value, known ] ) => {
+				const count = distribution[ known.id ] ?? 0;
+				const isSelected = selected.includes( value );
+				// In an OR list with a selection: what the value adds (ListingQuery::option())
+				const adds =
+					! isSelected && counted.added?.[ facet.field ]
+						? counted.added[ facet.field ][ known.id ] ?? 0
+						: null;
+				const target = linkTarget(
+					listing.template,
+					next,
+					facet.key,
+					value,
+					count
+				);
+				return {
+					value,
+					label: known.label,
+					count,
+					selected: isSelected,
+					depth: known.depth,
+					added: adds,
+					countLabel: adds === null ? String( count ) : '+' + adds,
+					url: target
+						? urlOf( listing.template, target, listing.base )
+						: null,
+				};
+			} ),
 			facet.limit
 		);
 	}

@@ -15,6 +15,7 @@ use Pollora\MeiliScout\Listings\Render\Store;
 use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
 use Pollora\MeiliScout\Listings\Seo\SeoRules;
 use Pollora\MeiliScout\Listings\State\ListingState;
+use Pollora\MeiliScout\Listings\State\PathFacetParser;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
 use Pollora\MeiliScout\Listings\Transport\RestController;
 
@@ -33,6 +34,8 @@ final class Listings
         add_action('init', [self::class, 'registerModule']);
         add_action('rest_api_init', [RestController::class, 'routes']);
         add_action('template_redirect', [self::class, 'redirectToCanonical'], 0);
+        PathFacetParser::boot();
+        add_action('wp', [self::class, 'checkPath'], -1);
         add_action('admin_init', [SeoRules::class, 'install']);
         SeoPolicy::boot();
     }
@@ -337,7 +340,18 @@ final class Listings
             $page = (int) get_query_var('page');
         }
 
-        return UrlCodec::fromQueryString($definition, (string) ($_SERVER['QUERY_STRING'] ?? ''), max(1, $page));
+        $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
+
+        // Facets in the path: read after the listing's first page
+        if ($definition->pathFacets() !== []) {
+            $path = (string) strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');
+            $state = UrlCodec::fromRequest($definition, $path, $query, self::baseUrl($definition));
+            if ($state !== null) {
+                return $state->page > 1 || $page < 2 ? $state : $state->onPage($page);
+            }
+        }
+
+        return UrlCodec::fromQueryString($definition, $query, max(1, $page));
     }
 
     /**
@@ -366,13 +380,13 @@ final class Listings
     }
 
     /**
-     * 301 to a listing's canonical query string (the order of its parameters,
-     * of its values, a form's separate bounds...) on its declared route.
+     * 301 to a listing's canonical URL (the facets of its path and their
+     * order, the order of its parameters and values, a form's separate
+     * bounds...) on its declared route; 404 on a value of a facet in the path
+     * that is no term.
      */
     public static function redirectToCanonical(): void
     {
-        $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
-
         if (! in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
             return;
         }
@@ -382,16 +396,73 @@ final class Listings
             // query string again, the comma between two values as %2C (one value)
             remove_action('template_redirect', 'redirect_canonical');
 
-            $canonical = $query === '' ? null : UrlCodec::canonicalQuery($definition, $query);
+            $path = (string) strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');
+            $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
+            $base = self::baseUrl($definition);
+            $canonical = UrlCodec::canonicalUrl($definition, $path, $query, $base);
 
             if ($canonical !== null) {
-                $path = strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');
-                wp_safe_redirect(home_url($path).($canonical !== '' ? '?'.$canonical : ''), 301, 'MeiliScout');
+                wp_safe_redirect($canonical, 301, 'MeiliScout');
                 exit;
             }
 
             return;
         }
+    }
+
+    /**
+     * A 404 for a value of a facet in the path that is no term (on `wp`,
+     * before the SEO view is computed).
+     */
+    public static function checkPath(): void
+    {
+        foreach (self::routed() as $definition) {
+            if ($definition->pathFacets() === []) {
+                continue;
+            }
+
+            $state = UrlCodec::fromRequest(
+                $definition,
+                (string) strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?'),
+                (string) ($_SERVER['QUERY_STRING'] ?? ''),
+                self::baseUrl($definition)
+            );
+
+            if ($state !== null && ! self::termsExist($definition, $state)) {
+                self::notFound();
+            }
+
+            return;
+        }
+    }
+
+    /**
+     * Every value of the facets in the path is a term of their taxonomy.
+     */
+    private static function termsExist(ListingDefinition $definition, ListingState $state): bool
+    {
+        foreach ($definition->pathFacets() as $facet) {
+            foreach ($state->valuesOf($facet->key) as $slug) {
+                if (! get_term_by('slug', $slug, $facet->name) instanceof \WP_Term) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * A 404 rather than the listing's page.
+     */
+    public static function notFound(): void
+    {
+        global $wp_query;
+
+        remove_action('template_redirect', 'redirect_canonical');
+        $wp_query->set_404();
+        status_header(404);
+        nocache_headers();
     }
 
     /**

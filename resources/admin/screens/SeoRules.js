@@ -26,9 +26,12 @@ const EMPTY = {
 
 const REASONS = {
 	filters: __(
-		'Filters are chosen: until facets go in the path, a filtered view is not indexed.',
+		'A filter outside the path (a parameter, a range): never indexed.',
 		'meiliscout'
 	),
+	values: __( 'Several values of one facet.', 'meiliscout' ),
+	depth: __( 'More facets than the listing indexes.', 'meiliscout' ),
+	few: __( 'Fewer results than the listing indexes.', 'meiliscout' ),
 	search: __( 'A search is never indexed.', 'meiliscout' ),
 	sort: __( 'Another sort than the default one.', 'meiliscout' ),
 	empty: __( 'No results.', 'meiliscout' ),

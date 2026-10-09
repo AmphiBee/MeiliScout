@@ -89,7 +89,8 @@ const clauses = ( template, state ) => {
 };
 
 /**
- * The searches counting the facets in a state.
+ * The searches counting the facets in a state (FacetPlan::counts()): then,
+ * per OR list with a selection, what its other values would add.
  *
  * @param {Object} template
  * @param {Object} state
@@ -112,24 +113,48 @@ export const counts = ( template, state ) => {
 		} );
 	}
 
+	// What each other value of an OR list adds to its selection
+	const added = template.facets
+		.filter(
+			( facet ) =>
+				facet.key in active &&
+				facet.type === 'list' &&
+				facet.logic === 'or'
+		)
+		.map( ( facet ) => {
+			const query = search( template, active, facet.key, state );
+			query.filter = [ query.filter, 'NOT (' + active[ facet.key ] + ')' ]
+				.filter( Boolean )
+				.join( ' AND ' );
+			return { ...query, facets: [ facet.field ], limit: 0 };
+		} );
+
 	return [
 		{ ...search( template, active, null, state ), facets, limit: 0 },
 		...searches,
+		...added,
 	];
 };
 
 /**
- * Each field's counts and bounds, from the search that carries it.
+ * Each field's counts and bounds, from the search that carries it; a field
+ * counted a second time: what its values add.
  *
  * @param {Object[]} searches The searches sent.
  * @param {Object[]} results  Meilisearch's answers.
- * @return {{distributions: Object, stats: Object, total: number}} The counts.
+ * @return {{distributions: Object, added: Object, stats: Object, total: number}} The counts.
  */
 export const read = ( searches, results ) => {
 	const distributions = {};
+	const added = {};
 	const stats = {};
 	searches.forEach( ( query, i ) => {
 		for ( const field of query.facets ) {
+			if ( field in distributions ) {
+				added[ field ] =
+					results[ i ]?.facetDistribution?.[ field ] || {};
+				continue;
+			}
 			distributions[ field ] =
 				results[ i ]?.facetDistribution?.[ field ] || {};
 			stats[ field ] = results[ i ]?.facetStats?.[ field ] || null;
@@ -137,6 +162,7 @@ export const read = ( searches, results ) => {
 	} );
 	return {
 		distributions,
+		added,
 		stats,
 		total: results[ 0 ]?.estimatedTotalHits ?? results[ 0 ]?.totalHits ?? 0,
 	};

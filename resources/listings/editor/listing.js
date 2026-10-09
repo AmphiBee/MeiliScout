@@ -289,8 +289,15 @@ export default function ListingEdit( { attributes, setAttributes, clientId } ) {
 		[ inner ]
 	);
 
+	// A page or a post is the listing's route; a site editor template is not
+	const postType = useSelect(
+		( select ) => select( 'core/editor' )?.getCurrentPostType?.() ?? '',
+		[]
+	);
+
 	// What the server would refuse
 	const signature = JSON.stringify( [
+		postType,
 		attributes.postTypes,
 		attributes.perPage,
 		attributes.sorts,
@@ -302,7 +309,7 @@ export default function ListingEdit( { attributes, setAttributes, clientId } ) {
 			apiFetch( {
 				path: '/meiliscout/v1/listings/validate',
 				method: 'POST',
-				data: { attributes, facets },
+				data: { attributes, facets, postType },
 			} ).then(
 				( result ) => setErrors( result.errors || [] ),
 				() => setErrors( [] )

@@ -71,7 +71,12 @@ final class FacetPlan
     }
 
     /**
-     * The searches counting the facets in a state.
+     * The searches counting the facets in a state: the first counts the
+     * facets without a selection and the others' conjunctive ones; one per
+     * disjunctive facet with a selection counts it without it; then one per
+     * OR list with a selection counts what each of its other values would
+     * add (the other filters, and NOT its selection). A field counted twice:
+     * the second count is what its values add.
      *
      * @param  string|null  $base  The base filter, null when a tenant token adds it
      * @param  array<string, array<string, string>>  $known  Clauses already written, by facet and value
@@ -96,9 +101,19 @@ final class FacetPlan
             $searches[] = self::search($index, $base, $clauses, $facet->key, $state) + ['facets' => [$facet->countField()], 'limit' => 0];
         }
 
+        // What each other value of an OR list adds to its selection
+        $added = [];
+        foreach ($definition->facets as $facet) {
+            if (isset($clauses[$facet->key]) && $facet->type === FacetDefinition::LIST && $facet->logic === 'or') {
+                $search = self::search($index, $base, $clauses, $facet->key, $state);
+                $search['filter'] = implode(' AND ', array_filter([$search['filter'] ?? '', 'NOT ('.$clauses[$facet->key].')']));
+                $added[] = $search + ['facets' => [$facet->countField()], 'limit' => 0];
+            }
+        }
+
         $first = self::search($index, $base, $clauses, null, $state) + $first;
 
-        return [$first, ...$searches];
+        return [$first, ...$searches, ...$added];
     }
 
     /**

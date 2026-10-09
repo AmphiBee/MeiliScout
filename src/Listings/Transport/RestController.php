@@ -82,8 +82,9 @@ final class RestController
         }
 
         $page = preg_match('#/page/(\d+)/?$#', $path, $m) ? (int) $m[1] : 1;
-        $state = UrlCodec::fromQueryString($definition, $query, $page);
         $base = $definition->route !== [] ? Listings::baseUrl($definition) : home_url(user_trailingslashit((string) preg_replace('#/page/\d+/?$#', '', $path)));
+        // Facets in the path, after the listing's first page
+        $state = UrlCodec::fromRequest($definition, $path, $query, $base) ?? UrlCodec::fromQueryString($definition, $query, $page);
         // A block listing renders its block again (its Post Template, its pagination); the router takes its regions
         $region = BlockListings::isBlock($definition->id) ? BlockListings::fragment($definition->id, $state, $base) : null;
 

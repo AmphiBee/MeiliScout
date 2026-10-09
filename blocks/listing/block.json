@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "meiliscout/listing",
 	"title": "Filterable listing",
-	"category": "theme",
+	"category": "meiliscout",
 	"description": "Posts with facets counted by Meilisearch: holds a Post Template, its pagination, and facets.",
 	"keywords": [
 		"facets",
