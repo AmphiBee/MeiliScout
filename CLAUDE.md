@@ -110,6 +110,7 @@ Off by default (`listings_enabled`), WordPress 6.9. Coverage and API: `docs/LIST
 - `Query/`: `FacetPlan` (disjunctive multi-search, clauses written by the core builders through `FacetClauses`), `ListingQuery`, `PlanTemplate` (what the client replays; `VERSION` is the client's contract)
 - `Render/`: `Renderer` (GET form, Interactivity API directives, one router region), `Store`, `Hits` (client transport's cards); `Transport/`: tenant tokens, listings key, fragment and token endpoints
 - `PublicFields`: the posts index's `displayedAttributes` while the module is on
+- Developer mode: `Renderer::part()` (parts printed one by one, one form named by every field), `Render/Cards` (the definition's card: callable, part, `blade:`, `twig:`, `CardRenderer`), `Template/Blade` (anonymous components in `templates/blade/components`), `Template/TwigExtension`
 - PHP and JS halves share their cases: `tests/fixtures/listings` (Pest `tests/Unit/Listings`, `npm run test:js`, `tests/Integration/ListingCasesTest.php`)
 
 ### Configuration
@@ -185,6 +186,7 @@ The plugin provides several filters for customization:
 - `meiliscout/http_client_options`: Options of the Symfony HttpClient used for Meilisearch (default: `['timeout' => 10]`)
 - `meiliscout/index_prefix`: Prefix of the index names (default: `MEILI_INDEX_PREFIX`, else the site's domain)
 - `meiliscout/listings/token_lifetime`: How long a front listing's tenant token lasts (default: a day)
+- `meiliscout/listings/card`, `meiliscout/listings/blade`, `meiliscout/listings/twig`: front listings' cards and their engines
 - `meiliscout/supported_query_vars`, `meiliscout/ignored_sql_filters`, `meiliscout/ignored_term_sql_filters`, `meiliscout/skip_term_query_integration`, `meiliscout/integrate_term_query`, `meiliscout/term/ranking_rules`, `meiliscout/term/document`, `meiliscout/skip_query_integration`, `meiliscout/integrate_query`, `meiliscout/search_params`, `meiliscout/hydrate_from_documents`, `meiliscout/search_memo`, `meiliscout/max_total_hits`, `meiliscout/php_order_limit`, `meiliscout/post/ranking_rules`, `meiliscout/debug_header`, `meiliscout/indexable_post_statuses`: see `docs/FILTERS.md`
 
 ## Environment Variables

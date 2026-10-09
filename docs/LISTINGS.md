@@ -4,7 +4,7 @@ Filterable listings of posts on the front end: facets with their counts, sorts, 
 
 The module is **off by default** and needs **WordPress 6.9** (the Interactivity API's router). It loads no script or style on a page without a listing.
 
-> This is the module's core (phase 1 of `docs/plans/2026-10-front-listings-design.md`): listings declared in PHP and rendered by MeiliScout's markup. Blocks, Blade and Twig components, facets in the path, the SEO policy and languages come in the next phases.
+> Phases 1 and 2 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP, printed whole or part by part from PHP, Blade or Twig. Blocks, facets in the path, the SEO policy and languages come in the next phases.
 
 ## Turning it on
 
@@ -69,6 +69,8 @@ A definition is checked once, on first use. One that cannot be served (an uninde
 | `personalised` | `false` | Cards that depend on the visitor: the fragment is asked for with the visitor's session, and never cached |
 | `route` | the current URL | `['page' => $id]` or `['archive' => $postType]`: the listing's first page. Required for the [canonical redirect](#urls) |
 | `sort_param`, `search_param` | `sort`, `q` | Names of these parameters in the URL |
+| `card` | the theme's `meiliscout/card.php`, else a title, a date and an excerpt | The card of the `fragment` and `page` transports ([Cards](#cards)) |
+| `client_card` | the theme's `meiliscout/client-card.php`, else a title, a date and an excerpt | The card of the `client` transport: markup bound to `context.hit` ([below](#the-client-transports-card)) |
 
 A **facet**:
 
@@ -87,20 +89,19 @@ A **facet**:
 
 Facets need the posts index in schema 5 (`wp meiliscout status`), which counts a term with its descendants: until a full indexation rebuilds it, listings are served without counts, with the `page` transport.
 
-### What `meiliscout_listing()` takes
+### Cards
+
+A listing's cards are part of its definition, so that the page and the fragments the browser asks for render the same ones:
 
 ```php
-meiliscout_listing('projects', [
-    'card' => fn (WP_Post $post) => '<h3>'.esc_html(get_the_title($post)).'</h3>',
-    'search' => false,
-]);
+'card' => fn (WP_Post $post, ListingDefinition $listing) => '<h3>'.esc_html(get_the_title($post)).'</h3>',
+'card' => 'partials/project-card',     // a template part of the theme (it gets $args['post'])
+'card' => 'blade:partials.project-card', // a Blade view, with $post and $listing
+'card' => 'twig:partials/project-card.twig', // a Twig template, with post (Timber's) and listing
+'card' => new ProjectCards,             // a Pollora\MeiliScout\Listings\Render\CardRenderer
 ```
 
-| Argument | |
-|---|---|
-| `card` | The card of the `fragment` and `page` transports: a callable receiving the `WP_Post`, or the name of a template part. Default: the theme's `meiliscout/card.php` (it gets `$args['post']`), else a title, a date and an excerpt |
-| `client_card` | The card of the `client` transport: markup bound to `context.hit` ([below](#the-client-transports-card)). Default: the theme's `meiliscout/client-card.php`, else a title, a date and an excerpt |
-| `search` | Whether the listing has a search field (default `true`) |
+Blade cards use the application's view factory (Pollora, Acorn), Twig cards Timber; `meiliscout/listings/blade` and `meiliscout/listings/twig` hand over others. When the engine is missing, the default card is used and the reason logged. `meiliscout/listings/card` filters every card's HTML.
 
 ## URLs
 
@@ -140,7 +141,10 @@ The results of the `fragment` and `page` transports come from a `WP_Query` askin
 Each card is bound to `context.hit` with the Interactivity API's directives; the server renders the first page with the same markup.
 
 ```php
-meiliscout_listing('projects', [
+meiliscout_register_listing('projects', [
+    // ...
+    'transport' => 'client',
+    'public_metas' => ['_price'],
     'client_card' => '<article class="card">'
         .'<h3><a data-wp-bind--href="context.hit.url" data-wp-text="context.hit.title"></a></h3>'
         .'<p><time data-wp-bind--datetime="context.hit.date" data-wp-text="context.hit.dateLabel"></time>'
@@ -161,9 +165,97 @@ meiliscout_listing('projects', [
 
 Everything is text: bind it with `data-wp-text`, never as HTML. A card that needs more (an image, a price formatted by PHP) uses the `fragment` transport.
 
+## Developer mode: parts
+
+`meiliscout_listing()` prints the whole listing in MeiliScout's layout. A template that wants its own prints the parts one by one, anywhere on the page, in any order:
+
+```php
+<aside>
+    <?php meiliscout_listing_part('projects', 'search'); ?>
+    <?php meiliscout_facet('projects', 'type'); ?>
+    <?php meiliscout_facet('projects', 'price'); ?>
+    <?php meiliscout_listing_part('projects', 'apply'); ?>
+</aside>
+<main>
+    <?php meiliscout_listing_part('projects', 'total'); ?>
+    <?php meiliscout_listing_part('projects', 'sort'); ?>
+    <?php meiliscout_active_filters('projects'); ?>
+    <?php meiliscout_listing_results('projects'); ?>
+    <?php meiliscout_pagination('projects'); ?>
+</main>
+```
+
+| Part | |
+|---|---|
+| `search` | The search field |
+| `facet` | One facet: `meiliscout_facet($id, $key)`, or `['facet' => $key]` |
+| `facets` | Every facet, in the definition's order |
+| `sort` | The sort select (when the listing has two sorts or more) |
+| `total` | The number of results, announced to screen readers |
+| `active` | The active filters, each a button removing it: `meiliscout_active_filters()` |
+| `apply` | The button sending the filters: needed by a page without JavaScript, hidden by the client when changes apply at once |
+| `reset` | The link back to the listing without filters |
+| `results` | The cards: `meiliscout_listing_results()` |
+| `pagination` | `meiliscout_pagination()` |
+
+`meiliscout_get_listing_part()` returns a part instead of printing it. The listing runs once per page, whatever its parts. Every field belongs to the listing's one form (`form="…"`), printed with the first part: without JavaScript, a form spread over the page still sends every field — print the `apply` part for it to be sent.
+
+The listing's state is printed by `wp_footer()`: a template without it does not hydrate (`WP_DEBUG` reports it).
+
+### Blade
+
+On a site running Laravel's Blade (Pollora, Acorn), the components are registered on `init`:
+
+```blade
+<x-meiliscout::listing id="projects" />
+
+<x-meiliscout::facet listing="projects" facet="type" />
+<x-meiliscout::part listing="projects" part="sort" />
+<x-meiliscout::active-filters listing="projects" />
+<x-meiliscout::results listing="projects" />
+<x-meiliscout::pagination listing="projects" />
+```
+
+Another Blade compiler: `Pollora\MeiliScout\Listings\Template\Blade::register($compiler)`.
+
+### Twig
+
+With Timber, the functions are added to its environment (`timber/twig`); another one: `$twig->addExtension(new Pollora\MeiliScout\Listings\Template\TwigExtension)`. Their HTML is not escaped.
+
+```twig
+{{ meiliscout_listing('projects') }}
+
+{{ meiliscout_facet('projects', 'type') }}
+{{ meiliscout_listing_part('projects', 'sort') }}
+{{ meiliscout_active_filters('projects') }}
+{{ meiliscout_listing_results('projects') }}
+{{ meiliscout_pagination('projects') }}
+```
+
+While the module is off, the functions and components print nothing.
+
+### Events
+
+The listing's form sends DOM events, which bubble to the document; `event.detail.listing` is the listing's id:
+
+| Event | `detail` | |
+|---|---|---|
+| `meiliscout:change` | `url`, `state` | A state is asked for: its counts and results are on their way |
+| `meiliscout:results` | `url`, `total` | Its results are in place |
+
+```js
+document.addEventListener( 'meiliscout:results', ( event ) => {
+	if ( event.detail.listing === 'projects' ) {
+		document.getElementById( 'projects' ).scrollIntoView();
+	}
+} );
+```
+
 ## Markup and styles
 
 The module prints plain markup with stable classes and **no styles**: the theme styles it. (Default styles that follow the theme's `theme.json` come with the blocks, in a later phase.)
+
+Stable hooks: `data-meiliscout` on the listing's elements (`listing`, `form`, `results`, `pagination`, `reset`), `data-meiliscout-part` on a part's wrapper (`.meiliscout-part.meiliscout-part--<part>`).
 
 ```
 .meiliscout-listing
@@ -184,7 +276,7 @@ The module prints plain markup with stable classes and **no styles**: the theme 
   .meiliscout-listing__results              (the router region; aria-busy while loading)
     ul.meiliscout-results > li.meiliscout-result > article.meiliscout-card (__title, __meta, __excerpt)
     p.meiliscout-results__empty
-    nav.meiliscout-pagination > .meiliscout-pagination__link (__previous, __number, __next), .meiliscout-pagination__dots
+  nav.meiliscout-pagination > a.meiliscout-pagination__link (__previous, __number, __dots, __next; the current page and the dots without href)
 ```
 
 A value no post of the current selection has (count 0) is hidden, unless it is selected.
@@ -212,9 +304,12 @@ Browsers search the posts index with a token, so while the module is on the inde
 | `meiliscout/listings/token_lifetime` | How long a listing's token lasts, in seconds (default a day, at least an hour). Receives the `ListingDefinition` |
 | `meiliscout/post/displayed_attributes` | The fields the posts index returns; while listings are on, its default is the list of public fields |
 | `excerpt_length` | WordPress's: the length of a client card's excerpt |
+| `meiliscout/listings/card` | A card's HTML (`fragment` and `page` transports), with the `WP_Post` and the `ListingDefinition` |
+| `meiliscout/listings/blade` | The Blade view factory of `blade:` cards (default: the application's `view`) |
+| `meiliscout/listings/twig` | The `Twig\Environment` of `twig:` cards (default: Timber's) |
 
 ## Testing
 
 - `vendor/bin/pest tests/Unit/Listings`: definitions, the URL codec, the facets' plan, cards, against the shared cases of `tests/fixtures/listings`.
 - `npm run test:js`: the browser's codec, plan and cards against the same cases.
-- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`.
+- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`).

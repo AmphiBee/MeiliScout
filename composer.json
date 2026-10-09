@@ -51,6 +51,8 @@
         "roave/security-advisories": "dev-latest",
         "pestphp/pest": "^3.7",
         "szepeviktor/phpstan-wordpress": "^2.0",
-        "phpstan/phpstan": "^2.1"
+        "phpstan/phpstan": "^2.1",
+        "twig/twig": "^3.14",
+        "illuminate/view": "^11.0 || ^12.0"
     }
 }
