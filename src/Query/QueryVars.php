@@ -42,6 +42,11 @@ final class QueryVars
     {
         $wp = self::wp($query);
 
+        // WP_Query::get_posts() leaves the taxonomies out of a singular query (Polylang's language among them)
+        if ($wp !== null && $wp->is_singular) {
+            return [];
+        }
+
         if ($wp !== null && $wp->tax_query instanceof WP_Tax_Query) {
             return $wp->tax_query->queries;
         }

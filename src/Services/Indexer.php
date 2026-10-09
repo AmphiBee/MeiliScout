@@ -16,6 +16,7 @@ use Pollora\MeiliScout\Services\TaxonomySingleIndexer;
 
 use function apply_filters;
 use function current_time;
+use function do_action;
 use function get_posts;
 use function update_option;
 
@@ -281,6 +282,13 @@ class Indexer
         $migrating = array_intersect(IndexNames::pendingBases(), $bases);
 
         IndexNames::activate($bases);
+
+        /**
+         * Fires once searches moved to the indexes a full indexation built.
+         *
+         * @param  list<string>  $bases  posts, terms
+         */
+        do_action('meiliscout/indexes_activated', $bases);
         MetaValueFlags::finishRun(array_map(static fn (string $base) => $base === 'posts' ? 'post' : 'term', $bases));
 
         if ($migrating !== []) {
