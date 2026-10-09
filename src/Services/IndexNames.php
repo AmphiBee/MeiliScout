@@ -46,7 +46,7 @@ final class IndexNames
      * Versions were shared by every index up to 3: an index moves to the next
      * one on its own, and only its own indexation is needed.
      */
-    public const SCHEMA_VERSIONS = ['posts' => 4, 'taxonomies' => 4];
+    public const SCHEMA_VERSIONS = ['posts' => 5, 'taxonomies' => 4];
 
     /**
      * The indexes of the plugin, by base name.

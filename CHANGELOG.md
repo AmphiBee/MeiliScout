@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### WP_Query
+
+- **Posts schema 5:** each term of a hierarchical taxonomy carries the ids of its ancestors (`taxonomies.<taxonomy>.tree`, the term first). `tax_query` with `include_children` (`cat`, `category_name`, archives…) is one `IN` on the tree instead of the list of every descendant, and a facet on the tree counts a parent with its children. `AND` keeps the list WordPress builds. A term moved to another parent, or whose parent is deleted, re-indexes the posts of its subtree.
+
+### Upgrading
+
+The posts documents change (schema 5): until a full indexation rebuilds the posts index, queries list the descendants as before.
+
 ## 2.0.0 (unreleased)
 
 ### WP_Query
