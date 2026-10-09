@@ -168,7 +168,23 @@ class PostIndexable implements Indexable
             ),
             'rankingRules' => self::rankingRules(),
             'pagination' => ['maxTotalHits' => IndexSettings::maxTotalHits()],
+            'faceting' => ['maxValuesPerFacet' => self::maxValuesPerFacet()],
         ];
+    }
+
+    /**
+     * How many values of a field a facet distribution counts (Meilisearch's
+     * default: 100). The front listings raise it: a facet offers the values
+     * the index counts, no more.
+     */
+    public static function maxValuesPerFacet(): int
+    {
+        /**
+         * Filters how many values of a field the posts index counts in a facet distribution.
+         *
+         * @param  int  $max  Default 100 (Meilisearch's), 1000 while the front listings run.
+         */
+        return max(1, (int) apply_filters('meiliscout/post/max_values_per_facet', 100));
     }
 
     /**

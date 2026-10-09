@@ -121,6 +121,16 @@
 	font-variant-numeric: tabular-nums;
 }
 
+:where(.meiliscout-facet__search) {
+	margin-bottom: var(--meiliscout-gap-small);
+}
+
+:where(.meiliscout-facet__none) {
+	margin: 0;
+	color: var(--meiliscout-muted);
+	font-size: 0.875em;
+}
+
 :where(.meiliscout-facet__more) {
 	margin-top: var(--meiliscout-gap-small);
 	padding: 0;
@@ -146,7 +156,7 @@
 	color: var(--meiliscout-muted);
 }
 
-:where(.meiliscout-search__input, .meiliscout-range__input, .meiliscout-sort__select) {
+:where(.meiliscout-search__input, .meiliscout-range__input, .meiliscout-sort__select, .meiliscout-facet__search-input) {
 	box-sizing: border-box;
 	width: 100%;
 	min-height: 2.5em;

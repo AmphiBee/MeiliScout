@@ -53,6 +53,12 @@ final class PublicFields
     public const SYNC_HOOK = 'meiliscout/listings/sync_fields';
 
     /**
+     * The values of a field the index counts while the module runs: every
+     * value a facet offers comes from a facet distribution.
+     */
+    public const MAX_VALUES_PER_FACET = 1000;
+
+    /**
      * The list last seen, to notice a change without asking Meilisearch.
      */
     private const SIGNATURE = 'meiliscout/listings_fields_signature';
@@ -64,6 +70,7 @@ final class PublicFields
     {
         if ($module) {
             add_filter('meiliscout/post/displayed_attributes', [self::class, 'restrict'], 0);
+            add_filter('meiliscout/post/max_values_per_facet', static fn (int $max) => max($max, self::MAX_VALUES_PER_FACET), 0);
         }
 
         add_action(self::SYNC_HOOK, [self::class, 'sync']);
@@ -108,7 +115,7 @@ final class PublicFields
      */
     public static function watch(bool $module): void
     {
-        $signature = md5((string) wp_json_encode($module ? self::allowlist() : ['*']));
+        $signature = md5((string) wp_json_encode($module ? [...self::allowlist(), PostIndexable::maxValuesPerFacet()] : ['*']));
         // A site that never ran the module has the default list
         $seen = get_option(self::SIGNATURE, md5((string) wp_json_encode(['*'])));
 

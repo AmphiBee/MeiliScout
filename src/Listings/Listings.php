@@ -15,6 +15,7 @@ use Pollora\MeiliScout\Listings\Render\Renderer;
 use Pollora\MeiliScout\Listings\Render\Store;
 use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
 use Pollora\MeiliScout\Listings\Seo\SeoRules;
+use Pollora\MeiliScout\Listings\Seo\Sitemap\Sitemaps;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Listings\State\PathFacetParser;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
@@ -40,6 +41,7 @@ final class Listings
         add_action('wp', [self::class, 'checkPath'], -1);
         add_action('admin_init', [SeoRules::class, 'install']);
         SeoPolicy::boot();
+        Sitemaps::boot();
     }
 
     /**

@@ -42,6 +42,10 @@ const { state, actions } = store( NAMESPACE, {
 			if ( option.count === 0 && ! option.selected ) {
 				return true;
 			}
+			// Searching its values: the ones whose label holds the text, none folded
+			if ( entry.query ) {
+				return ! fold( option.label ).includes( fold( entry.query ) );
+			}
 			// Folded once the client runs: without it, every value shows
 			return (
 				option.overflow &&
@@ -53,6 +57,7 @@ const { state, actions } = store( NAMESPACE, {
 			const { listing, facet } = getContext();
 			return (
 				ready( state.listings[ listing ] ) &&
+				! state.listings[ listing ].facets[ facet ].query &&
 				state.listings[ listing ].facets[ facet ].options.some(
 					( option ) => option.overflow
 				)
@@ -62,6 +67,26 @@ const { state, actions } = store( NAMESPACE, {
 			const { listing, facet } = getContext();
 			return Boolean(
 				state.listings[ listing ].facets[ facet ].expanded
+			);
+		},
+		get facetSearchHidden() {
+			return ! ready( state.listings[ getContext().listing ] );
+		},
+		get facetQuery() {
+			const { listing, facet } = getContext();
+			return state.listings[ listing ].facets[ facet ].query || '';
+		},
+		get noMatch() {
+			const { listing, facet } = getContext();
+			const entry = state.listings[ listing ].facets[ facet ];
+			const query = fold( entry.query || '' );
+			return (
+				query !== '' &&
+				! entry.options.some(
+					( option ) =>
+						( option.count > 0 || option.selected ) &&
+						fold( option.label ).includes( query )
+				)
 			);
 		},
 		get moreLabel() {
@@ -220,9 +245,11 @@ const { state, actions } = store( NAMESPACE, {
 		input( event ) {
 			const { listing: id } = getContext();
 			const listing = state.listings[ id ];
-			// A checkbox or a select sends input too: change applies them
+			// A checkbox or a select sends input too: change applies them;
+			// a facet's search field narrows its values, it is no filter
 			if (
 				! ready( listing ) ||
+				! event.target.name ||
 				! [ 'search', 'number', 'text' ].includes( event.target.type )
 			) {
 				return;
@@ -294,6 +321,18 @@ const { state, actions } = store( NAMESPACE, {
 			const { listing, facet } = getContext();
 			const entry = state.listings[ listing ].facets[ facet ];
 			entry.expanded = ! entry.expanded;
+		},
+
+		/**
+		 * A facet's search field: its values narrowed to the ones whose label
+		 * holds the text, in the browser (every value is in the store).
+		 *
+		 * @param {InputEvent} event
+		 */
+		searchFacet( event ) {
+			const { listing, facet } = getContext();
+			state.listings[ listing ].facets[ facet ].query =
+				event.target.value;
 		},
 
 		/**
@@ -603,6 +642,20 @@ function focusResults( id ) {
 	if ( region.getBoundingClientRect().top < 0 ) {
 		region.scrollIntoView( { block: 'start' } );
 	}
+}
+
+/**
+ * A label as a facet's search compares it: lowercase, without accents.
+ *
+ * @param {string} text
+ * @return {string} The folded text.
+ */
+function fold( text ) {
+	return String( text )
+		.normalize( 'NFD' )
+		.replace( /[\u0300-\u036f]/g, '' )
+		.toLowerCase()
+		.trim();
 }
 
 function ready( listing ) {

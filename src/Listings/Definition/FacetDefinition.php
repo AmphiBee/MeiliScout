@@ -19,12 +19,13 @@ final class FacetDefinition
     public const BOOLEAN = 'boolean';
 
     /**
-     * @param  'taxonomy'|'meta'  $source
+     * @param  'taxonomy'|'meta'|'author'  $source
      * @param  'list'|'range'|'boolean'  $type
      * @param  'or'|'and'  $logic  How the values of a list combine
      * @param  array<string, string>  $labels  Meta values' labels, by value
      * @param  string|null  $path  Its prefix in the URL's path ({prefix}-{a},{b}), null when it is a parameter
      * @param  array<string, string>  $paths  Its prefix by language, when they differ (fr => type, en => kind)
+     * @param  bool  $search  A field narrowing its values by their label (a list)
      */
     public function __construct(
         public readonly string $key,
@@ -41,6 +42,7 @@ final class FacetDefinition
         public readonly string $booleanValue,
         public readonly ?string $path = null,
         public readonly array $paths = [],
+        public readonly bool $search = false,
     ) {}
 
     /**
@@ -75,6 +77,14 @@ final class FacetDefinition
     }
 
     /**
+     * Its values are the posts' authors: user slugs in the URL, user ids in the index.
+     */
+    public function isAuthor(): bool
+    {
+        return $this->source === 'author';
+    }
+
+    /**
      * Its values combine as a disjunction: their counts ignore its own selection.
      */
     public function isDisjunctive(): bool
@@ -92,6 +102,10 @@ final class FacetDefinition
     {
         if ($this->isTaxonomy()) {
             return "taxonomies.{$this->name}.".($this->hierarchical ? 'tree' : 'term_id');
+        }
+
+        if ($this->isAuthor()) {
+            return 'post_author';
         }
 
         return "metas.{$this->name}";

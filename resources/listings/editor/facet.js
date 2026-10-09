@@ -116,8 +116,13 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 	const postTypes = useSelect(
 		( select ) => {
 			const editor = select( 'core/block-editor' );
+			// getBlockParentsByBlockName() finds no listing here (WordPress 6.9)
 			const listing = editor
-				.getBlockParentsByBlockName( clientId, 'meiliscout/listing' )
+				.getBlockParents( clientId )
+				.filter(
+					( parent ) =>
+						editor.getBlockName( parent ) === 'meiliscout/listing'
+				)
 				.pop();
 			return listing
 				? editor.getBlockAttributes( listing ).postTypes
@@ -133,10 +138,16 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 		( t ) => 'taxonomy:' + t.name === attributes.source
 	);
 	const isMeta = attributes.source.startsWith( 'meta:' );
-	const label =
-		attributes.label ||
-		taxonomy?.label ||
-		( isMeta ? attributes.source.slice( 5 ) : __( 'Facet', 'meiliscout' ) );
+	const isAuthor = attributes.source === 'author';
+	let label = attributes.label || taxonomy?.label;
+	if ( ! label ) {
+		label = isMeta
+			? attributes.source.slice( 5 )
+			: __( 'Facet', 'meiliscout' );
+		if ( isAuthor ) {
+			label = __( 'Author', 'meiliscout' );
+		}
+	}
 
 	const sources = [
 		{ value: '', label: __( 'Choose…', 'meiliscout' ) },
@@ -144,6 +155,7 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 			value: 'taxonomy:' + t.name,
 			label: t.label,
 		} ) ),
+		{ value: 'author', label: __( 'Author', 'meiliscout' ) },
 		...( config?.metaKeys || [] ).map( ( key ) => ( {
 			value: 'meta:' + key,
 			/* translators: %s: a meta key */
@@ -163,9 +175,16 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 						onChange={ ( source ) =>
 							setAttributes( {
 								source,
-								type: source.startsWith( 'taxonomy:' )
-									? 'list'
-									: attributes.type,
+								type:
+									source.startsWith( 'taxonomy:' ) ||
+									source === 'author'
+										? 'list'
+										: attributes.type,
+								// A post has one author
+								logic:
+									source === 'author'
+										? 'or'
+										: attributes.logic,
 							} )
 						}
 					/>
@@ -194,7 +213,7 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 							onChange={ ( type ) => setAttributes( { type } ) }
 						/>
 					) }
-					{ attributes.type === 'list' && (
+					{ attributes.type === 'list' && ! isAuthor && (
 						<SelectControl
 							__nextHasNoMarginBottom
 							label={ __( 'Several values match', 'meiliscout' ) }
@@ -261,6 +280,20 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 							min={ 0 }
 							max={ 50 }
 							onChange={ ( limit ) => setAttributes( { limit } ) }
+						/>
+					) }
+					{ attributes.type === 'list' && (
+						<ToggleControl
+							__nextHasNoMarginBottom
+							label={ __( 'Search in its values', 'meiliscout' ) }
+							help={ __(
+								'A field above the values narrows them as visitors type: for a long list.',
+								'meiliscout'
+							) }
+							checked={ !! attributes.search }
+							onChange={ ( search ) =>
+								setAttributes( { search } )
+							}
 						/>
 					) }
 					{ attributes.type === 'range' && (

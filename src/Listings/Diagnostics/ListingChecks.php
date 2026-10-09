@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Listings\Diagnostics;
 
+use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Listings\Blocks\BlockListings;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
@@ -11,6 +12,7 @@ use Pollora\MeiliScout\Listings\Definition\InvalidListing;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
 use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Listings;
+use Pollora\MeiliScout\Listings\Query\FacetPlan;
 use Pollora\MeiliScout\Listings\Seo\SeoRules;
 use Pollora\MeiliScout\Listings\State\ReservedParameters;
 use Pollora\MeiliScout\Services\ClientFactory;
@@ -232,12 +234,13 @@ final class ListingChecks
         return [
             'key' => $facet->key,
             'label' => $facet->label,
-            'source' => $facet->source.':'.$facet->name,
+            'source' => $facet->isAuthor() ? 'author' : $facet->source.':'.$facet->name,
             'type' => $facet->type,
             'logic' => $facet->logic,
             'hierarchical' => $facet->hierarchical,
             'param' => $facet->param,
             'limit' => $facet->limit,
+            'search' => $facet->search,
             // By language; empty for a facet in the query string
             'path' => (object) $prefixes,
         ];
@@ -306,6 +309,8 @@ final class ListingChecks
             $checks[] = self::check(self::ERROR, 'schema', __('The posts index predates the terms’ ancestors its hierarchical facets count on: run a full indexation.', 'meiliscout'));
         }
 
+        $checks = [...$checks, ...self::truncated($definition)];
+
         if ($documents === null) {
             $checks[] = self::check(self::WARNING, 'documents', __('Meilisearch could not be asked whether it has the listing’s posts.', 'meiliscout'));
 
@@ -330,6 +335,44 @@ final class ListingChecks
                     $type,
                     $indexed,
                     $published
+                ));
+            }
+        }
+
+        return $checks;
+    }
+
+    /**
+     * Facets with as many values as the index counts: the others are not offered.
+     *
+     * @return list<array{level: string, code: string, message: string}>
+     */
+    private static function truncated(ListingDefinition $definition): array
+    {
+        $client = ClientFactory::getClient();
+        $lists = array_filter($definition->facets, fn (FacetDefinition $facet) => $facet->type === FacetDefinition::LIST);
+
+        if ($client === null || $lists === []) {
+            return [];
+        }
+
+        try {
+            $universe = FacetPlan::universe($definition, FacetPlan::baseFilter($definition));
+            $result = $client->index((string) $universe['indexUid'])->search('', ['filter' => $universe['filter'], 'facets' => $universe['facets'], 'limit' => 0]);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $max = PostIndexable::maxValuesPerFacet();
+        $checks = [];
+
+        foreach ($lists as $facet) {
+            if (count((array) ($result->getFacetDistribution()[$facet->countField()] ?? [])) >= $max) {
+                $checks[] = self::check(self::WARNING, 'facet_values', sprintf(
+                    /* translators: 1: a facet, 2: a number of values */
+                    __('The facet “%1$s” reaches the number of values the index counts (%2$d): any others are not offered (meiliscout/post/max_values_per_facet).', 'meiliscout'),
+                    $facet->key,
+                    $max
                 ));
             }
         }

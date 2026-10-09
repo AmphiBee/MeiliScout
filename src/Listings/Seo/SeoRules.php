@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Listings\Seo;
 
+use Pollora\MeiliScout\Listings\Seo\Sitemap\SitemapEntries;
+
 /**
  * The SEO rules' table, {prefix}meiliscout_seo_rules: one rule per listing,
  * language and key (RuleKey), its fields in JSON.
@@ -164,6 +166,9 @@ final class SeoRules
             throw new \RuntimeException($wpdb->last_error ?: __('The rule could not be saved.', 'meiliscout'));
         }
 
+        // A rule of two facets names views of the sitemap
+        SitemapEntries::forget();
+
         return self::get($id ?? (int) $wpdb->insert_id) ?? throw new \RuntimeException(__('The rule could not be saved.', 'meiliscout'));
     }
 
@@ -174,6 +179,7 @@ final class SeoRules
         }
 
         global $wpdb;
+        SitemapEntries::forget();
 
         return (bool) $wpdb->delete(self::table(), ['id' => $id], ['%d']);
     }

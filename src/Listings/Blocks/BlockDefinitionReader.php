@@ -68,6 +68,7 @@ final class BlockDefinitionReader
                 'decimals' => isset($facetAttributes['decimals']) ? (int) $facetAttributes['decimals'] : null,
                 // Its prefix in the path; empty: a parameter
                 'path' => isset($facetAttributes['path']) && $facetAttributes['path'] !== '' ? (string) $facetAttributes['path'] : null,
+                'search' => ! empty($facetAttributes['search']) ? true : null,
             ], fn ($value) => $value !== null);
         }
 

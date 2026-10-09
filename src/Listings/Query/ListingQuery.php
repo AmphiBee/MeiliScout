@@ -62,8 +62,16 @@ final class ListingQuery
             }
         }
 
+        $authors = null;
+
         foreach ($definition->facets as $facet) {
             foreach (FacetClauses::args($facet, $state) as $clause => $entries) {
+                if ($clause === 'author__in') {
+                    // Two author facets: the authors of both
+                    $authors = $authors === null ? $entries : (array_values(array_intersect($authors, $entries)) ?: [0]);
+
+                    continue;
+                }
                 array_push($groups[$clause], ...$entries);
             }
         }
@@ -76,6 +84,7 @@ final class ListingQuery
             'has_password' => false,
             'tax_query' => $groups['tax_query'] === [] ? null : ['relation' => 'AND', ...$groups['tax_query']],
             'meta_query' => $groups['meta_query'] === [] ? null : ['relation' => 'AND', ...$groups['meta_query']],
+            'author__in' => $authors,
             's' => $state->search !== '' ? $state->search : null,
             'orderby' => $sort['orderby'],
             'order' => $sort['order'],
@@ -233,6 +242,10 @@ final class ListingQuery
             return [['value' => '1', 'id' => $facet->booleanValue, 'label' => $facet->label, 'depth' => 0, 'parent' => '']];
         }
 
+        if ($facet->isAuthor()) {
+            return self::authors($ids, $state->valuesOf($facet->key));
+        }
+
         if (! $facet->isTaxonomy()) {
             $values = array_map('strval', $ids);
             // A value in the URL no post has any more still shows, to be removed
@@ -255,6 +268,37 @@ final class ListingQuery
         }
 
         return self::ordered($facet, $terms);
+    }
+
+    /**
+     * The authors a facet offers, by name: their slug in the URL, their id in the index.
+     *
+     * @param  list<int|string>  $ids
+     * @param  list<string>  $selected  Slugs in the URL, offered even without posts
+     * @return list<array{value: string, id: string, label: string, depth: int, parent: string}>
+     */
+    private static function authors(array $ids, array $selected): array
+    {
+        $users = $ids === [] ? [] : get_users(['include' => array_map('intval', $ids), 'fields' => ['ID', 'user_nicename', 'display_name']]);
+        $slugs = array_map(fn (object $user) => (string) $user->user_nicename, $users);
+
+        foreach (array_diff($selected, $slugs) as $slug) {
+            $user = get_user_by('slug', $slug);
+            if ($user instanceof \WP_User) {
+                $users[] = (object) ['ID' => $user->ID, 'user_nicename' => $user->user_nicename, 'display_name' => $user->display_name];
+            }
+        }
+
+        $values = array_map(fn (object $user) => [
+            'value' => (string) $user->user_nicename,
+            'id' => (string) $user->ID,
+            'label' => html_entity_decode((string) $user->display_name, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            'depth' => 0,
+            'parent' => '',
+        ], $users);
+        usort($values, fn (array $a, array $b) => self::compare($a['label'], $b['label']));
+
+        return $values;
     }
 
     /**

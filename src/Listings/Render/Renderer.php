@@ -276,6 +276,7 @@ final class Renderer
     {
         return sprintf(
             '<fieldset class="meiliscout-facet meiliscout-facet--%1$s" data-facet="%2$s" data-wp-context="%3$s"><legend class="meiliscout-facet__title">%4$s</legend>'
+            .'%7$s'
             .'<ul class="meiliscout-facet__options" role="list"><template data-wp-each--option="state.options" data-wp-each-key="context.option.value">'
             .'<li class="meiliscout-facet__option" data-wp-bind--hidden="state.optionHidden" data-wp-bind--data-depth="context.option.depth">'
             .'<label class="meiliscout-facet__label"><input class="meiliscout-facet__input" type="checkbox" name="%5$s" form="%6$s" data-wp-bind--value="context.option.value" data-wp-bind--checked="context.option.selected"> '
@@ -289,7 +290,24 @@ final class Renderer
             esc_attr((string) wp_json_encode(['facet' => $facet->key])),
             esc_html($facet->label),
             esc_attr($facet->param),
-            esc_attr(self::formId($result->definition))
+            esc_attr(self::formId($result->definition)),
+            $facet->search ? self::facetSearch($facet) : ''
+        );
+    }
+
+    /**
+     * A field narrowing a facet's values by their label, in the browser:
+     * hidden without JavaScript (every value shows), and never sent (no name).
+     */
+    private static function facetSearch(FacetDefinition $facet): string
+    {
+        return sprintf(
+            '<div class="meiliscout-facet__search" hidden data-wp-bind--hidden="state.facetSearchHidden"><input class="meiliscout-facet__search-input" type="search" autocomplete="off" aria-label="%1$s" placeholder="%2$s" data-meiliscout-facet-search data-wp-bind--value="state.facetQuery" data-wp-on--input="actions.searchFacet"></div>'
+            .'<p class="meiliscout-facet__none" hidden data-wp-bind--hidden="!state.noMatch">%3$s</p>',
+            /* translators: %s: a facet's title */
+            esc_attr(sprintf(__('Search in %s', 'meiliscout'), $facet->label)),
+            esc_attr__('Search…', 'meiliscout'),
+            esc_html__('No value matches.', 'meiliscout')
         );
     }
 

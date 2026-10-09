@@ -4,7 +4,7 @@
 	"name": "meiliscout/facet",
 	"title": "Facet",
 	"category": "meiliscout",
-	"description": "A filter of the listing: a taxonomy's terms, a field's values, a range of numbers, a yes/no.",
+	"description": "A filter of the listing: a taxonomy's terms, a field's values, the authors, a range of numbers, a yes/no.",
 	"keywords": [ "filter", "taxonomy", "category", "meta", "range" ],
 	"textdomain": "meiliscout",
 	"ancestor": [ "meiliscout/listing" ],
@@ -19,7 +19,8 @@
 		"decimals": { "type": "number", "default": 0 },
 		"key": { "type": "string", "default": "" },
 		"param": { "type": "string", "default": "" },
-		"path": { "type": "string", "default": "" }
+		"path": { "type": "string", "default": "" },
+		"search": { "type": "boolean", "default": false }
 	},
 	"supports": {
 		"html": false,
