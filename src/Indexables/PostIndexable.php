@@ -190,69 +190,58 @@ class PostIndexable implements Indexable
 
     public function getItems(?int $offset = null, ?int $limit = null): iterable
     {
-        $postTypes = Settings::get('indexed_post_types', []);
+        $postTypes = array_values((array) Settings::get('indexed_post_types', []));
 
         $this->metaKeys = $this->resolveMetaKeys($postTypes);
 
-        $postsPerPage = Settings::get('indexing.posts_per_page', 200);
+        if ($postTypes === []) {
+            return;
+        }
 
-        // Track total items yielded for offset/limit support
-        $totalYielded = 0;
-        $maxItems = $limit ?? PHP_INT_MAX;
+        $postsPerPage = max(1, (int) Settings::get('indexing.posts_per_page', 200));
 
-        foreach ($postTypes as $postType) {
-            $page = 1;
+        // One list across the post types, by id: an offset is a position in the
+        // whole run, not in each type. A chunked run used to apply each chunk's
+        // offset to every type, and never sent the types after the first.
+        $position = max(0, (int) ($offset ?? 0));
+        $remaining = $limit ?? PHP_INT_MAX;
+        $pages = 0;
 
-            // Calculate starting page if offset is provided
-            if ($offset !== null) {
-                $page = (int) floor($offset / $postsPerPage) + 1;
+        while ($remaining > 0) {
+            $size = (int) min($postsPerPage, $remaining);
+
+            $posts = get_posts([
+                'post_type' => $postTypes,
+                'posts_per_page' => $size,
+                'offset' => $position,
+                'post_status' => self::indexableStatuses(),
+                'orderby' => 'ID',
+                'order' => 'ASC',
+                'suppress_filters' => true,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false,
+                'no_found_rows' => true,
+                'cache_results' => false,
+            ]);
+
+            foreach ($posts as $post) {
+                yield $post;
             }
 
-            do {
-                $posts = get_posts([
-                    'post_type' => $postType,
-                    'posts_per_page' => $postsPerPage,
-                    'paged' => $page,
-                    'post_status' => self::indexableStatuses(),
-                    'orderby' => 'ID',
-                    'order' => 'ASC',
-                    'suppress_filters' => true,
-                    'update_post_meta_cache' => false,
-                    'update_post_term_cache' => false,
-                    'no_found_rows' => true,
-                    'cache_results' => false,
-                ]);
+            $position += count($posts);
+            $remaining -= count($posts);
 
-                foreach ($posts as $post) {
-                    $currentGlobalOffset = ($page - 1) * $postsPerPage + array_search($post, $posts, true);
+            if (count($posts) < $size) {
+                return;
+            }
 
-                    if ($offset !== null && $currentGlobalOffset < $offset) {
-                        continue;
-                    }
-
-                    if ($totalYielded >= $maxItems) {
-                        return;
-                    }
-
-                    yield $post;
-                    $totalYielded++;
+            // Free the in-memory cache periodically (every 10 pages); the persistent cache is left alone
+            if (++$pages % 10 === 0) {
+                if (function_exists('wp_cache_flush_runtime')) {
+                    wp_cache_flush_runtime();
                 }
-
-                $page++;
-
-                if ($totalYielded >= $maxItems) {
-                    return;
-                }
-
-                // Free the in-memory cache periodically (every 10 pages); the persistent cache is left alone
-                if ($page % 10 === 0) {
-                    if (function_exists('wp_cache_flush_runtime')) {
-                        wp_cache_flush_runtime();
-                    }
-                    gc_collect_cycles();
-                }
-
-            } while (count($posts) === $postsPerPage);
+                gc_collect_cycles();
+            }
         }
     }
 
