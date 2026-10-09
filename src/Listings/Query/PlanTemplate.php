@@ -38,7 +38,7 @@ final class PlanTemplate
                     'key' => $facet->key,
                     'param' => $facet->param,
                     // Its prefix in the URL's path, null for a parameter
-                    'path' => $facet->path,
+                    'path' => $facet->prefix(),
                     'label' => $facet->label,
                     'type' => $facet->type,
                     'logic' => $facet->logic,

@@ -8,6 +8,7 @@ use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\InvalidListing;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Query\ListingQuery;
 use Pollora\MeiliScout\Listings\Query\ListingResult;
 use Pollora\MeiliScout\Listings\Render\Renderer;
@@ -35,6 +36,7 @@ final class Listings
         add_action('rest_api_init', [RestController::class, 'routes']);
         add_action('template_redirect', [self::class, 'redirectToCanonical'], 0);
         PathFacetParser::boot();
+        Languages::boot();
         add_action('wp', [self::class, 'checkPath'], -1);
         add_action('admin_init', [SeoRules::class, 'install']);
         SeoPolicy::boot();
@@ -378,12 +380,10 @@ final class Listings
      */
     public static function baseUrl(ListingDefinition $definition): string
     {
-        if (isset($definition->route['page'])) {
-            return (string) get_permalink($definition->route['page']);
-        }
-
-        if (isset($definition->route['post'])) {
-            return (string) get_permalink($definition->route['post']);
+        // A page or a post: its translation in the request's language
+        $post = self::routePost($definition);
+        if ($post !== null) {
+            return $post === 0 ? '' : (string) get_permalink($post);
         }
 
         if (isset($definition->route['archive'])) {
@@ -446,8 +446,30 @@ final class Listings
                 self::baseUrl($definition)
             );
 
-            if ($state !== null && ! self::termsExist($definition, $state)) {
+            if ($state === null) {
+                return;
+            }
+
+            $language = self::termsLanguage($definition, $state);
+            if ($language === null) {
                 self::notFound();
+
+                return;
+            }
+
+            // Decision D: the terms of another language, under this one's URL: that language's view
+            if ($language !== '' && $language !== Languages::current()) {
+                $adapter = Languages::adapter();
+                $url = $adapter->in($language, fn () => self::baseUrl($definition) === '' ? '' : UrlCodec::url($definition, $state, self::baseUrl($definition)));
+
+                if ($url === '') {
+                    self::notFound();
+
+                    return;
+                }
+
+                wp_safe_redirect($url, 301, 'MeiliScout');
+                exit;
             }
 
             return;
@@ -455,19 +477,31 @@ final class Listings
     }
 
     /**
-     * Every value of the facets in the path is a term of their taxonomy.
+     * The language of the terms in the path: the request's when they have
+     * none; null when one is no term, or they are not all of one language.
      */
-    private static function termsExist(ListingDefinition $definition, ListingState $state): bool
+    private static function termsLanguage(ListingDefinition $definition, ListingState $state): ?string
     {
+        $adapter = Languages::adapter();
+        $languages = [];
+
         foreach ($definition->pathFacets() as $facet) {
             foreach ($state->valuesOf($facet->key) as $slug) {
-                if (! get_term_by('slug', $slug, $facet->name) instanceof \WP_Term) {
-                    return false;
+                $term = $adapter->findTerm($slug, $facet->name);
+                if ($term === null) {
+                    return null;
                 }
+                $languages[$adapter->termLanguage($term)] = true;
             }
         }
 
-        return true;
+        unset($languages['']);
+
+        return match (count($languages)) {
+            0 => Languages::current(),
+            1 => (string) array_key_first($languages),
+            default => null,
+        };
     }
 
     /**
@@ -509,8 +543,27 @@ final class Listings
 
     private static function isOnRoute(ListingDefinition $definition): bool
     {
-        return (isset($definition->route['page']) && is_page($definition->route['page']))
-            || (isset($definition->route['post']) && is_singular() && get_queried_object_id() === $definition->route['post'])
+        $post = self::routePost($definition);
+
+        return ($post !== null && $post !== 0 && is_singular() && get_queried_object_id() === $post)
             || (isset($definition->route['archive']) && is_post_type_archive($definition->route['archive']));
+    }
+
+    /**
+     * The page or post of a listing's route in the request's language (its
+     * translation); 0 when it has none there, null for an archive route.
+     */
+    public static function routePost(ListingDefinition $definition): ?int
+    {
+        $post = $definition->route['page'] ?? $definition->route['post'] ?? null;
+
+        if ($post === null) {
+            return null;
+        }
+
+        $adapter = Languages::adapter();
+        $language = $adapter->current();
+
+        return $language === '' ? (int) $post : (int) ($adapter->post((int) $post, $language) ?? 0);
     }
 }

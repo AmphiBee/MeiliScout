@@ -8,6 +8,7 @@ use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
 use Pollora\MeiliScout\Listings\Definition\InvalidListing;
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Listings;
 use Pollora\MeiliScout\Listings\ListingsServiceProvider;
 use Pollora\MeiliScout\Listings\Query\ListingQuery;
@@ -198,7 +199,9 @@ final class BlockListings
             return;
         }
 
-        $saved = array_filter(self::saved(), fn (array $entry) => $entry['post'] !== $postId);
+        $adapter = Languages::adapter();
+        $language = $adapter->postLanguage($postId);
+        $saved = self::withoutPost(self::saved(), $postId);
 
         if ($post->post_status !== 'trash' && has_block(BlockDefinitionReader::LISTING, $post)) {
             foreach (BlockDefinitionReader::listingBlocks(parse_blocks($post->post_content)) as $block) {
@@ -207,10 +210,24 @@ final class BlockListings
                     continue;
                 }
 
-                $saved[BlockDefinitionReader::id($listingId)] = [
-                    'post' => $postId,
-                    'args' => self::args($block, $post),
-                ];
+                $id = BlockDefinitionReader::id($listingId);
+                $entry = $saved[$id] ?? null;
+
+                // The block of a translation (copied with the post): one listing in every language
+                $shared = $entry !== null && $language !== '' && $adapter->post($entry['post'], $language) === $postId;
+                if (! $shared) {
+                    $entry = ['post' => $postId, 'args' => self::args($block, $post), 'posts' => []];
+                }
+                if ($language !== '') {
+                    $entry['posts'][$language] = $postId;
+                }
+                // The definition is the default language's post's
+                if ($shared && $language === $adapter->default()) {
+                    $entry['post'] = $postId;
+                    $entry['args'] = self::args($block, $post);
+                }
+
+                $saved[$id] = $entry;
             }
         }
 
@@ -220,15 +237,47 @@ final class BlockListings
     public static function forgetPost(int $postId): void
     {
         $saved = self::saved();
-        $kept = array_filter($saved, fn (array $entry) => $entry['post'] !== $postId);
+        $kept = self::withoutPost($saved, $postId);
 
-        if (count($kept) !== count($saved)) {
+        if ($kept !== $saved) {
             update_option(self::OPTION, $kept, true);
         }
     }
 
     /**
-     * @return array<string, array{post: int, args: array<string, mixed>}>
+     * The saved listings without a post's blocks: a listing its translations
+     * hold too goes on with one of them.
+     *
+     * @param  array<string, array{post: int, args: array<string, mixed>, posts?: array<string, int>}>  $saved
+     * @return array<string, array{post: int, args: array<string, mixed>, posts?: array<string, int>}>
+     */
+    private static function withoutPost(array $saved, int $postId): array
+    {
+        foreach ($saved as $id => $entry) {
+            $others = array_filter($entry['posts'] ?? [], fn (int $post) => $post !== $postId);
+
+            if ($entry['post'] !== $postId) {
+                $saved[$id]['posts'] = $others;
+
+                continue;
+            }
+
+            if ($others === []) {
+                unset($saved[$id]);
+
+                continue;
+            }
+
+            // Its arguments stay until that post is saved
+            $saved[$id]['post'] = (int) reset($others);
+            $saved[$id]['posts'] = $others;
+        }
+
+        return $saved;
+    }
+
+    /**
+     * @return array<string, array{post: int, args: array<string, mixed>, posts?: array<string, int>}>
      */
     public static function saved(): array
     {
@@ -407,7 +456,8 @@ final class BlockListings
     public static function fragment(string $id, ListingState $state, string $base): ?string
     {
         $saved = self::saved()[$id] ?? null;
-        $post = $saved !== null ? get_post($saved['post']) : null;
+        // The block of the request's language
+        $post = $saved !== null ? get_post($saved['posts'][Languages::current()] ?? $saved['post']) : null;
 
         if (! $post instanceof \WP_Post) {
             return null;

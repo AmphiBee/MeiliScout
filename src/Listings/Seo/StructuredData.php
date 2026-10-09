@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Listings\Seo;
 
+use Pollora\MeiliScout\Listings\Listings;
 use Pollora\MeiliScout\Listings\Query\ListingResult;
 
 /**
@@ -96,7 +97,8 @@ final class StructuredData
     {
         $definition = $result->definition;
         $crumbs = [['name' => (string) get_bloginfo('name', 'display'), 'url' => home_url('/')]];
-        $post = $definition->route['page'] ?? $definition->route['post'] ?? null;
+        // Its translation in the request's language
+        $post = Listings::routePost($definition) ?: null;
 
         if ($post !== null) {
             foreach (array_reverse(get_post_ancestors($post)) as $ancestor) {

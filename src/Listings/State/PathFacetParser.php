@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Listings\State;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\InvalidListing;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Listings;
 
 /**
@@ -41,10 +42,10 @@ final class PathFacetParser
         [$path, $query] = array_pad(explode('?', $uri, 2), 2, null);
 
         foreach (self::candidates() as $definition) {
-            $base = Listings::baseUrl($definition);
-            $state = UrlCodec::fromRequest($definition, $path, (string) $query, $base);
+            $base = self::baseMatching($definition, $path);
+            $state = $base === null ? null : UrlCodec::fromRequest($definition, $path, (string) $query, $base);
 
-            if ($state === null || ! self::hasSegment($definition, $path, $base) || self::isPost($path, $definition)) {
+            if ($base === null || $state === null || ! self::hasSegment($definition, $path, $base) || self::isPost($path, $definition)) {
                 continue;
             }
 
@@ -110,6 +111,24 @@ final class PathFacetParser
         }
 
         return $candidates;
+    }
+
+    /**
+     * The listing's first page, in the language whose path this one starts
+     * with: the language is not known yet.
+     */
+    private static function baseMatching(ListingDefinition $definition, string $path): ?string
+    {
+        $adapter = Languages::adapter();
+
+        foreach ($adapter->languages() ?: [''] as $language) {
+            $base = $language === '' ? Listings::baseUrl($definition) : $adapter->in($language, fn () => Listings::baseUrl($definition));
+            if ($base !== '' && UrlCodec::fromRequest($definition, $path, '', $base) !== null) {
+                return $base;
+            }
+        }
+
+        return null;
     }
 
     private static function hasSegment(ListingDefinition $definition, string $path, string $base): bool

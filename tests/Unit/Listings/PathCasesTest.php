@@ -119,3 +119,72 @@ test('the depth a listing indexes is its own', function () {
     expect(SeoPolicy::reason($definition, new ListingState(['category' => ['news'], 'tag' => ['php']]), 12))->toBe('depth')
         ->and(SeoPolicy::reason($definition, new ListingState(['tag' => ['php']]), 1))->toBeNull();
 });
+
+/**
+ * A stand-in multilingual plugin, in a language.
+ */
+function inLanguage(string $language): \Pollora\MeiliScout\Listings\Language\LanguageAdapter
+{
+    return new class($language) implements \Pollora\MeiliScout\Listings\Language\LanguageAdapter
+    {
+        public function __construct(private string $language) {}
+
+        public function current(): string { return $this->language; }
+
+        public function default(): string { return 'fr'; }
+
+        public function languages(): array { return ['fr', 'en']; }
+
+        public function locale(string $language): string { return $language === 'fr' ? 'fr_FR' : 'en_US'; }
+
+        public function post(int $postId, string $language): ?int { return $postId; }
+
+        public function postLanguage(int $postId): string { return $this->language; }
+
+        public function termLanguage(\WP_Term $term): string { return $this->language; }
+
+        public function translateTerm(\WP_Term $term, string $language): ?\WP_Term { return $term; }
+
+        public function findTerm(string $slug, string $taxonomy): ?\WP_Term { return null; }
+
+        public function in(string $language, callable $callback): mixed { return $callback(); }
+
+        public function baseArgs(array $args): array { return $args; }
+
+        public function boot(): void {}
+    };
+}
+
+test('a facet has a prefix per language: every one is read, the language\'s is written', function () {
+    casesDefinition();
+    $args = listingCases('definition.json');
+    $args['facets']['category']['path'] = ['fr' => 'rubrique', 'en' => 'section'];
+    $args['route'] = ['page' => 1];
+    $definition = ListingDefinition::fromArray('languages', $args);
+    $base = 'https://example.test/blog/';
+
+    try {
+        \Pollora\MeiliScout\Listings\Language\Languages::use(inLanguage('en'));
+        $state = UrlCodec::fromRequest($definition, '/blog/rubrique-news/', '', $base);
+
+        expect($state?->values)->toBe(['category' => ['news']])
+            ->and(UrlCodec::url($definition, $state, $base))->toBe($base.'section-news/')
+            ->and(UrlCodec::canonicalUrl($definition, '/blog/rubrique-news/', '', $base))->toBe($base.'section-news/')
+            ->and(UrlCodec::canonicalUrl($definition, '/blog/section-news/', '', $base))->toBeNull();
+
+        \Pollora\MeiliScout\Listings\Language\Languages::use(inLanguage('fr'));
+        expect(UrlCodec::url($definition, $state, $base))->toBe($base.'rubrique-news/');
+    } finally {
+        \Pollora\MeiliScout\Listings\Language\Languages::use(null);
+    }
+});
+
+test('the prefixes of every language are told apart from the other facets\'', function () {
+    casesDefinition();
+    $args = listingCases('definition.json');
+    $args['facets']['category']['path'] = ['fr' => 'rubrique', 'en' => 'topic'];
+    $args['facets']['tag']['path'] = ['fr' => 'topic', 'en' => 'tag'];
+    $args['route'] = ['page' => 1];
+
+    expect(fn () => ListingDefinition::fromArray('languages', $args))->toThrow(\Pollora\MeiliScout\Listings\Definition\InvalidListing::class, 'cannot be told apart');
+});
