@@ -152,19 +152,39 @@ final class ListingQuery
             if ($facet->type === FacetDefinition::RANGE) {
                 $facets[$facet->key] = ['options' => [], 'stats' => isset($stats[$field]) ? ['min' => (float) $stats[$field]['min'], 'max' => (float) $stats[$field]['max']] : null];
             } else {
-                $facets[$facet->key] = ['options' => array_map(fn (array $value) => [
+                $facets[$facet->key] = ['options' => self::withOverflow(array_map(fn (array $value) => [
                     'value' => $value['value'],
                     'label' => $value['label'],
                     'count' => (int) ($distributions[$field][$value['id']] ?? 0),
                     'selected' => in_array($value['value'], $state->valuesOf($facet->key), true),
                     'depth' => $value['depth'],
-                ], $values), 'stats' => null];
+                ], $values), $facet->limit), 'stats' => null];
             }
 
             $template[$facet->key] = $values;
         }
 
         return [$facets, $definition->transport === 'page' ? null : PlanTemplate::build($definition, $template, $universe), null, $page];
+    }
+
+    /**
+     * Marks the values shown past a facet's limit, which the client folds
+     * (resources/listings/view.js withOverflow()). A selected value never is.
+     *
+     * @param  list<array{value: string, label: string, count: int, selected: bool, depth: int}>  $options
+     * @return list<array{value: string, label: string, count: int, selected: bool, depth: int, overflow: bool}>
+     */
+    public static function withOverflow(array $options, int $limit): array
+    {
+        $shown = 0;
+
+        foreach ($options as $i => $option) {
+            $visible = $option['count'] > 0 || $option['selected'];
+            $options[$i]['overflow'] = $limit > 0 && $visible && ! $option['selected'] && $shown >= $limit;
+            $shown += $visible ? 1 : 0;
+        }
+
+        return $options;
     }
 
     /**

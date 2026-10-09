@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Listings;
 
 use Pollora\MeiliScout\Listings\Query\FacetClauses;
 use Pollora\MeiliScout\Listings\Query\FacetPlan;
+use Pollora\MeiliScout\Listings\Query\ListingQuery;
 use Pollora\MeiliScout\Listings\Render\Hits;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Services\IndexNames;
@@ -96,3 +97,9 @@ test('a state is counted, and its results searched, the same way', function (arr
     expect($searches)->toBe($case['searches'])
         ->and($results)->toBe($case['results']);
 })->with(planCases());
+
+test('the values past a facet\'s limit are the ones the client folds', function () {
+    foreach (listingCases('plan-cases.json')['overflow'] as $case) {
+        expect(array_column(ListingQuery::withOverflow($case['options'], $case['limit']), 'overflow'))->toBe($case['overflow'], 'limit '.$case['limit']);
+    }
+});

@@ -43,6 +43,7 @@ final class PlanTemplate
                     'field' => $facet->countField(),
                     'taxonomy' => $facet->isTaxonomy(),
                     'decimals' => $facet->decimals,
+                    'limit' => $facet->limit,
                     'values' => [],
                 ];
 

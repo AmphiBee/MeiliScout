@@ -18,7 +18,7 @@ import {
 	withScope,
 } from '@wordpress/interactivity';
 import { parse, url as urlOf } from './codec';
-import { counts, read, results } from './plan';
+import { counts, read, results, withOverflow } from './plan';
 import { hitFromDocument, pageItems, pageLinks } from './hits';
 
 const NAMESPACE = 'meiliscout/listing';
@@ -37,8 +37,45 @@ const { state, actions } = store( NAMESPACE, {
 			return state.listings[ listing ].facets[ facet ].options;
 		},
 		get optionHidden() {
-			const { option } = getContext();
-			return option.count === 0 && ! option.selected;
+			const { listing, facet, option } = getContext();
+			const entry = state.listings[ listing ].facets[ facet ];
+			if ( option.count === 0 && ! option.selected ) {
+				return true;
+			}
+			// Folded once the client runs: without it, every value shows
+			return (
+				option.overflow &&
+				! entry.expanded &&
+				ready( state.listings[ listing ] )
+			);
+		},
+		get hasOverflow() {
+			const { listing, facet } = getContext();
+			return (
+				ready( state.listings[ listing ] ) &&
+				state.listings[ listing ].facets[ facet ].options.some(
+					( option ) => option.overflow
+				)
+			);
+		},
+		get expanded() {
+			const { listing, facet } = getContext();
+			return Boolean(
+				state.listings[ listing ].facets[ facet ].expanded
+			);
+		},
+		get moreLabel() {
+			return state.expanded ? state.i18n.less : state.i18n.more;
+		},
+		get applyLabel() {
+			const listing = state.listings[ getContext().listing ];
+			if ( listing.pending === null || listing.pending === undefined ) {
+				return state.i18n.apply;
+			}
+			return pluralLabel( state.i18n.see, listing.pending ).replace(
+				'%d',
+				String( listing.pending )
+			);
 		},
 		get rangeMin() {
 			const { listing, facet } = getContext();
@@ -153,6 +190,8 @@ const { state, actions } = store( NAMESPACE, {
 			}
 			if ( listing.template.apply === 'instant' ) {
 				actions.apply( event.target.form );
+			} else {
+				actions.preview( event.target.form );
 			}
 		},
 
@@ -164,18 +203,61 @@ const { state, actions } = store( NAMESPACE, {
 		input( event ) {
 			const { listing: id } = getContext();
 			const listing = state.listings[ id ];
-			if ( ! ready( listing ) || listing.template.apply !== 'instant' ) {
+			if ( ! ready( listing ) ) {
 				return;
 			}
 			const form = event.target.form;
+			const run =
+				listing.template.apply === 'instant'
+					? actions.apply
+					: actions.preview;
 			clearTimeout( timers.get( id ) );
 			timers.set(
 				id,
 				setTimeout(
-					withScope( () => actions.apply( form ) ),
+					withScope( () => run( form ) ),
 					350
 				)
 			);
+		},
+
+		/**
+		 * Button mode (decision H): the choices made so far, counted, the
+		 * results, the URL and the history unchanged until applied.
+		 *
+		 * @param {HTMLFormElement} form
+		 */
+		*preview( form ) {
+			const { listing: id } = getContext();
+			const listing = state.listings[ id ];
+			const next = formState( listing, form );
+
+			controllers.get( id )?.abort();
+			const controller = new AbortController();
+			controllers.set( id, controller );
+
+			try {
+				const counted = yield countFacets(
+					listing,
+					next,
+					controller.signal
+				);
+				if ( ! controller.signal.aborted ) {
+					applyCounts( listing, next, counted, false );
+					listing.pending = counted.total;
+				}
+			} catch ( error ) {
+				// The counts stay; applying still loads the results
+			}
+		},
+
+		/**
+		 * A facet's values past its limit, shown or folded.
+		 */
+		toggleMore() {
+			const { listing, facet } = getContext();
+			const entry = state.listings[ listing ].facets[ facet ];
+			entry.expanded = ! entry.expanded;
 		},
 
 		/**
@@ -197,20 +279,7 @@ const { state, actions } = store( NAMESPACE, {
 		 */
 		apply( form ) {
 			const { listing: id } = getContext();
-			const listing = state.listings[ id ];
-			const data = new FormData( form );
-			const query = new URLSearchParams();
-			for ( const [ name, value ] of data ) {
-				if ( value !== '' ) {
-					query.append( name, value );
-				}
-			}
-			// The form's names and values, read as the server reads a form without JavaScript
-			const next = parse(
-				listing.template,
-				query.toString().replace( /\+/g, '%20' ),
-				1
-			);
+			const next = formState( state.listings[ id ], form );
 			return actions.update( id, next, 'push' );
 		},
 
@@ -638,6 +707,7 @@ function withStyles( html ) {
  * @param {Object} next
  */
 function moveTo( listing, next ) {
+	listing.pending = null;
 	Object.assign( listing, {
 		values: next.values,
 		ranges: next.ranges,
@@ -660,11 +730,12 @@ function moveTo( listing, next ) {
  * Puts counts in a listing's state: each facet's options, in the template's
  * order, the bounds and the total.
  *
- * @param {Object} listing
- * @param {Object} next
- * @param {Object} counted
+ * @param {Object}  listing
+ * @param {Object}  next
+ * @param {Object}  counted
+ * @param {boolean} total   Whether the total changes too (not on a preview).
  */
-function applyCounts( listing, next, counted ) {
+function applyCounts( listing, next, counted, total = true ) {
 	for ( const facet of listing.template.facets ) {
 		const entry = listing.facets[ facet.key ];
 		entry.stats = counted.stats[ facet.field ] || null;
@@ -674,18 +745,42 @@ function applyCounts( listing, next, counted ) {
 		}
 		const selected = next.values[ facet.key ] || [];
 		const distribution = counted.distributions[ facet.field ] || {};
-		entry.options = Object.entries( facet.values ).map(
-			( [ value, known ] ) => ( {
+		entry.options = withOverflow(
+			Object.entries( facet.values ).map( ( [ value, known ] ) => ( {
 				value,
 				label: known.label,
 				count: distribution[ known.id ] ?? 0,
 				selected: selected.includes( value ),
 				depth: known.depth,
-			} )
+			} ) ),
+			facet.limit
 		);
 	}
-	listing.total = counted.total;
-	listing.pages = Math.ceil( counted.total / listing.template.perPage );
+	if ( total ) {
+		listing.total = counted.total;
+		listing.pages = Math.ceil( counted.total / listing.template.perPage );
+	}
+}
+
+/**
+ * The state a form shows, read as the server reads a form without JavaScript.
+ *
+ * @param {Object}          listing
+ * @param {HTMLFormElement} form
+ * @return {Object} The state.
+ */
+function formState( listing, form ) {
+	const query = new URLSearchParams();
+	for ( const [ name, value ] of new FormData( form ) ) {
+		if ( value !== '' ) {
+			query.append( name, value );
+		}
+	}
+	return parse(
+		listing.template,
+		query.toString().replace( /\+/g, '%20' ),
+		1
+	);
 }
 
 export { state, actions };

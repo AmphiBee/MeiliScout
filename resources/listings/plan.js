@@ -159,3 +159,24 @@ export const results = ( template, state ) => ( {
 	attributesToCrop: [ 'content_text' ],
 	cropLength: template.excerptLength,
 } );
+
+/**
+ * Marks the values shown past a facet's limit: ListingQuery::withOverflow().
+ * A selected value is never folded.
+ *
+ * @param {Object[]} options
+ * @param {number}   limit   0: no limit.
+ * @return {Object[]} The options.
+ */
+export function withOverflow( options, limit ) {
+	let shown = 0;
+	return options.map( ( option ) => {
+		const visible = option.count > 0 || option.selected;
+		const overflow =
+			limit > 0 && visible && ! option.selected && shown >= limit;
+		if ( visible ) {
+			shown++;
+		}
+		return { ...option, overflow };
+	} );
+}

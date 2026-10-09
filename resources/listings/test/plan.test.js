@@ -2,7 +2,7 @@
  * The cases tests/Unit/Listings/PlanCasesTest.php runs too: the client counts
  * the facets with the searches the server sends.
  */
-import { counts, read, results } from '../plan';
+import { counts, read, results, withOverflow } from '../plan';
 import fixture from '../../../tests/fixtures/listings/plan-cases.json';
 
 const { template, cases } = fixture;
@@ -48,4 +48,15 @@ describe( 'read', () => {
 			{}
 		);
 	} );
+} );
+
+describe( 'overflow', () => {
+	test.each( fixture.overflow.map( ( c ) => [ c.limit, c ] ) )(
+		'limit %i',
+		( limit, c ) => {
+			expect(
+				withOverflow( c.options, limit ).map( ( o ) => o.overflow )
+			).toEqual( c.overflow );
+		}
+	);
 } );

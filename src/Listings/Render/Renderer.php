@@ -99,7 +99,7 @@ final class Renderer
         $html .= self::active();
         $html .= self::sort($definition, $result);
         $html .= sprintf(
-            '<button type="submit" class="meiliscout-listing__apply" data-wp-init="callbacks.applyButton">%s</button>',
+            '<button type="submit" class="meiliscout-listing__apply" data-wp-init="callbacks.applyButton" data-wp-text="state.applyLabel">%s</button>',
             esc_html__('Apply', 'meiliscout')
         );
         $html .= sprintf(
@@ -120,7 +120,9 @@ final class Renderer
             .'<label class="meiliscout-facet__label"><input class="meiliscout-facet__input" type="checkbox" name="%5$s" data-wp-bind--value="context.option.value" data-wp-bind--checked="context.option.selected"> '
             .'<span class="meiliscout-facet__text" data-wp-text="context.option.label"></span> '
             .'<span class="meiliscout-facet__count" data-wp-text="context.option.count"></span></label></li>'
-            .'</template></ul></fieldset>',
+            .'</template></ul>'
+            .'<button type="button" class="meiliscout-facet__more" hidden data-wp-bind--hidden="!state.hasOverflow" data-wp-bind--aria-expanded="state.expanded" data-wp-on--click="actions.toggleMore" data-wp-text="state.moreLabel"></button>'
+            .'</fieldset>',
             esc_attr($facet->type),
             esc_attr($facet->key),
             esc_attr((string) wp_json_encode(['facet' => $facet->key])),

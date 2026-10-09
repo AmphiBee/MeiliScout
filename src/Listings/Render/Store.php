@@ -32,6 +32,8 @@ final class Store
             $facets[$facet->key] = [
                 'options' => $result->facets[$facet->key]['options'] ?? [],
                 'stats' => $result->facets[$facet->key]['stats'] ?? null,
+                // Values past the facet's limit, unfolded
+                'expanded' => false,
                 'min' => isset($range['min']) ? UrlCodec::number($facet, $range['min']) : '',
                 'max' => isset($range['max']) ? UrlCodec::number($facet, $range['max']) : '',
             ];
@@ -64,6 +66,8 @@ final class Store
                     // Cards that depend on the visitor (decision E): the fragment is asked for with the visitor's session
                     'personalised' => $definition->personalised,
                     'nonce' => $definition->personalised && is_user_logged_in() ? wp_create_nonce('wp_rest') : null,
+                    // Button mode: the total of the choices not applied yet
+                    'pending' => null,
                     'busy' => false,
                 ],
             ],
@@ -77,6 +81,14 @@ final class Store
                 'remove' => __('Remove filter: %s', 'meiliscout'),
                 /* translators: 1: a facet's label, 2: its value */
                 'facetValue' => __('%1$s: %2$s', 'meiliscout'),
+                'apply' => __('Apply', 'meiliscout'),
+                'see' => [
+                    'zero' => _n('See %d result', 'See %d results', 0, 'meiliscout'),
+                    'one' => _n('See %d result', 'See %d results', 1, 'meiliscout'),
+                    'many' => _n('See %d result', 'See %d results', 2, 'meiliscout'),
+                ],
+                'more' => __('Show more', 'meiliscout'),
+                'less' => __('Show less', 'meiliscout'),
                 'previous' => __('Previous', 'meiliscout'),
                 'next' => __('Next', 'meiliscout'),
                 'date' => Hits::dateNames(),
@@ -117,6 +129,11 @@ final class Store
 
                 return (int) ($option['count'] ?? 0) === 0 && empty($option['selected']);
             },
+            // The client folds the values past a limit; the server shows them all (no JavaScript)
+            'hasOverflow' => fn (): bool => false,
+            'expanded' => fn (): bool => false,
+            'moreLabel' => fn (): string => wp_interactivity_state(self::NAMESPACE)['i18n']['more'],
+            'applyLabel' => fn (): string => wp_interactivity_state(self::NAMESPACE)['i18n']['apply'],
             'rangeMin' => function () use ($listing): string {
                 return (string) ($listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['min'] ?? '');
             },
