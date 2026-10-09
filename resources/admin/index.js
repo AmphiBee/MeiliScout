@@ -10,6 +10,7 @@ import Content from './screens/Content';
 import Indexation from './screens/Indexation';
 import SearchPreview from './screens/SearchPreview';
 import Settings from './screens/Settings';
+import SeoRules from './screens/SeoRules';
 
 const boot = window.meiliscoutAdmin ?? {};
 
@@ -26,12 +27,18 @@ const SCREENS = [
 		label: __( 'Search preview', 'meiliscout' ),
 		Screen: SearchPreview,
 	},
+	// While the listings module runs
+	boot.listings && {
+		path: 'seo-rules',
+		label: __( 'SEO rules', 'meiliscout' ),
+		Screen: SeoRules,
+	},
 	{
 		path: 'settings',
 		label: __( 'Settings', 'meiliscout' ),
 		Screen: Settings,
 	},
-];
+].filter( Boolean );
 
 /**
  * The screen in the URL's hash: #/content, #/settings#connection…

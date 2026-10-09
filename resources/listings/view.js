@@ -120,6 +120,11 @@ const { state, actions } = store( NAMESPACE, {
 				state.i18n
 			);
 		},
+		get ruleStale() {
+			// The client transport has no fragment: the SEO rule's intro is the first state's
+			const listing = state.listings[ getContext().listing ];
+			return listing.shownUrl !== listing.renderedUrl;
+		},
 		get hasFilters() {
 			const listing = state.listings[ getContext().listing ];
 			return (
@@ -394,6 +399,7 @@ const { state, actions } = store( NAMESPACE, {
 						]( window.history.state, '', target );
 					}
 					moveTo( listing, next );
+					listing.shownUrl = target;
 					listing.hits = answer.hits;
 					if ( answer.counted ) {
 						applyCounts( listing, next, answer.counted );

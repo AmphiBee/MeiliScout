@@ -12,6 +12,7 @@ use Pollora\MeiliScout\Listings\Listings;
 use Pollora\MeiliScout\Listings\Query\ListingQuery;
 use Pollora\MeiliScout\Listings\Render\Renderer;
 use Pollora\MeiliScout\Listings\Render\Store;
+use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
 
 /**
@@ -89,12 +90,15 @@ final class RestController
         if ($region === null) {
             $result = ListingQuery::run($definition, $state);
             Store::add($result, $base);
-            $region = wp_interactivity_process_directives(Renderer::region($result));
+            $region = wp_interactivity_process_directives(Renderer::regions($result, $base));
+        } else {
+            $result = Listings::result($definition->id)[0] ?? null;
         }
 
         // The router reads its URL from this state after setting the one it navigated to (prototype P1)
         $data = ['state' => ['core/router' => ['url' => UrlCodec::url($definition, $state, $base)]]];
-        $title = $definition->route !== [] ? sprintf('<title>%s</title>', esc_html(self::title($definition, $state->page))) : '';
+        $seoTitle = $result !== null ? SeoPolicy::viewOf($result, $base)->title : '';
+        $title = $definition->route !== [] ? sprintf('<title>%s</title>', esc_html($seoTitle !== '' ? $seoTitle : self::title($definition, $state->page))) : '';
         $html = '<!doctype html><html><head>'.$title
             .'<script type="application/json" id="wp-script-module-data-@wordpress/interactivity">'.wp_json_encode($data, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES).'</script>'
             .'</head><body>'.$region.'</body></html>';

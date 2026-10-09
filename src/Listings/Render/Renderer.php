@@ -8,6 +8,7 @@ use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
 use Pollora\MeiliScout\Listings\Query\ListingResult;
 use Pollora\MeiliScout\Listings\Query\PlanTemplate;
+use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
 
 /**
  * A listing's HTML: a form that works without JavaScript (GET), the
@@ -15,8 +16,9 @@ use Pollora\MeiliScout\Listings\Query\PlanTemplate;
  * holding the results, which a fragment replaces.
  *
  * Made of parts a template may also place one by one (meiliscout_listing_part()):
- * search, facet, facets, sort, total, active, apply, reset, results,
- * pagination. Every field belongs to the listing's one form through the form
+ * intro, search, facet, facets, sort, total, active, apply, reset, results,
+ * pagination, faq. The intro (the SEO rule's heading and text) and the faq
+ * are router regions too: a fragment changes them with the results. Every field belongs to the listing's one form through the form
  * attribute, wherever it is printed, so that a page without JavaScript sends
  * them all. Stable hooks: data-meiliscout on the listing's elements (listing,
  * form, results, pagination, reset), data-meiliscout-part on a part's wrapper.
@@ -26,7 +28,7 @@ use Pollora\MeiliScout\Listings\Query\PlanTemplate;
  */
 final class Renderer
 {
-    public const PARTS = ['search', 'facet', 'facets', 'sort', 'total', 'active', 'apply', 'reset', 'results', 'pagination'];
+    public const PARTS = ['intro', 'search', 'facet', 'facets', 'sort', 'total', 'active', 'apply', 'reset', 'results', 'pagination', 'faq'];
 
     /**
      * Listings whose form was printed on this page, by id.
@@ -36,8 +38,9 @@ final class Renderer
     private static array $forms = [];
 
     /**
-     * The whole listing: its form (search, facets, then total, active filters,
-     * sort, apply and reset), its results and its pagination.
+     * The whole listing: its SEO rule's heading and text, its form (search,
+     * facets, then total, active filters, sort, apply and reset), its results,
+     * its pagination and its rule's questions.
      *
      * @param  array<string, mixed>  $args  search: false leaves the search field out
      */
@@ -53,13 +56,15 @@ final class Renderer
         }
 
         return sprintf(
-            '<div id="%1$s" class="meiliscout-listing" data-meiliscout="listing" data-wp-interactive="%2$s" data-wp-context="%3$s">%4$s%5$s%6$s</div>',
+            '<div id="%1$s" class="meiliscout-listing" data-meiliscout="listing" data-wp-interactive="%2$s" data-wp-context="%3$s">%7$s%4$s%5$s%6$s%8$s</div>',
             esc_attr($id),
             esc_attr(Store::NAMESPACE),
             esc_attr(self::context($definition)),
             self::form($result, $base, $fields.'<div class="meiliscout-listing__toolbar">'.self::total().self::active().self::sort($result).self::apply($result).self::resetLink($base).'</div>'),
             self::region($result),
-            self::pagination($result)
+            self::pagination($result),
+            self::intro($result, $base),
+            self::faq($result, $base)
         );
     }
 
@@ -75,6 +80,8 @@ final class Renderer
         $definition = $result->definition;
 
         $html = match ($part) {
+            'intro' => self::intro($result, $base),
+            'faq' => self::faq($result, $base),
             'search' => self::search($result),
             'facet' => self::facet($definition->facet((string) ($args['facet'] ?? '')) ?? throw new \InvalidArgumentException(sprintf('The listing "%s" has no facet "%s".', $definition->id, (string) ($args['facet'] ?? ''))), $result),
             'facets' => implode('', array_map(fn (FacetDefinition $facet) => self::facet($facet, $result), $definition->facets)),
@@ -133,6 +140,67 @@ final class Renderer
             esc_attr(Store::NAMESPACE),
             esc_attr(self::context($definition)),
             $results
+        );
+    }
+
+    /**
+     * Every router region of a listing: what a fragment's body holds. The
+     * router ignores the ones the page has not printed.
+     */
+    public static function regions(ListingResult $result, string $base): string
+    {
+        return self::region($result).self::intro($result, $base).self::faq($result, $base);
+    }
+
+    /**
+     * The SEO rule's heading and text for this state (a router region, empty
+     * without them). The client transport hides it once the state changed:
+     * the rule it shows is the first state's.
+     */
+    public static function intro(ListingResult $result, string $base): string
+    {
+        $view = SeoPolicy::viewOf($result, $base);
+        $html = '';
+
+        if ($view->h1 !== '') {
+            $html .= sprintf('<h1 class="meiliscout-listing__heading">%s</h1>', esc_html($view->h1));
+        }
+        if ($view->intro !== '') {
+            $html .= sprintf('<div class="meiliscout-listing__text">%s</div>', wpautop(wp_kses_post($view->intro)));
+        }
+
+        return self::seoRegion($result, 'intro', $html);
+    }
+
+    /**
+     * The SEO rule's questions and answers for this state (a router region).
+     */
+    public static function faq(ListingResult $result, string $base): string
+    {
+        $html = '';
+
+        foreach (SeoPolicy::viewOf($result, $base)->faq as $pair) {
+            $html .= sprintf(
+                '<details class="meiliscout-faq__item"><summary class="meiliscout-faq__question">%s</summary><div class="meiliscout-faq__answer">%s</div></details>',
+                esc_html($pair['question']),
+                wpautop(wp_kses_post($pair['answer']))
+            );
+        }
+
+        return self::seoRegion($result, 'faq', $html);
+    }
+
+    private static function seoRegion(ListingResult $result, string $name, string $html): string
+    {
+        $id = self::domId($result->definition).'-'.$name;
+
+        return sprintf(
+            '<div id="%1$s" class="meiliscout-listing__%2$s" data-meiliscout="%2$s" data-wp-interactive="%3$s" data-wp-router-region="%1$s" data-wp-context="%4$s" data-wp-bind--hidden="state.ruleStale">%5$s</div>',
+            esc_attr($id),
+            esc_attr($name),
+            esc_attr(Store::NAMESPACE),
+            esc_attr(self::context($result->definition)),
+            $html
         );
     }
 

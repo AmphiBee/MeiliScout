@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T14:36:08+02:00\n"
+"POT-Creation-Date: 2026-10-09T15:19:19+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: meiliscout\n"
@@ -149,102 +149,177 @@ msgstr ""
 msgid "The public URL of Meilisearch is not a valid URL."
 msgstr ""
 
+#: src/Listings/Admin/SeoRulesController.php:99
+msgid "The URL must be a page of this site."
+msgstr ""
+
 #: src/Listings/Blocks/BlockListings.php:275
-#: src/Listings/Render/Renderer.php:306
-#: src/Listings/Render/Renderer.php:329
+#: src/Listings/Render/Renderer.php:374
+#: src/Listings/Render/Renderer.php:397
 msgid "No results match these filters."
 msgstr ""
 
-#: src/Listings/Definition/ListingDefinition.php:198
+#: src/Listings/Definition/ListingDefinition.php:200
 #: build/listings/editor.js:1
 #: build/listings/editor.js:3
 msgid "Newest first"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:152
+#: src/Listings/Render/Renderer.php:220
 #: build/listings/editor.js:3
 msgid "Reset"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:195
+#: src/Listings/Render/Renderer.php:263
 #: build/app.js:38
 #: build/listings/editor.js:3
 msgid "Search"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:246
+#: src/Listings/Render/Renderer.php:314
 #: build/listings/editor.js:1
 msgid "Min"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:247
+#: src/Listings/Render/Renderer.php:315
 #: build/listings/editor.js:1
 msgid "Max"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:281
+#: src/Listings/Render/Renderer.php:349
 #: build/listings/editor.js:3
 msgid "Sort by"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:297
-#: src/Listings/Render/Store.php:84
+#: src/Listings/Render/Renderer.php:365
+#: src/Listings/Render/Store.php:87
 #: build/listings/editor.js:3
 msgid "Apply"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:344
+#: src/Listings/Render/Renderer.php:412
 msgid "Pages"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:393
-#: src/Listings/Render/Store.php:92
+#: src/Listings/Render/Renderer.php:461
+#: src/Listings/Render/Store.php:95
 msgid "Previous"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:394
-#: src/Listings/Render/Store.php:93
+#: src/Listings/Render/Renderer.php:462
+#: src/Listings/Render/Store.php:96
 msgid "Next"
 msgstr ""
 
-#: src/Listings/Render/Store.php:77
-#: src/Listings/Render/Store.php:78
-#: src/Listings/Render/Store.php:79
+#: src/Listings/Render/Store.php:80
+#: src/Listings/Render/Store.php:81
+#: src/Listings/Render/Store.php:82
 #, php-format
 msgid "%d result"
 msgid_plural "%d results"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Listings/Render/Store.php:81
+#: src/Listings/Render/Store.php:84
 #, php-format
 msgid "Remove filter: %s"
 msgstr ""
 
 #. translators: 1: a facet's label, 2: its value
-#: src/Listings/Render/Store.php:83
+#: src/Listings/Render/Store.php:86
 #, php-format
 msgid "%1$s: %2$s"
 msgstr ""
 
-#: src/Listings/Render/Store.php:86
-#: src/Listings/Render/Store.php:87
-#: src/Listings/Render/Store.php:88
+#: src/Listings/Render/Store.php:89
+#: src/Listings/Render/Store.php:90
+#: src/Listings/Render/Store.php:91
 #, php-format
 msgid "See %d result"
 msgid_plural "See %d results"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Listings/Render/Store.php:90
+#: src/Listings/Render/Store.php:93
 msgid "Show more"
 msgstr ""
 
-#: src/Listings/Render/Store.php:91
+#: src/Listings/Render/Store.php:94
 msgid "Show less"
 msgstr ""
 
-#: src/Providers/Admin/AdminServiceProvider.php:91
+#. translators: %s: a part of a rule's key
+#: src/Listings/Seo/RuleKey.php:62
+#, php-format
+msgid "\"%s\" is not a facet=value pair."
+msgstr ""
+
+#. translators: %s: a facet's key
+#: src/Listings/Seo/RuleKey.php:66
+#, php-format
+msgid "The facet \"%s\" is named twice."
+msgstr ""
+
+#. translators: 1: a facet's key, 2: a listing's id, 3: facet keys
+#: src/Listings/Seo/RuleKey.php:97
+#, php-format
+msgid "The listing \"%2$s\" has no taxonomy facet \"%1$s\" (%3$s)."
+msgstr ""
+
+#. translators: %d: a number of facets
+#: src/Listings/Seo/RuleKey.php:107
+#, php-format
+msgid "A rule describes at most %d facets."
+msgstr ""
+
+#. translators: 1: a term's id or slug, 2: a taxonomy
+#: src/Listings/Seo/RuleKey.php:122
+#, php-format
+msgid "No term \"%1$s\" in the taxonomy %2$s."
+msgstr ""
+
+#: src/Listings/Seo/RuleKey.php:228
+msgid "Without filters"
+msgstr ""
+
+#: src/Listings/Seo/RuleKey.php:240
+msgid "any"
+msgstr ""
+
+#: src/Listings/Seo/RulesCsv.php:83
+msgid "The first line must name the columns, listing at least."
+msgstr ""
+
+#: src/Listings/Seo/SeoRules.php:156
+msgid "Another rule of this listing already has this language and these facets."
+msgstr ""
+
+#: src/Listings/Seo/SeoRules.php:164
+#: src/Listings/Seo/SeoRules.php:167
+msgid "The rule could not be saved."
+msgstr ""
+
+#. translators: %s: a locale
+#: src/Listings/Seo/SeoRulesService.php:38
+#, php-format
+msgid "\"%s\" is not a locale (fr_FR, en_US...), nor empty for every language."
+msgstr ""
+
+#: src/Listings/Seo/SeoRulesService.php:45
+msgid "A rule needs at least one field: title, description, heading, introduction or questions."
+msgstr ""
+
+#: src/Listings/Seo/SeoRulesService.php:104
+msgid "No listing has this URL as its page (a listing needs a route)."
+msgstr ""
+
+#. translators: %s: a listing's id
+#: src/Listings/Seo/SeoRulesService.php:116
+#, php-format
+msgid "No valid listing \"%s\"."
+msgstr ""
+
+#: src/Providers/Admin/AdminServiceProvider.php:94
 msgid "Loading…"
 msgstr ""
 
@@ -375,7 +450,7 @@ msgstr ""
 
 #: build/app.js:11
 #: build/app.js:29
-#: build/app.js:50
+#: build/app.js:56
 msgid "Real time"
 msgstr ""
 
@@ -407,7 +482,7 @@ msgstr ""
 
 #: build/app.js:12
 #: build/app.js:29
-#: build/app.js:47
+#: build/app.js:51
 msgid "Content"
 msgstr ""
 
@@ -487,6 +562,7 @@ msgid "Size"
 msgstr ""
 
 #: build/app.js:17
+#: build/app.js:56
 msgid "Updated"
 msgstr ""
 
@@ -495,12 +571,12 @@ msgid "Run a full indexation to create this index."
 msgstr ""
 
 #: build/app.js:17
-#: build/app.js:50
+#: build/app.js:54
 msgid "Search preview"
 msgstr ""
 
 #: build/app.js:17
-#: build/app.js:45
+#: build/app.js:49
 msgid "Indexed content"
 msgstr ""
 
@@ -574,6 +650,9 @@ msgid "Always empty"
 msgstr ""
 
 #: build/app.js:20
+#: build/app.js:45
+#: build/app.js:48
+#: build/app.js:56
 #: build/listings/editor.js:1
 #: build/listings/editor.js:6
 msgid "Title"
@@ -666,6 +745,7 @@ msgid "Found on"
 msgstr ""
 
 #: build/app.js:25
+#: build/app.js:56
 msgid "Actions"
 msgstr ""
 
@@ -680,7 +760,8 @@ msgid "Remove %s"
 msgstr ""
 
 #: build/app.js:26
-#: build/app.js:50
+#: build/app.js:47
+#: build/app.js:56
 msgid "Remove"
 msgstr ""
 
@@ -817,8 +898,8 @@ msgid "Starting…"
 msgstr ""
 
 #: build/app.js:34
-#: build/app.js:45
-#: build/app.js:47
+#: build/app.js:49
+#: build/app.js:51
 msgid "Run the indexation"
 msgstr ""
 
@@ -831,7 +912,7 @@ msgid "Log"
 msgstr ""
 
 #: build/app.js:34
-#: build/app.js:50
+#: build/app.js:56
 msgid "Show"
 msgstr ""
 
@@ -941,10 +1022,12 @@ msgid "ID %d"
 msgstr ""
 
 #: build/app.js:38
+#: build/app.js:56
 msgid "View"
 msgstr ""
 
 #: build/app.js:38
+#: build/app.js:56
 msgid "Edit"
 msgstr ""
 
@@ -973,6 +1056,7 @@ msgid "Post type"
 msgstr ""
 
 #: build/app.js:39
+#: build/app.js:45
 msgid "No results."
 msgstr ""
 
@@ -1035,7 +1119,7 @@ msgid "A color of its own…"
 msgstr ""
 
 #: build/app.js:40
-#: build/app.js:50
+#: build/app.js:56
 msgid "Listings"
 msgstr ""
 
@@ -1056,7 +1140,7 @@ msgid "Public URL of Meilisearch"
 msgstr ""
 
 #: build/app.js:40
-#: build/app.js:50
+#: build/app.js:56
 msgid "(optional)"
 msgstr ""
 
@@ -1189,154 +1273,373 @@ msgid "search key: can search %1$d of the %2$d indexes"
 msgstr ""
 
 #: build/app.js:45
+msgid "Filters are chosen: until facets go in the path, a filtered view is not indexed."
+msgstr ""
+
+#: build/app.js:45
+msgid "A search is never indexed."
+msgstr ""
+
+#: build/app.js:45
+msgid "Another sort than the default one."
+msgstr ""
+
+#: build/app.js:45
+msgid "Variables: <code>{site}</code>, <code>{title}</code> (the listing’s page), <code>{page}</code>, <code>{pages}</code>, <code>{total}</code>, and each facet’s term:"
+msgstr ""
+
+#: build/app.js:45
+msgid "Past the first page, the title says which page it is, unless it holds {page}."
+msgstr ""
+
+#: build/app.js:45
+msgid "Edit the rule"
+msgstr ""
+
+#: build/app.js:45
+#: build/app.js:56
+msgid "New rule"
+msgstr ""
+
+#: build/app.js:45
+msgid "A rule names the views of a listing: without filters, or with one term (or any term) of up to two facets. The most specific rule of the view’s language wins, then a rule for every language."
+msgstr ""
+
+#: build/app.js:45
+#: build/app.js:56
+#: build/listings/editor.js:3
+msgid "Listing"
+msgstr ""
+
+#: build/app.js:45
+#: build/listings/editor.js:4
+msgid "Choose…"
+msgstr ""
+
+#: build/app.js:45
+#: build/app.js:56
+msgid "Language"
+msgstr ""
+
+#: build/app.js:45
+msgid "Every language"
+msgstr ""
+
+#: build/app.js:45
+msgid "Not filtered"
+msgstr ""
+
+#: build/app.js:45
+msgid "Any term"
+msgstr ""
+
+#: build/app.js:45
+msgid "This listing has no taxonomy facet: its rules name it without filters."
+msgstr ""
+
+#: build/app.js:45
+msgid "Meta description"
+msgstr ""
+
+#: build/app.js:45
+msgid "Heading"
+msgstr ""
+
+#: build/app.js:45
+msgid "Printed as the listing’s h1 by its introduction: leave it empty when the page already has its own."
+msgstr ""
+
+#: build/app.js:45
+msgid "Introduction"
+msgstr ""
+
+#: build/app.js:45
+msgid "Above the listing, on its first page. Simple HTML is kept."
+msgstr ""
+
+#: build/app.js:45
+msgid "Questions"
+msgstr ""
+
+#: build/app.js:45
+msgid "Question"
+msgstr ""
+
+#. translators: %d: a question's number
+#: build/app.js:46
+#, js-format
+msgid "Question %d"
+msgstr ""
+
+#: build/app.js:46
+msgid "Answer"
+msgstr ""
+
+#. translators: %d: a question's number
+#: build/app.js:47
+#, js-format
+msgid "Answer %d"
+msgstr ""
+
+#: build/app.js:47
+msgid "Add a question"
+msgstr ""
+
+#: build/app.js:47
+msgid "Below the listing, on its first page, and as FAQPage structured data when the view is indexable."
+msgstr ""
+
+#: build/app.js:47
+#: build/app.js:54
+msgid "Cancel"
+msgstr ""
+
+#: build/app.js:47
+#: build/app.js:54
+#: build/app.js:56
+msgid "Saving…"
+msgstr ""
+
+#: build/app.js:47
+msgid "Save the rule"
+msgstr ""
+
+#: build/app.js:47
+msgid "Preview a URL"
+msgstr ""
+
+#: build/app.js:47
+msgid "What a URL of a listing tells search engines, and the rule it takes."
+msgstr ""
+
+#: build/app.js:47
+#: build/listings/editor.js:6
+msgid "URL"
+msgstr ""
+
+#: build/app.js:47
+msgid "Reading…"
+msgstr ""
+
+#: build/app.js:47
+msgid "Preview"
+msgstr ""
+
+#: build/app.js:47
+msgid "Search engines"
+msgstr ""
+
+#: build/app.js:47
+msgid "404: past the last page"
+msgstr ""
+
+#: build/app.js:47
+msgid "Indexable"
+msgstr ""
+
+#: build/app.js:47
+msgid "This listing turned its SEO off (seo: false): the SEO plugin decides."
+msgstr ""
+
+#: build/app.js:47
+msgid "Robots"
+msgstr ""
+
+#: build/app.js:47
+msgid "Canonical"
+msgstr ""
+
+#: build/app.js:47
+msgid "Previous, next"
+msgstr ""
+
+#: build/app.js:47
+msgid "Results"
+msgstr ""
+
+#. translators: 1: number of results, 2: page, 3: number of pages
+#: build/app.js:48
+#, js-format
+msgid "%1$d result, page %2$d of %3$d"
+msgid_plural "%1$d results, page %2$d of %3$d"
+msgstr[0] ""
+msgstr[1] ""
+
+#: build/app.js:48
+msgid "Rule"
+msgstr ""
+
+#: build/app.js:48
+msgid "The SEO plugin’s"
+msgstr ""
+
+#: build/app.js:48
+msgid "Description"
+msgstr ""
+
+#: build/app.js:48
+msgid "Structured data"
+msgstr ""
+
+#: build/app.js:48
+msgid "Written by"
+msgstr ""
+
+#. translators: 1: an SEO plugin, 2: a locale
+#: build/app.js:49
+#, js-format
+msgid "%1$s, language %2$s"
+msgstr ""
+
+#: build/app.js:49
 msgid "Overview"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Meilisearch cannot be reached"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Check the connection"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Searches run on MySQL meanwhile, and saved content is not indexed."
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "A full indexation is needed"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Searches still use <indexes /> in the previous format. Content saved meanwhile stays up to date in both."
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Serve the site search with Meilisearch"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Choose the queries"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "The content is indexed. The site search, archives, REST searches and admin lists can be served by Meilisearch, each on its own; any query can also ask with use_meilisearch."
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "The indexed content changed"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "A full indexation applies the new selection to the indexes."
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Indexes"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Re-index"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "State"
 msgstr ""
 
-#: build/app.js:45
-#: build/app.js:50
+#: build/app.js:49
+#: build/app.js:56
 msgid "Real-time indexing"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Switch to the async queue"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Change the mode"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Edit the selection"
 msgstr ""
 
-#: build/app.js:45
+#: build/app.js:49
 msgid "Queries served by Meilisearch"
 msgstr ""
 
 #. translators: %s: number of queries
-#: build/app.js:46
+#: build/app.js:50
 #, js-format
 msgid "MySQL fallback: %s in 24 h"
 msgstr ""
 
 #. translators: %s: number of queries
-#: build/app.js:47
+#: build/app.js:51
 #, js-format
 msgid "%s on a field not indexed"
 msgid_plural "%s on fields not indexed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "See the log"
 msgstr ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "Recent activity"
 msgstr ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "Whole log"
 msgstr ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "Sections of the selection"
 msgstr ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "Post types"
 msgstr ""
 
-#: build/app.js:47
-#: build/app.js:49
+#: build/app.js:51
+#: build/app.js:53
 msgid "Taxonomies"
 msgstr ""
 
-#: build/app.js:47
-#: build/app.js:50
+#: build/app.js:51
+#: build/app.js:54
 msgid "Custom fields"
 msgstr ""
 
-#: build/app.js:47
-#: build/app.js:50
+#: build/app.js:51
+#: build/app.js:54
 msgid "Term fields"
 msgstr ""
 
-#: build/app.js:47
-#: build/app.js:50
+#: build/app.js:51
+#: build/app.js:54
 msgid "Relevance"
 msgstr ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "Not applied yet"
 msgstr ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "The selection changed since the last full indexation."
 msgstr ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "Published and private content is sent. Password-protected content is sent without its text."
 msgstr ""
 
-#: build/app.js:47
+#: build/app.js:51
 msgid "Only published content is sent. Password-protected content is sent without its text."
 msgstr ""
 
 #. translators: %s: number of media files
-#: build/app.js:48
+#: build/app.js:52
 #, js-format
 msgid "%s file"
 msgid_plural "%s files"
@@ -1344,276 +1647,329 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: number of published posts
-#: build/app.js:49
+#: build/app.js:53
 #, js-format
 msgid "%s published"
 msgid_plural "%s published"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/app.js:49
+#: build/app.js:53
 msgid "Index private content"
 msgstr ""
 
-#: build/app.js:49
+#: build/app.js:53
 msgid "Logged-in users then get the private content they may read from Meilisearch. Off, their queries run on MySQL when there is private content."
 msgstr ""
 
-#: build/app.js:49
+#: build/app.js:53
 msgid "What indexing private content means"
 msgstr ""
 
-#: build/app.js:49
+#: build/app.js:53
 msgid "Private content and its indexed fields are stored in Meilisearch: anyone with a key that can search these indexes can read them. Never use such a key in the browser, and check who can reach the instance (Meilisearch Cloud dashboard, other sites sharing it)."
 msgstr ""
 
-#: build/app.js:49
+#: build/app.js:53
 msgid "MeiliScout filters each query by the WordPress permissions of the user (read_private_posts, or their own content). A query sent to Meilisearch directly is not filtered."
 msgstr ""
 
-#: build/app.js:49
+#: build/app.js:53
 msgid "The terms of indexed content can always be filtered on. Turn a taxonomy on to index its terms themselves too (term pages, autocompletion)."
 msgstr ""
 
 #. translators: %s: number of terms
-#: build/app.js:50
+#: build/app.js:54
 #, js-format
 msgid "%s term"
 msgid_plural "%s terms"
 msgstr[0] ""
 msgstr[1] ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "The fields added here are sent with each content, and can be used in a <code>meta_query</code> and to sort."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "No field selected: every meta of the content is sent, private ones included. Select the ones your queries need."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "The term metas added here are sent with each term of the indexed taxonomies, and can be used in the <code>meta_query</code> of a term query and to sort it."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "No field selected: every meta of the terms is sent. Select the ones your term queries need."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "Turn a taxonomy on to index its terms and their fields."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "The fields a search looks into, from the most to the least important."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "Unsaved changes · a full indexation will be needed to apply them."
 msgstr ""
 
-#: build/app.js:50
-msgid "Cancel"
-msgstr ""
-
-#: build/app.js:50
+#: build/app.js:54
 msgid "Saved. A full indexation applies the changes."
 msgstr ""
 
-#: build/app.js:50
-msgid "Saving…"
-msgstr ""
-
-#: build/app.js:50
+#: build/app.js:54
 msgid "Save"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "Indexation"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "The last indexation completed."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
 msgid "Preview mode"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:54
+#: build/app.js:56
+msgid "SEO rules"
+msgstr ""
+
+#: build/app.js:54
+msgid "Rule saved."
+msgstr ""
+
+#. translators: 1: rules created, 2: rules replaced
+#: build/app.js:55
+#, js-format
+msgid "Import: %1$d created, %2$d replaced"
+msgstr ""
+
+#: build/app.js:55
+msgid "Dismiss"
+msgstr ""
+
+#. translators: 1: a line number, 2: an error
+#: build/app.js:56
+#, js-format
+msgid "Line %1$d: %2$s"
+msgstr ""
+
+#: build/app.js:56
+msgid "Titles, descriptions, headings, introductions and questions of the listings’ views."
+msgstr ""
+
+#: build/app.js:56
+msgid "Every listing"
+msgstr ""
+
+#: build/app.js:56
+msgid "Export CSV"
+msgstr ""
+
+#: build/app.js:56
+msgid "Import CSV"
+msgstr ""
+
+#: build/app.js:56
+msgid "No listing is declared: rules name a listing’s views."
+msgstr ""
+
+#: build/app.js:56
+msgid "No rule yet."
+msgstr ""
+
+#: build/app.js:56
+msgid "Every"
+msgstr ""
+
+#: build/app.js:56
+msgid "Rule deleted."
+msgstr ""
+
+#: build/app.js:56
+msgid "Delete"
+msgstr ""
+
+#: build/app.js:56
 msgid "Settings"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Settings saved."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Sections of the settings"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Connection"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Index names"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Queries"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Advanced"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Welcome to MeiliScout"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Connect your Meilisearch instance to start: its URL, and an API key allowed to write to the indexes."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Instance URL"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Admin key"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Saved · type a new key to replace it"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Hide"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Used on the server only, to write to the indexes. Never sent to the browser."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Search key"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Used for searches. Without it, the admin key searches too."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Testing…"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Test the connection"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "One prefix per site: several sites, staging included, can share an instance without mixing up."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Prefix"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "The site’s domain by default."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Indexes:"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Once saved, searches keep using the current indexes until the next full indexation, which creates the new ones."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "When content is saved, edited or deleted."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Real-time indexing mode"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Queries Meilisearch serves without asking. Any query can ask with <code>use_meilisearch</code>, or stay on MySQL with <code>use_meilisearch => false</code>. A query Meilisearch cannot answer as MySQL would runs on MySQL."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Term queries"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "get_terms() calls Meilisearch serves without asking. Terms are read from the taxonomies index: turn the taxonomies on in Content."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Listings key replaced."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Timeout (seconds)"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Contents per batch"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Maximum results per query"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "A query for all posts (posts_per_page -1) stops there, and so does paging. Higher values cost memory on large sites."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Partial filters on fields (LIKE)"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Serves meta_query LIKE and NOT LIKE with the CONTAINS filter, an experimental feature of Meilisearch turned on for the whole instance. Off, these queries run on MySQL."
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "On on the instance"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Off on the instance"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Save the settings"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Connected"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Unreachable"
 msgstr ""
 
-#: build/app.js:50
+#: build/app.js:56
 msgid "Not configured"
 msgstr ""
 
 #. translators: %s: the Meilisearch version
-#: build/app.js:51
+#: build/app.js:57
 #, js-format
 msgid "Meilisearch v%s"
 msgstr ""
 
-#: build/app.js:51
+#: build/app.js:57
 msgid "Documentation"
 msgstr ""
 
-#: build/app.js:51
+#: build/app.js:57
 msgid "MeiliScout sections"
 msgstr ""
 
@@ -1700,7 +2056,11 @@ msgid "A filter"
 msgstr ""
 
 #: build/listings/editor.js:3
-msgid "Listing"
+msgid "The heading and text of the SEO rule matching the filters (MeiliScout › SEO rules). Empty without one."
+msgstr ""
+
+#: build/listings/editor.js:3
+msgid "The questions of the SEO rule matching the filters (MeiliScout › SEO rules). Empty without one."
 msgstr ""
 
 #: build/listings/editor.js:3
@@ -1758,10 +2118,6 @@ msgstr ""
 msgid "Facet"
 msgstr ""
 
-#: build/listings/editor.js:4
-msgid "Choose…"
-msgstr ""
-
 #. translators: %s: a meta key
 #: build/listings/editor.js:6
 #, js-format
@@ -1814,10 +2170,6 @@ msgstr ""
 
 #: build/listings/editor.js:6
 msgid "Decimals"
-msgstr ""
-
-#: build/listings/editor.js:6
-msgid "URL"
 msgstr ""
 
 #: build/listings/editor.js:6
@@ -1905,7 +2257,7 @@ msgstr ""
 
 #: blocks/part/block.json
 msgctxt "block description"
-msgid "A part of the listing: search, sort, total, active filters, apply, reset."
+msgid "A part of the listing: search, sort, total, active filters, apply, reset, the SEO rule's introduction or questions."
 msgstr ""
 
 #: blocks/part/block.json
@@ -1966,4 +2318,24 @@ msgstr ""
 #: blocks/part/block.json
 msgctxt "block variation description"
 msgid "Back to the listing without filters."
+msgstr ""
+
+#: blocks/part/block.json
+msgctxt "block variation title"
+msgid "Listing introduction"
+msgstr ""
+
+#: blocks/part/block.json
+msgctxt "block variation description"
+msgid "The heading and text of the SEO rule matching the filters."
+msgstr ""
+
+#: blocks/part/block.json
+msgctxt "block variation title"
+msgid "Listing questions"
+msgstr ""
+
+#: blocks/part/block.json
+msgctxt "block variation description"
+msgid "The questions and answers of the SEO rule matching the filters."
 msgstr ""

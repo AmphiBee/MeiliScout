@@ -51,6 +51,26 @@ const PREVIEWS = {
 			{ __( 'Reset', 'meiliscout' ) }
 		</span>
 	),
+	intro: () => (
+		<div className="meiliscout-listing__intro">
+			<p className="meiliscout-part__placeholder">
+				{ __(
+					'The heading and text of the SEO rule matching the filters (MeiliScout › SEO rules). Empty without one.',
+					'meiliscout'
+				) }
+			</p>
+		</div>
+	),
+	faq: () => (
+		<div className="meiliscout-listing__faq">
+			<p className="meiliscout-part__placeholder">
+				{ __(
+					'The questions of the SEO rule matching the filters (MeiliScout › SEO rules). Empty without one.',
+					'meiliscout'
+				) }
+			</p>
+		</div>
+	),
 };
 
 export default function PartEdit( { attributes } ) {

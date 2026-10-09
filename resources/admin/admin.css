@@ -1564,3 +1564,77 @@
 	margin: 4px 0;
 	overflow-wrap: anywhere;
 }
+
+/* SEO rules */
+
+.ms-seo-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.ms-seo-actions .ms-input {
+	width: auto;
+}
+
+.ms-seo-actions label.ms-button {
+	position: relative;
+}
+
+.ms-seo-actions label.ms-button:focus-within {
+	outline: 2px solid var(--ms-primary);
+	outline-offset: 2px;
+}
+
+.ms-seo-faq {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.ms-seo-faq__pair {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+	gap: 8px;
+	align-items: start;
+	margin-bottom: 8px;
+}
+
+@media (max-width: 782px) {
+
+	.ms-seo-faq__pair {
+		grid-template-columns: 1fr;
+	}
+}
+
+.ms-seo-preview .ms-row {
+	align-items: baseline;
+}
+
+.ms-seo-preview .ms-row__label {
+	flex: 0 0 160px;
+}
+
+.ms-seo-preview__value {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.ms-seo-rule-actions {
+	white-space: nowrap;
+	text-align: right;
+}
+
+.ms-seo-rule-actions .ms-link-button + .ms-link-button {
+	margin-left: 12px;
+}
+
+.ms-seo-help {
+	display: block;
+	line-height: 1.6;
+}
+
+.ms-seo-form .ms-card__foot {
+	justify-content: flex-end;
+}

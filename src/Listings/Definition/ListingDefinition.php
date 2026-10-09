@@ -49,6 +49,7 @@ final class ListingDefinition
         public readonly string $searchParam,
         public readonly mixed $card = null,
         public readonly ?string $clientCard = null,
+        public readonly bool $seo = true,
     ) {}
 
     /**
@@ -174,6 +175,7 @@ final class ListingDefinition
             $searchParam,
             $card,
             $clientCard,
+            (bool) ($args['seo'] ?? true),
         );
     }
 
