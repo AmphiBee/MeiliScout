@@ -38,6 +38,10 @@ npm run test:js
 # WP_Query parity case and every filter the unit tests build
 ddev exec --dir /var/www/html/public/wp-content/plugins/meiliscout composer test:integration
 
+# What a listing's URL tells search engines; SEO rules as CSV
+ddev wp meiliscout seo-rules preview /realisations-filtrables/page/2/
+ddev wp meiliscout seo-rules export|import <file>
+
 # Compare WP_Query (--terms: get_terms()) results on MySQL and Meilisearch (exit 1 on a DIFF)
 ddev wp meiliscout check-queries [--terms] [--case=<label>] [--args='<json>']
 ```
@@ -52,6 +56,8 @@ Example:
 ```bash
 ddev exec --dir /var/www/html/public/content/plugins/meiliscout composer test:types
 ```
+
+Lint: `wp-scripts lint-js --fix` also reformats `webpack.config.js` (Prettier); keep a copy and put it back, never `git checkout` it.
 
 ### Build System
 - @wordpress/scripts, one entry: `resources/admin/index.js` → `build/app.js` and `build/app.css`
@@ -113,6 +119,7 @@ Off by default (`listings_enabled`), WordPress 6.9. Coverage and API: `docs/LIST
 - Developer mode: `Renderer::part()` (parts printed one by one, one form named by every field), `Render/Cards` (the definition's card: callable, part, `blade:`, `twig:`, `CardRenderer`), `Template/Blade` (anonymous components in `templates/blade/components`), `Template/TwigExtension`
 - Editor mode: `Blocks/BlockListings` (blocks in `blocks/*/block.json`, editor in `resources/listings/editor`; definitions saved on `save_post` in the `meiliscout/block_listings` option; Post Template and core pagination wrapped as router regions), `Blocks/BlockDefinitionReader`
 - Default look: `resources/listings/front.css` → `build/listings/style.css`, colors from the theme palette (`Listings::themeColors()`)
+- SEO (`Seo/`): `SeoPolicy` on `wp` for the listing on its route (indexable = no parameters and results; `noindex, follow` otherwise; 404 past the last page) into a `SeoView`; `Adapters/` write it through Yoast, Rank Math, SEOPress, AIOSEO or core; `StructuredData` (ItemList, FAQPage, breadcrumb); rules in the `{prefix}meiliscout_seo_rules` table (`SeoRules`, keys `RuleKey`, `RulesCsv`, `SeoRulesService`), admin screen `resources/admin/screens/SeoRules.js` (`Listings/Admin/SeoRulesController`), `wp meiliscout seo-rules`; the rule's intro and questions are the `intro`/`faq` parts (router regions)
 - PHP and JS halves share their cases: `tests/fixtures/listings` (Pest `tests/Unit/Listings`, `npm run test:js`, `tests/Integration/ListingCasesTest.php`)
 
 ### Configuration
@@ -136,7 +143,7 @@ Off by default (`listings_enabled`), WordPress 6.9. Coverage and API: `docs/LIST
 - **Service Providers**: Modular service registration pattern
 
 ### Admin
-- One page (`admin.php?page=meiliscout`, `Providers/Admin/AdminServiceProvider`) where a React app (`resources/admin/`) renders five screens from the hash: Overview, Content, Indexation, Search preview, Settings
+- One page (`admin.php?page=meiliscout`, `Providers/Admin/AdminServiceProvider`) where a React app (`resources/admin/`) renders its screens from the hash: Overview, Content, Indexation, Search preview, SEO rules (while listings run), Settings
 - REST endpoints under `meiliscout/v1`, one controller per screen in `src/Admin/Rest/`, all for `manage_options`
 - API keys never go to the browser: the app only learns whether one is set
 - Plain CSS scoped to `.meiliscout-admin`, design tokens as custom properties (look of the Meilisearch Cloud dashboard)
@@ -190,6 +197,7 @@ The plugin provides several filters for customization:
 - `meiliscout/listings/token_lifetime`: How long a front listing's tenant token lasts (default: a day)
 - `meiliscout/listings/card`, `meiliscout/listings/blade`, `meiliscout/listings/twig`: front listings' cards and their engines
 - `meiliscout/listings/load_styles`, `meiliscout/listings/theme_colors`: front listings' default look
+- `meiliscout/listings/seo_view`, `meiliscout/listings/seo_adapter`, `meiliscout/listings/structured_data`, `meiliscout/listings/seo_locale`: front listings' SEO
 - `meiliscout/supported_query_vars`, `meiliscout/ignored_sql_filters`, `meiliscout/ignored_term_sql_filters`, `meiliscout/skip_term_query_integration`, `meiliscout/integrate_term_query`, `meiliscout/term/ranking_rules`, `meiliscout/term/document`, `meiliscout/skip_query_integration`, `meiliscout/integrate_query`, `meiliscout/search_params`, `meiliscout/hydrate_from_documents`, `meiliscout/search_memo`, `meiliscout/max_total_hits`, `meiliscout/php_order_limit`, `meiliscout/post/ranking_rules`, `meiliscout/debug_header`, `meiliscout/indexable_post_statuses`: see `docs/FILTERS.md`
 
 ## Environment Variables

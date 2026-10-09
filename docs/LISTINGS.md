@@ -4,7 +4,7 @@ Filterable listings of posts on the front end: facets with their counts, sorts, 
 
 The module is **off by default** and needs **WordPress 6.9** (the Interactivity API's router). It loads no script or style on a page without a listing.
 
-> Phases 1 to 3 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor. Facets in the path, the SEO policy and languages come in the next phases.
+> Phases 1 to 4 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO with or without an SEO plugin, and SEO rules. Facets in the path and languages come in the next phases.
 
 ## Turning it on
 
@@ -68,7 +68,8 @@ A definition is checked once, on first use. One that cannot be served (an uninde
 | `apply` | `instant` | `instant`: a change applies at once (typing waits for a pause). `button`: a change only counts, the button says *See N results*, and the results, the URL and the history change when it is pressed |
 | `public_metas` | `[]` | Meta keys browsers may read: the client transport's cards show them ([Public fields](#public-fields)) |
 | `personalised` | `false` | Cards that depend on the visitor: the fragment is asked for with the visitor's session, and never cached |
-| `route` | the current URL | `['page' => $id]` or `['archive' => $postType]`: the listing's first page. Required for the [canonical redirect](#urls) |
+| `route` | the current URL | `['page' => $id]` or `['archive' => $postType]`: the listing's first page. Required for the [canonical redirect](#urls) and the [SEO](#seo) |
+| `seo` | `true` | `false` leaves the robots, canonical and adjacent pages of its page to the SEO plugin, and its pages past the last one unanswered ([SEO](#seo)) |
 | `sort_param`, `search_param` | `sort`, `q` | Names of these parameters in the URL |
 | `card` | the theme's `meiliscout/card.php`, else a title, a date and an excerpt | The card of the `fragment` and `page` transports ([Cards](#cards)) |
 | `client_card` | the theme's `meiliscout/client-card.php`, else a title, a date and an excerpt | The card of the `client` transport: markup bound to `context.hit` ([below](#the-client-transports-card)) |
@@ -204,6 +205,7 @@ While the module is off, the blocks print nothing.
 
 | Part | |
 |---|---|
+| `intro` | The heading and introduction of the [SEO rule](#seo-rules) of the state (empty without one) |
 | `search` | The search field |
 | `facet` | One facet: `meiliscout_facet($id, $key)`, or `['facet' => $key]` |
 | `facets` | Every facet, in the definition's order |
@@ -214,6 +216,7 @@ While the module is off, the blocks print nothing.
 | `reset` | The link back to the listing without filters |
 | `results` | The cards: `meiliscout_listing_results()` |
 | `pagination` | `meiliscout_pagination()` |
+| `faq` | The questions and answers of the SEO rule of the state |
 
 `meiliscout_get_listing_part()` returns a part instead of printing it. The listing runs once per page, whatever its parts. Every field belongs to the listing's one form (`form="…"`), printed with the first part: without JavaScript, a form spread over the page still sends every field — print the `apply` part for it to be sent.
 
@@ -295,6 +298,8 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
 
 ```
 .meiliscout-listing
+  .meiliscout-listing__intro                (a router region; empty without an SEO rule)
+    h1.meiliscout-listing__heading, .meiliscout-listing__text
   form.meiliscout-listing__filters
     .meiliscout-search  (__label, __input)
     fieldset.meiliscout-facet.meiliscout-facet--list|range|boolean  [data-facet]
@@ -313,9 +318,78 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
     ul.meiliscout-results > li.meiliscout-result > article.meiliscout-card (__title, __meta, __excerpt)
     p.meiliscout-results__empty
   nav.meiliscout-pagination > a.meiliscout-pagination__link (__previous, __number, __dots, __next; the current page and the dots without href)
+  .meiliscout-listing__faq                  (a router region)
+    details.meiliscout-faq__item > summary.meiliscout-faq__question, .meiliscout-faq__answer
 ```
 
 A value no post of the current selection has (count 0) is hidden, unless it is selected.
+
+## SEO
+
+What a listing's page tells search engines is decided by MeiliScout and written through the SEO plugin in use: Yoast SEO, Rank Math, SEOPress, All in One SEO, or WordPress alone. It applies to the listing whose `route` is the page (the first one, when several share it), from the `wp` action on.
+
+| View | Robots | Canonical | `prev` / `next` | Structured data |
+|---|---|---|---|---|
+| The listing without filters, search or sort, with results: `/projects/`, `/projects/page/3/` | `index, follow`, at every page | itself, page included | yes | `ItemList`, `FAQPage` |
+| Anything else: a facet, a range, a search, another sort (`?type=refonte`, `?sort=price`) | `noindex, follow` | none | none | none |
+| A view without results | `noindex, follow` | none | none | none |
+| A page past the last one (`/projects/page/99/`) | 404 | | | |
+
+- Facets in the path, which make some filtered views indexable, come with phase 5. A search is never indexed (decision G).
+- The SEO plugin's setting that puts paginated pages in `noindex` (All in One SEO's default) does not apply to an indexable view: its pages are how its posts are found. The site's other archives keep it.
+- A site closed to search engines (Settings › Reading) keeps WordPress's `noindex, nofollow`.
+- Other parameters (`utm_*`...) do not change the view: its canonical leaves them out.
+- The structured data joins Yoast's, Rank Math's or All in One SEO's graph; without them (WordPress, SEOPress), MeiliScout prints its own, with a `BreadcrumbList` (the site, the page's ancestors, the page).
+
+| Plugin | How |
+|---|---|
+| WordPress | `wp_robots`, `get_canonical_url` (a page), `pre_get_document_title`; canonical (an archive), `prev`/`next`, description and structured data on `wp_head`; the adjacent posts' links taken off a post holding a listing |
+| Yoast SEO | `wpseo_robots`, `wpseo_canonical`, `prev`/`next` on its presentation (`wpseo_frontend_presentation`), `wpseo_title`, `wpseo_metadesc`, Open Graph, `wpseo_schema_graph` |
+| Rank Math | `rank_math/frontend/robots`, `/canonical`, `/title`, `/description`, Open Graph, `rank_math/json_ld`; its adjacent links switched off, ours printed on `rank_math/head` |
+| SEOPress | `seopress_titles_noindex_bypass`, `seopress_titles_nofollow`, `seopress_titles_canonical`, `/title`, `/desc`, Open Graph; its paged links emptied, ours and the structured data on `wp_head` |
+| All in One SEO | `aioseo_robots_meta`, `aioseo_canonical_url`, `aioseo_prev_link`/`aioseo_next_link`, `aioseo_title`, `aioseo_description`, `aioseo_facebook_tags`, `aioseo_schema_output` |
+
+Another SEO plugin: an `Adapter` of your own (`Pollora\MeiliScout\Listings\Seo\Adapters\Adapter`) through `meiliscout/listings/seo_adapter`. `meiliscout/listings/seo_view` changes the view itself (a `SeoView`), `meiliscout/listings/structured_data` its structured data.
+
+Checked on Yoast 28.6, Rank Math 1.0.280, SEOPress 10.3 and All in One SEO 5.0.3 (`tests/Integration/SeoPluginsTest.php` reads each one's `<head>`).
+
+### SEO rules
+
+A rule gives views of a listing a **title**, a **meta description**, a **heading** (`h1`), an **introduction** and **questions**. MeiliScout › SEO rules (while the module runs) lists them, edits them, imports and exports them as CSV, and previews what any URL of a listing tells search engines.
+
+A rule names its views by a key: the listing without filters (empty key), or one term (or any term, `*`) of up to two taxonomy facets, in the definition's order:
+
+```
+                        the listing without filters
+type=12                 the term 12 of the facet type
+type=*                  any one term of type
+type=12|level=*         the term 12 of type and any one term of level
+```
+
+A view with a search, a range, a meta facet or two terms of one facet has no rule. Of the rules matching a view, the most specific wins (a term before `*`, the first facet first), in the view's language before a rule for every language (empty locale). The language is the site's (`meiliscout/listings/seo_locale`) until listings know languages.
+
+- **Variables**: `{site}`, `{title}` (the listing's page), `{page}`, `{pages}`, `{total}`, and each facet's term by the facet's key (`{type}`). Past the first page, the title says which page it is (` - Page 2`), unless it holds `{page}`.
+- The **title** and **description** go through the SEO plugin, and the title into the fragments' `<title>`.
+- The **heading** and **introduction** are printed by the `intro` part (first in `meiliscout_listing()`, a *Listing introduction* block in the editor), the **questions** by the `faq` part, as `FAQPage` too on an indexable view. Both are router regions: they follow the filters. The introduction and questions show on the first page only. Leave the heading empty when the page prints its own `h1`. In the `client` transport, they hide once the visitor changed the state (no fragment brings the new ones).
+- Rules are stored in the `{prefix}meiliscout_seo_rules` table, created on the admin's first visit.
+
+CSV, one rule per row, columns in any order (`key_label` is written for people, not read back):
+
+```csv
+listing,locale,key,title,description,h1,intro,faq
+projects,fr_FR,,Nos projets – {site},Les {total} projets de l'agence.,Nos projets,,
+projects,,type=refonte,Refontes – {site},{total} refontes.,{type},,"[{""question"":""Combien de temps ?"",""answer"":""Six semaines.""}]"
+```
+
+Terms by id or slug (slugs become ids). A row of an existing listing, language and key replaces that rule.
+
+```sh
+wp meiliscout seo-rules list [--listing=<id>]
+wp meiliscout seo-rules export [<file>] [--listing=<id>]
+wp meiliscout seo-rules import <file> [--dry-run]
+wp meiliscout seo-rules delete <id>...
+wp meiliscout seo-rules preview /projects/page/2/?type=refonte
+```
 
 ## Public fields
 
@@ -345,9 +419,14 @@ Browsers search the posts index with a token, so while the module is on the inde
 | `meiliscout/listings/twig` | The `Twig\Environment` of `twig:` cards (default: Timber's) |
 | `meiliscout/listings/load_styles` | Whether the default look is loaded (default: Settings › Listings › Default styles, on) |
 | `meiliscout/listings/theme_colors` | The default look's colors by token (`accent`, `accent-contrast`, `text`, `muted`, `background`, `border`): any CSS color |
+| `meiliscout/listings/seo_view` | A listing's `SeoView` (indexable, canonical, adjacent pages, the rule's fields), with its `ListingResult` |
+| `meiliscout/listings/seo_adapter` | The `Adapter` writing the view through the SEO plugin in use |
+| `meiliscout/listings/structured_data` | The structured data of an indexable view (`ItemList`, `FAQPage`, `BreadcrumbList`), `[]` for none |
+| `meiliscout/listings/seo_locale` | The language SEO rules are looked up in (default: `get_locale()`) |
 
 ## Testing
 
 - `vendor/bin/pest tests/Unit/Listings`: definitions, the URL codec, the facets' plan, cards, against the shared cases of `tests/fixtures/listings`.
 - `npm run test:js`: the browser's codec, plan and cards against the same cases.
-- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`).
+- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`); SEO rules, their CSV and preview (`SeoRulesTest`); each SEO plugin's `<head>` over HTTP (`SeoPluginsTest`, the plugins turned on in the site's options in turn).
+- `vendor/bin/pest tests/Unit/Listings/SeoPolicyTest.php tests/Unit/Listings/RuleKeyTest.php`: the indexing decision, the rules' variables and keys, the adapters' robots.

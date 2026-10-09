@@ -406,3 +406,16 @@ Listings › Default styles), and its colors by token (`accent`,
 add_filter('meiliscout/listings/theme_colors', fn (array $colors) => ['accent' => 'var(--brand-500)'] + $colors);
 ```
 
+### meiliscout/listings/seo_view, meiliscout/listings/seo_adapter, meiliscout/listings/structured_data, meiliscout/listings/seo_locale
+The SEO of front listings: the view of a listing's page (a `SeoView`: indexable,
+canonical, adjacent pages, its SEO rule's fields), the adapter writing it through
+the SEO plugin in use, the structured data of an indexable view, and the
+language SEO rules are looked up in. See [LISTINGS.md](LISTINGS.md#seo).
+
+```php
+// No structured data on the listings
+add_filter('meiliscout/listings/structured_data', fn (array $graph) => []);
+
+// Rules looked up in Polylang's language until listings know languages
+add_filter('meiliscout/listings/seo_locale', fn (string $locale) => function_exists('pll_current_language') ? (string) pll_current_language('locale') : $locale);
+```
