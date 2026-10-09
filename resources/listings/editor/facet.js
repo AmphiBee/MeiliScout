@@ -116,8 +116,13 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 	const postTypes = useSelect(
 		( select ) => {
 			const editor = select( 'core/block-editor' );
+			// getBlockParentsByBlockName() finds no listing here (WordPress 6.9)
 			const listing = editor
-				.getBlockParentsByBlockName( clientId, 'meiliscout/listing' )
+				.getBlockParents( clientId )
+				.filter(
+					( parent ) =>
+						editor.getBlockName( parent ) === 'meiliscout/listing'
+				)
 				.pop();
 			return listing
 				? editor.getBlockAttributes( listing ).postTypes

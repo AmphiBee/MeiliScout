@@ -11,6 +11,8 @@ use Pollora\MeiliScout\Listings\Diagnostics\CountParity;
 use Pollora\MeiliScout\Listings\Diagnostics\ListingChecks;
 use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Seo\Adapters\Adapters;
+use Pollora\MeiliScout\Listings\Seo\Sitemap\SitemapEntries;
+use Pollora\MeiliScout\Listings\Seo\Sitemap\Sitemaps;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -38,6 +40,8 @@ final class ListingsController extends Controller
             'listings' => ListingChecks::all(),
             'languages' => array_map(fn (string $language) => ['code' => $language, 'locale' => $adapter->locale($language)], $adapter->languages()),
             'seo_adapter' => Adapters::current()->name(),
+            // MeiliScout's own sitemap of the views: the SEO plugin's index names them too
+            'sitemap' => ['url' => Sitemaps::url(), 'views' => count(SitemapEntries::all())],
         ]);
     }
 

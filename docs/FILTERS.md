@@ -78,6 +78,16 @@ add_filter('meiliscout/post/displayed_attributes', function (array $attributes, 
 }, 10, 2);
 ```
 
+### meiliscout/post/max_values_per_facet
+How many values of a field the posts index counts in a facet distribution
+(Meilisearch's `faceting.maxValuesPerFacet`). Defaults to 100, Meilisearch's own;
+1,000 while front listings are on, whose facets offer the values counted. A
+settings update of the index, no re-indexation.
+
+```php
+add_filter('meiliscout/post/max_values_per_facet', fn () => 3000);
+```
+
 ### meiliscout/reindex_on_meta_change
 Decide whether a changed post meta key re-indexes the post. By default, only the
 selected meta keys do; with none selected, every key except WordPress internals

@@ -240,6 +240,7 @@ final class ListingChecks
             'hierarchical' => $facet->hierarchical,
             'param' => $facet->param,
             'limit' => $facet->limit,
+            'search' => $facet->search,
             // By language; empty for a facet in the query string
             'path' => (object) $prefixes,
         ];

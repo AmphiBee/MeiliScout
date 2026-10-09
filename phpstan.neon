@@ -12,6 +12,9 @@ parameters:
         # Extend Query Monitor's classes; loaded only when it runs
         - src/Integrations/QueryMonitor/Collector.php
         - src/Integrations/QueryMonitor/Output.php
+        # Implement Yoast's and Rank Math's interfaces; loaded only when they run
+        - src/Listings/Seo/Sitemap/YoastProvider.php
+        - src/Listings/Seo/Sitemap/RankMathProvider.php
     
     # Configuration pour WordPress
     bootstrapFiles:

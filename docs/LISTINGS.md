@@ -35,6 +35,8 @@ add_action('init', function () {
             'materials' => ['source' => 'meta:materials', 'logic' => 'and'],
             'price' => ['source' => 'meta:_price', 'type' => 'range', 'label' => 'Price'],
             'featured' => ['source' => 'meta:featured', 'type' => 'boolean', 'label' => 'Featured only'],
+            'lead' => ['source' => 'author', 'label' => 'Project lead'],
+            'client' => ['source' => 'taxonomy:client', 'search' => true, 'limit' => 8],
         ],
         'sorts' => [
             'recent' => ['label' => 'Newest first', 'orderby' => 'date', 'order' => 'DESC'],
@@ -78,19 +80,24 @@ A **facet**:
 
 | Option | Default | |
 |---|---|---|
-| `source` | required | `taxonomy:<name>`, or `meta:<key>` for an indexed meta key (Content › Meta keys) |
+| `source` | required | `taxonomy:<name>`; `meta:<key>` for an indexed meta key (Content › Meta keys); `author`: the posts' authors, by their slug in the URL (`?lead=lea-martin`, as author archives write it), by their name on the page |
 | `type` | `list` | `list`, `range` (numbers between two bounds) or `boolean` (one checkbox); ranges and booleans read a meta key |
 | `logic` | `or` | How the values of a list combine: `or` (any of them: each value widens the results) or `and` (all of them: each value narrows them). In an `or` list with a selection, a value not selected shows what it adds (`+3`); in an `and` list, the results it would leave. In the editor: the Facet block's *Several values match* |
 | `hierarchy` | `tree` | A hierarchical taxonomy's terms are counted with their descendants and shown as a tree; `flat`: each term alone |
 | `label` | the taxonomy's name, else the key | The facet's title |
 | `labels` | `[]` | A meta facet's labels, by value (`['fr' => 'France']`) |
-| `param` | the key | Its name in the URL |
+| `param` | the key | Its name in the URL. An `author` facet keyed `author` (a name WordPress reads) is named after its title (`?auteur=…`) |
 | `path` | none | A taxonomy list's values in the path rather than a parameter: its prefix, `'path' => 'type'` gives `/projects/type-refonte/` (`true`: its `param`). Needs a `route` ([URLs](#urls)) |
 | `limit` | `0` | Past that many values shown, the others fold behind a *Show more* button (a selected value never folds; without JavaScript, all show). `0`: no limit |
+| `search` | `false` | A list's search field: typing narrows its values to the ones whose label holds the text, case and accents aside, in the browser (every value is in the page). Hidden without JavaScript, never sent with the form. For long lists: clients, brands, tags |
 | `decimals` | `0` | A range's precision |
 | `value` | `'1'` | The meta value a boolean facet counts as yes |
 
 Facets need the posts index in schema 5 (`wp meiliscout status`), which counts a term with its descendants: until a full indexation rebuilds it, listings are served without counts, with the `page` transport.
+
+A facet offers the values Meilisearch counts in a facet distribution: while the module runs, the posts index counts up to 1,000 values per field (`meiliscout/post/max_values_per_facet`; Meilisearch's default is 100). MeiliScout › Listings warns of a facet that reaches it.
+
+An `author` facet combines its values with `or` (a post has one author). Authors are not translated: every language shows the same names.
 
 ### Cards
 
@@ -182,7 +189,7 @@ Everything is text: bind it with `data-wp-text`, never as HTML. A card that need
 In the block editor, insert **Filterable listing**. It starts with a search, a facet and the apply button in a narrow column, and the total, the active filters, a **Post Template** and the core's **pagination** in a wide one: the core's blocks, styled and arranged as anywhere else.
 
 - **The block's settings**: the content types (the indexed ones), items per page, whether filters apply at once or with a button, whether results change in place or by loading the page, the sorts.
-- **Facet** blocks, anywhere inside the listing: what each one filters on (a taxonomy of the chosen types, or an indexed field), how its values combine, its title, how many values show before *Show more*, its name in the URL. Their order in the document is the URL's order. Block supports (colors, typography, spacing, border) apply to each one.
+- **Facet** blocks, anywhere inside the listing: what each one filters on (a taxonomy of the chosen types, the authors, or an indexed field), how its values combine, its title, how many values show before *Show more*, a search field in its values, its name in the URL. Their order in the document is the URL's order. Block supports (colors, typography, spacing, border) apply to each one.
 - **Listing part** blocks: Listing search, Listing sort, Listing total, Active filters, Apply filters, Reset filters.
 - A listing that cannot be served says why in the editor (an unindexed field, a reserved name...). A warning names the blocks of the Post Template that would make the results load the whole page (blocks that do not declare `interactivity.clientNavigation`).
 - The listing's definition is saved with the post (`save_post`, site editor templates included): the fragment and token endpoints, the public fields and Settings › Listings know it. A listing in a page or a post has it as its route; in a template, the current URL.
@@ -316,6 +323,8 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
       legend.meiliscout-facet__title
       ul.meiliscout-facet__options > li.meiliscout-facet__option[data-depth]
         label.meiliscout-facet__label > input.meiliscout-facet__input, .meiliscout-facet__text, .meiliscout-facet__count
+      .meiliscout-facet__search > input.meiliscout-facet__search-input  (search: true; hidden without JavaScript)
+      p.meiliscout-facet__none               (no value holds the text searched)
       button.meiliscout-facet__more          (past the facet's limit; aria-expanded)
       .meiliscout-range > label.meiliscout-range__bound (__label, __input)
     .meiliscout-listing__toolbar
@@ -343,6 +352,7 @@ What a listing does for keyboard and screen reader users, without anything from 
 - **After a filter**, the focus stays on the control used; the total (`aria-live="polite"`) says how many results there are now. The results' region is `aria-busy` while they load.
 - **After a page link**, the link is gone with the region it was in: the focus moves to the results' region, named after its page (*Results, page 2 of 12*), which screen readers read out, and the page scrolls up to it when its top went past the screen's. The router's generic *Page loaded* is not announced.
 - **Active filters** are buttons named after what they remove (*Remove filter: Culture*); *Show more* says whether it is expanded (`aria-expanded`); the current page is `aria-current="page"`, the dots are hidden from screen readers.
+- A facet's search field is named after the facet (*Search in Sector*); values it leaves out are `hidden`, and *No value matches.* says when none is left.
 - Values hidden because no post has them (count 0) are `hidden`, not merely invisible.
 
 A theme that restyles the listing keeps these as long as it keeps the markup; one that prints its own (developer mode) keeps them by printing the parts.
@@ -378,6 +388,24 @@ What a listing's page tells search engines is decided by MeiliScout and written 
 Another SEO plugin: an `Adapter` of your own (`Pollora\MeiliScout\Listings\Seo\Adapters\Adapter`) through `meiliscout/listings/seo_adapter`. `meiliscout/listings/seo_view` changes the view itself (a `SeoView`), `meiliscout/listings/structured_data` its structured data.
 
 Checked on Yoast 28.6, Rank Math 1.0.280, SEOPress 10.3 and All in One SEO 5.0.3 (`tests/Integration/SeoPluginsTest.php` reads each one's `<head>`).
+
+### Sitemap
+
+The indexable views beyond a listing's first page (which is a page of the site, in its own sitemap) are listed for search engines:
+
+- each term of a facet of the path with enough results (`seo.min_results`), in every language;
+- the views of two facets of the path an [SEO rule](#seo-rules) names with a term: `type=12|level=7`, or each term of `level` with `type=12|level=*`, with enough results. Combinations nobody named are not listed: they are found through the links of the views;
+- nothing for a listing whose `seo` is off, or on a site closed to search engines.
+
+They go in the sitemap of the SEO plugin in use:
+
+| Plugin | Where |
+|---|---|
+| WordPress | `wp-sitemap-listings-1.xml` in `wp-sitemap.xml` (with Polylang, one per language: `/en/wp-sitemap-listings-1.xml`) |
+| Yoast SEO, Rank Math | `meiliscout-listing-sitemap.xml` in `sitemap_index.xml`, a provider of their own |
+| SEOPress, All in One SEO | `meiliscout-listings-sitemap.xml`, MeiliScout's own, in their index (`sitemaps.xml`, `sitemap.xml`) |
+
+`/meiliscout-listings-sitemap.xml` answers whatever the plugin (MeiliScout › Listings links to it, with the number of views). The list is computed with a few searches (one per listing and language, one per rule of two facets), kept for an hour and forgotten when a rule changes; `meiliscout/listings/sitemap_entries` filters it.
 
 ### SEO rules
 
@@ -503,11 +531,13 @@ wp meiliscout check-listings --skip-http --format=json
 | `meiliscout/listings/structured_data` | The structured data of an indexable view (`ItemList`, `FAQPage`, `BreadcrumbList`), `[]` for none |
 | `meiliscout/listings/seo_locale` | The language SEO rules are looked up in (default: the language's locale) |
 | `meiliscout/listings/language_adapter` | The multilingual plugin's `LanguageAdapter` (Polylang's, WPML's, or none) |
+| `meiliscout/listings/sitemap_entries` | The views the sitemaps list: `[{loc, listing, language}]` |
+| `meiliscout/post/max_values_per_facet` | How many values of a field the posts index counts (default 100, 1,000 while the module runs) |
 
 ## Testing
 
 - `vendor/bin/pest tests/Unit/Listings`: definitions, the URL codec, the facets' plan, cards, against the shared cases of `tests/fixtures/listings`.
 - `npm run test:js`: the browser's codec, plan and cards against the same cases; `path-cases.json`: the paths read and written, and the values' links, by both halves.
 - `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`); SEO rules, their CSV and preview (`SeoRulesTest`); languages, with Polylang or WPML set up by the demo's `scripts/languages-polylang.php` or `languages-wpml.php` (`ListingLanguagesTest`); facets in the path over HTTP: canonical forms, 301, 404, a child page, links (`PathFacetsTest`); each SEO plugin's `<head>` over HTTP (`SeoPluginsTest`, the plugins turned on in the site's options in turn).
-- `composer test:integration` also runs `ListingChecksTest`: the demo listings' counts against MySQL in every language, their URLs over HTTP, and the checks a listing declared by the test trips.
+- `composer test:integration` also runs `ListingFacetsTest` (author facets against MySQL, the search field), `ListingSitemapTest` (the views listed, each SEO plugin's sitemap index over HTTP) and `ListingChecksTest`: the demo listings' counts against MySQL in every language, their URLs over HTTP, and the checks a listing declared by the test trips.
 - `vendor/bin/pest tests/Unit/Listings/SeoPolicyTest.php tests/Unit/Listings/RuleKeyTest.php`: the indexing decision, the rules' variables and keys, the adapters' robots.

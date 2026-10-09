@@ -498,7 +498,18 @@ const ListingCard = ( { listing, languages } ) => {
 										<td>
 											<code>{ facet.source }</code>
 										</td>
-										<td>{ facetType( facet ) }</td>
+										<td>
+											{ facetType( facet ) }
+											{ facet.search && (
+												<span className="ms-table__muted">
+													{ ' · ' }
+													{ __(
+														'with a search',
+														'meiliscout'
+													) }
+												</span>
+											) }
+										</td>
 										<td>
 											{ Object.keys( facet.path ?? {} )
 												.length ? (
@@ -577,7 +588,7 @@ const Listings = () => {
 						{ __( 'Check again', 'meiliscout' ) }
 					</button>
 				</div>
-				<div className="ms-stats">
+				<div className="ms-stats ms-stats--four">
 					<div className="ms-stat">
 						<span className="ms-stat__label">
 							{ __( 'Listings', 'meiliscout' ) }
@@ -604,6 +615,29 @@ const Listings = () => {
 						</span>
 						<span className="ms-stat__value ms-stat__value--small">
 							{ data.seo_adapter }
+						</span>
+					</div>
+					<div className="ms-stat">
+						<span className="ms-stat__label">
+							{ __( 'Sitemap', 'meiliscout' ) }
+						</span>
+						<span className="ms-stat__value ms-stat__value--small">
+							<a
+								href={ data.sitemap.url }
+								target="_blank"
+								rel="noreferrer"
+							>
+								{ sprintf(
+									/* translators: %d: number of views */
+									_n(
+										'%d view',
+										'%d views',
+										data.sitemap.views,
+										'meiliscout'
+									),
+									data.sitemap.views
+								) }
+							</a>
 						</span>
 					</div>
 				</div>

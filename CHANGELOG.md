@@ -19,6 +19,11 @@
 - **Facets in the path** (`'path' => 'type'`: `/projects/type-refonte/`), without rewrite rules; 301 to the canonical form, 404 on a value that is no term. An OR facet's value shows what it adds to the selection (`+3`).
 - **Languages:** Polylang and WPML. A listing's page, posts, counts and terms in each language, path prefixes per language, the language switcher and `hreflang` on indexable views, SEO rules copied to translations.
 - **MeiliScout › Listings:** each declared listing, from PHP or a block, with its address in each language, facets, prefixes, parameters, its checks (indexed sources, a route without translation, a post hiding a view of a prefix, terms of several languages sharing a slug, reserved parameters, two listings on one page) and its counts compared with MySQL. `wp meiliscout check-listings` runs them, and asks each listing's URLs over HTTP (200, 301, 404, fragment); `wp meiliscout bench-listings` times a listing's page, fragment and counts.
+- **Author facets** (`'source' => 'author'`): the posts' authors, by slug in the URL, counted on `post_author`; in the editor too.
+- **A facet's search field** (`'search' => true`): typing narrows a long list's values, in the browser.
+- **Sitemap:** the indexable views (each term of a facet of the path, the views of two facets an SEO rule names) in the sitemap of WordPress, Yoast SEO, Rank Math, SEOPress or All in One SEO, and at `/meiliscout-listings-sitemap.xml`.
+- While the module runs, the posts index counts 1,000 values per facet instead of 100 (`meiliscout/post/max_values_per_facet`): a facet with more values offered only the first 100.
+- The Facet block's settings offered no taxonomy on WordPress 6.9 (the listing block around it was not found).
 - **Accessibility:** after a page link, the focus goes to the results, named after their page (*Results, page 2 of 12*), scrolled into view; a value's link leaves the tab order once its box is the control.
 
 ### Upgrading
