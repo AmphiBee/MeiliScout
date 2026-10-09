@@ -114,16 +114,19 @@ class IndexCommand
 
             $shouldClear = $clearIndices && $i === 0;
 
-            $clearFlag = $shouldClear ? '--clear' : '';
+            $clearFlag = $shouldClear ? ' --clear' : '';
             $command = sprintf(
-                'wp meiliscout index-chunk --offset=%d --limit=%d %s',
+                'meiliscout index-chunk --offset=%d --limit=%d%s',
                 $offset,
                 $chunkSize,
                 $clearFlag
             );
 
-            WP_CLI::log("Launching: {$command}");
-            $result = WP_CLI::launch($command, false, true);
+            WP_CLI::log("Launching: wp {$command}");
+            // A process of its own (memory), given this run's global parameters:
+            // --path, --url... (a bare `wp` launched outside the WordPress
+            // directory finds no installation)
+            $result = WP_CLI::runcommand($command, ['launch' => true, 'exit_error' => false, 'return' => 'all']);
 
             if ($result->return_code !== 0) {
                 WP_CLI::error("Chunk {$currentChunk} failed: " . $result->stderr);
