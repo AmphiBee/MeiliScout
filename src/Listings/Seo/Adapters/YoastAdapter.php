@@ -32,6 +32,8 @@ final class YoastAdapter extends Adapter
         add_filter('wpseo_metadesc', fn ($description) => $this->ruleOr($description, 'description'), 20);
         add_filter('wpseo_opengraph_desc', fn ($description) => $this->ruleOr($description, 'description'), 20);
         add_filter('wpseo_schema_graph', [$this, 'joinGraph'], 20);
+        // Its breadcrumb, HTML and BreadcrumbList: the facets of the path after the page
+        add_filter('wpseo_breadcrumb_links', [$this, 'breadcrumb'], 20);
     }
 
     /**
@@ -68,6 +70,22 @@ final class YoastAdapter extends Adapter
         }
 
         return $presentation;
+    }
+
+    /**
+     * @param  mixed  $links  [['url' => ..., 'text' => ...] or ['id' => ...], ...]
+     */
+    public function breadcrumb(mixed $links): mixed
+    {
+        if (! is_array($links)) {
+            return $links;
+        }
+
+        foreach ($this->view()->crumbs ?? [] as $crumb) {
+            $links[] = ['url' => $crumb['url'], 'text' => $crumb['name']];
+        }
+
+        return $links;
     }
 
     public function url(mixed $url): mixed

@@ -3,7 +3,8 @@
  * Listings\State\UrlCodec, written the same way (tests/fixtures/listings/url-cases.json).
  *
  * The template (PlanTemplate) gives the facets in order, their parameter,
- * type and decimals, and the sort and search parameters.
+ * path prefix, type and decimals, and the sort and search parameters.
+ * Facets in the path: tests/fixtures/listings/path-cases.json.
  */
 
 /**
@@ -275,6 +276,23 @@ export const parse = ( template, query, page = 1 ) => {
 };
 
 /**
+ * A list's values as the URL writes them: each one encoded, joined by bare commas.
+ *
+ * @param {Object}   facet
+ * @param {string[]} values
+ * @return {string} The values.
+ */
+const encodeValues = ( facet, values ) =>
+	values
+		.map( ( v ) =>
+			rawurlencode(
+				// A slug as WordPress stores it: %d0%bf for п
+				facet.taxonomy ? decode( v.replace( /\+/g, '%2B' ) ) : v
+			)
+		)
+		.join( ',' );
+
+/**
  * The canonical query string of a state, without ?.
  *
  * @param {Object} template
@@ -285,6 +303,9 @@ export const queryString = ( template, state ) => {
 	const pairs = [];
 
 	for ( const facet of template.facets ) {
+		if ( facet.path ) {
+			continue;
+		}
 		if ( facet.type === 'range' ) {
 			const range = state.ranges[ facet.key ];
 			if (
@@ -310,20 +331,7 @@ export const queryString = ( template, state ) => {
 			pairs.push( facet.param + '=1' );
 			continue;
 		}
-		pairs.push(
-			facet.param +
-				'=' +
-				values
-					.map( ( v ) =>
-						rawurlencode(
-							// A slug as WordPress stores it: %d0%bf for п
-							facet.taxonomy
-								? decode( v.replace( /\+/g, '%2B' ) )
-								: v
-						)
-					)
-					.join( ',' )
-		);
+		pairs.push( facet.param + '=' + encodeValues( facet, values ) );
 	}
 
 	if ( state.sort && state.sort !== template.defaultSort ) {
@@ -337,6 +345,23 @@ export const queryString = ( template, state ) => {
 };
 
 /**
+ * The path segments of a state's facets in the path: {prefix}-{a},{b}.
+ *
+ * @param {Object} template
+ * @param {Object} state
+ * @return {string[]} The segments.
+ */
+export const pathSegments = ( template, state ) =>
+	template.facets
+		.filter( ( facet ) => facet.path && state.values[ facet.key ]?.length )
+		.map(
+			( facet ) =>
+				facet.path +
+				'-' +
+				encodeValues( facet, state.values[ facet.key ] )
+		);
+
+/**
  * The URL of a state on a listing whose first page is base (pretty permalinks).
  *
  * @param {Object} template
@@ -346,9 +371,196 @@ export const queryString = ( template, state ) => {
  */
 export const url = ( template, state, base ) => {
 	let path = base.split( '?' )[ 0 ];
+	const segments = pathSegments( template, state );
+	if ( segments.length ) {
+		path = path.replace( /\/?$/, '/' ) + segments.join( '/' ) + '/';
+	}
 	if ( state.page > 1 ) {
 		path = path.replace( /\/?$/, '/' ) + 'page/' + state.page + '/';
 	}
 	const query = queryString( template, state );
 	return query ? path + '?' + query : path;
+};
+
+/**
+ * As PHP's rawurldecode(): + stays a plus.
+ *
+ * @param {string} part
+ * @return {string} The decoded part.
+ */
+const rawurldecode = ( part ) => decode( part.replace( /\+/g, '%2B' ) );
+
+/**
+ * Whether a path segment (decoded) is one of the listing's facets.
+ *
+ * @param {Object} template
+ * @param {string} segment
+ * @return {Array|null} [ key, values ], or null.
+ */
+export const pathSegment = ( template, segment ) => {
+	for ( const facet of template.facets ) {
+		const prefix = facet.path ? facet.path + '-' : null;
+		if (
+			! prefix ||
+			segment.slice( 0, prefix.length ).toLowerCase() !== prefix
+		) {
+			continue;
+		}
+		const values = segment
+			.slice( prefix.length )
+			.split( ',' )
+			.map( sanitizeTitle )
+			.filter( ( v ) => v !== '' );
+
+		return values.length ? [ facet.key, values ] : null;
+	}
+	return null;
+};
+
+/**
+ * The state a URL asks for, on a listing whose first page is base: the
+ * facets of the path after it, then the query string; null when the path is
+ * not the base followed by facet segments and a page.
+ *
+ * @param {Object} template
+ * @param {string} pathname
+ * @param {string} query    Without ?.
+ * @param {string} base
+ * @return {Object|null} The state.
+ */
+export const parseUrl = ( template, pathname, query, base ) => {
+	const basePath = new URL( base, 'http://localhost' ).pathname.replace(
+		/\/+$/,
+		''
+	);
+	const path = pathname.replace( /\/+$/, '' );
+
+	if ( path !== basePath && ! path.startsWith( basePath + '/' ) ) {
+		return null;
+	}
+
+	const segments = path
+		.slice( basePath.length )
+		.split( '/' )
+		.filter( ( segment ) => segment !== '' );
+	const fromPath = {};
+	let page = 1;
+
+	for ( let i = 0; i < segments.length; i++ ) {
+		if ( segments[ i ] === 'page' && /^\d+$/.test( segments[ i + 1 ] ) ) {
+			page = Math.max( 1, Number( segments[ ++i ] ) );
+			continue;
+		}
+		const matched = pathSegment( template, rawurldecode( segments[ i ] ) );
+		if ( ! matched ) {
+			return null;
+		}
+		fromPath[ matched[ 0 ] ] = [
+			...( fromPath[ matched[ 0 ] ] || [] ),
+			...matched[ 1 ],
+		];
+	}
+
+	const state = parse( template, query, page );
+	const values = {};
+	for ( const facet of template.facets ) {
+		const merged = [
+			...( state.values[ facet.key ] || [] ),
+			...( fromPath[ facet.key ] || [] ),
+		];
+		if ( merged.length ) {
+			values[ facet.key ] = [ ...new Set( merged ) ].sort( byteCompare );
+		}
+	}
+
+	return { ...state, values };
+};
+
+/**
+ * Why a state may not be indexed (SeoPolicy::reason()), null when it may.
+ *
+ * @param {Object} template
+ * @param {Object} state
+ * @param {number} total
+ * @return {string|null} The reason.
+ */
+export const seoReason = ( template, state, total ) => {
+	let elsewhere = Object.values( state.ranges ).some(
+		( range ) => Object.keys( range ).length
+	);
+	const inPath = [];
+
+	for ( const facet of template.facets ) {
+		const count = ( state.values[ facet.key ] || [] ).length;
+		if ( ! count ) {
+			continue;
+		}
+		if ( facet.path ) {
+			inPath.push( count );
+		} else {
+			elsewhere = true;
+		}
+	}
+
+	if ( state.search ) {
+		return 'search';
+	}
+	if ( elsewhere ) {
+		return 'filters';
+	}
+	if ( state.sort && state.sort !== template.defaultSort ) {
+		return 'sort';
+	}
+	if ( Math.max( 0, ...inPath ) > 1 ) {
+		return 'values';
+	}
+	if ( inPath.length > template.seo.maxDepth ) {
+		return 'depth';
+	}
+	if ( total === 0 ) {
+		return 'empty';
+	}
+	if ( inPath.length && total < template.seo.minResults ) {
+		return 'few';
+	}
+	return null;
+};
+
+/**
+ * The state a facet's value leads to when it may be indexed: its value is
+ * then a link (SeoPolicy::linkTarget(), design §8.5). The value toggled.
+ *
+ * @param {Object} template
+ * @param {Object} state
+ * @param {string} key      The facet's key.
+ * @param {string} value
+ * @param {number} count    The value's count: the results of the view it adds.
+ * @return {Object|null} The state, or null.
+ */
+export const linkTarget = ( template, state, key, value, count ) => {
+	const facet = template.facets.find( ( item ) => item.key === key );
+	if ( ! facet?.path || ! template.seo ) {
+		return null;
+	}
+
+	const current = state.values[ key ] || [];
+	const selected = current.includes( value );
+	const values = { ...state.values };
+	values[ key ] = (
+		selected
+			? current.filter( ( v ) => v !== value )
+			: [ ...current, value ]
+	).sort( byteCompare );
+	if ( ! values[ key ].length ) {
+		delete values[ key ];
+	}
+
+	const target = { ...state, values, page: 1 };
+	const reason = seoReason(
+		template,
+		target,
+		selected ? Math.max( 1, count ) : count
+	);
+
+	return reason === null || ( selected && reason === 'few' ) ? target : null;
 };

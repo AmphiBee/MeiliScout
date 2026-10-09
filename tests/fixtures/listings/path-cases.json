@@ -1,0 +1,451 @@
+{
+	"about": "Facets in the path (design §4): the requests both halves read (UrlCodec::fromRequest(), codec.js parseUrl()), the URL each state writes, the canonical URL the server redirects to, and the links of facet values (SeoPolicy::linkTarget(), codec.js linkTarget()). The definition is definition.json with the paths below.",
+	"paths": {
+		"category": "rubrique",
+		"tag": "sujet"
+	},
+	"seo": {
+		"maxDepth": 2,
+		"minResults": 3
+	},
+	"base": "https://example.test/blog/",
+	"cases": [
+		{
+			"name": "the listing's first page",
+			"path": "/blog/",
+			"query": "",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/",
+			"redirect": null
+		},
+		{
+			"name": "one facet in the path",
+			"path": "/blog/rubrique-news/",
+			"query": "",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news/",
+			"redirect": null
+		},
+		{
+			"name": "two facets and a page",
+			"path": "/blog/rubrique-news/sujet-php/page/2/",
+			"query": "",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					],
+					"tag": [
+						"php"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 2,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news/sujet-php/page/2/",
+			"redirect": null
+		},
+		{
+			"name": "facets out of order",
+			"path": "/blog/sujet-php/rubrique-news/",
+			"query": "",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					],
+					"tag": [
+						"php"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news/sujet-php/",
+			"redirect": "https://example.test/blog/rubrique-news/sujet-php/"
+		},
+		{
+			"name": "the page before the facets",
+			"path": "/blog/page/2/rubrique-news/",
+			"query": "",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 2,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news/page/2/",
+			"redirect": "https://example.test/blog/rubrique-news/page/2/"
+		},
+		{
+			"name": "values sorted, unique, in lowercase",
+			"path": "/blog/rubrique-travel,News,news/",
+			"query": "",
+			"state": {
+				"values": {
+					"category": [
+						"news",
+						"travel"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news,travel/",
+			"redirect": "https://example.test/blog/rubrique-news,travel/"
+		},
+		{
+			"name": "a prefix in capitals",
+			"path": "/blog/RUBRIQUE-news/",
+			"query": "",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news/",
+			"redirect": "https://example.test/blog/rubrique-news/"
+		},
+		{
+			"name": "a facet of the path sent as a parameter",
+			"path": "/blog/",
+			"query": "categorie=news&color=red",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					],
+					"color": [
+						"red"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news/?color=red",
+			"redirect": "https://example.test/blog/rubrique-news/?color=red"
+		},
+		{
+			"name": "the path and a parameter merged",
+			"path": "/blog/rubrique-news/",
+			"query": "categorie=travel",
+			"state": {
+				"values": {
+					"category": [
+						"news",
+						"travel"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news,travel/",
+			"redirect": "https://example.test/blog/rubrique-news,travel/"
+		},
+		{
+			"name": "other parameters kept, already canonical",
+			"path": "/blog/rubrique-news/",
+			"query": "utm_source=x&sort=title",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "title",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news/?sort=title",
+			"redirect": null
+		},
+		{
+			"name": "parameters in another order",
+			"path": "/blog/rubrique-news/",
+			"query": "sort=title&color=red",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					],
+					"color": [
+						"red"
+					]
+				},
+				"ranges": {},
+				"sort": "title",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-news/?color=red&sort=title",
+			"redirect": "https://example.test/blog/rubrique-news/?color=red&sort=title"
+		},
+		{
+			"name": "a term in another script",
+			"path": "/blog/rubrique-%D0%BF%D1%80%D0%B8/",
+			"query": "",
+			"state": {
+				"values": {
+					"category": [
+						"%d0%bf%d1%80%d0%b8"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"url": "https://example.test/blog/rubrique-%D0%BF%D1%80%D0%B8/",
+			"redirect": null
+		},
+		{
+			"name": "another page of the site",
+			"path": "/other/",
+			"query": "",
+			"state": null,
+			"url": null,
+			"redirect": null
+		},
+		{
+			"name": "a page whose path starts like the base",
+			"path": "/blogger/",
+			"query": "",
+			"state": null,
+			"url": null,
+			"redirect": null
+		},
+		{
+			"name": "a segment that is no facet",
+			"path": "/blog/archive-2026/",
+			"query": "",
+			"state": null,
+			"url": null,
+			"redirect": null
+		},
+		{
+			"name": "a facet without values",
+			"path": "/blog/rubrique-/",
+			"query": "",
+			"state": null,
+			"url": null,
+			"redirect": null
+		}
+	],
+	"links": [
+		{
+			"name": "a value from the first page",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "category",
+			"value": "news",
+			"count": 5,
+			"url": "https://example.test/blog/rubrique-news/"
+		},
+		{
+			"name": "too few results",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "category",
+			"value": "news",
+			"count": 2,
+			"url": null
+		},
+		{
+			"name": "a second facet",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "tag",
+			"value": "php",
+			"count": 4,
+			"url": "https://example.test/blog/rubrique-news/sujet-php/"
+		},
+		{
+			"name": "a second value of a facet",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "category",
+			"value": "travel",
+			"count": 9,
+			"url": null
+		},
+		{
+			"name": "a selected value: back to the view without it",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "category",
+			"value": "news",
+			"count": 0,
+			"url": "https://example.test/blog/"
+		},
+		{
+			"name": "a selected value of two facets",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					],
+					"tag": [
+						"php"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "tag",
+			"value": "php",
+			"count": 0,
+			"url": "https://example.test/blog/rubrique-news/"
+		},
+		{
+			"name": "a facet out of the path",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "color",
+			"value": "red",
+			"count": 9,
+			"url": null
+		},
+		{
+			"name": "with a search",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": "x"
+			},
+			"facet": "category",
+			"value": "news",
+			"count": 9,
+			"url": null
+		},
+		{
+			"name": "with a filter out of the path",
+			"state": {
+				"values": {
+					"color": [
+						"red"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "category",
+			"value": "news",
+			"count": 9,
+			"url": null
+		},
+		{
+			"name": "with another sort",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "title",
+				"page": 1,
+				"search": ""
+			},
+			"facet": "category",
+			"value": "news",
+			"count": 9,
+			"url": null
+		},
+		{
+			"name": "on page 3: the link goes to the first page",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 3,
+				"search": ""
+			},
+			"facet": "category",
+			"value": "news",
+			"count": 9,
+			"url": "https://example.test/blog/rubrique-news/"
+		}
+	]
+}

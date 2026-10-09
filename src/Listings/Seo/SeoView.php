@@ -19,6 +19,7 @@ final class SeoView
      * @param  'search'|'filters'|'sort'|'empty'|null  $reason  Why it is not indexable
      * @param  string|null  $canonical  Its own URL when indexable, none otherwise
      * @param  list<array{question: string, answer: string}>  $faq
+     * @param  list<array{name: string, url: string}>  $crumbs  The facets of the path, one crumb each, after the listing's page
      */
     public function __construct(
         public readonly string $listing,
@@ -39,6 +40,7 @@ final class SeoView
         public readonly string $intro = '',
         public readonly array $faq = [],
         public readonly ?SeoRule $rule = null,
+        public readonly array $crumbs = [],
     ) {}
 
     /**
@@ -96,6 +98,7 @@ final class SeoView
             'intro' => $this->intro,
             'faq' => $this->faq,
             'rule' => $this->rule?->id,
+            'crumbs' => $this->crumbs,
         ];
     }
 }

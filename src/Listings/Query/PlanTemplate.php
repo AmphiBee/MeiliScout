@@ -21,7 +21,7 @@ use Pollora\MeiliScout\Services\IndexNames;
  */
 final class PlanTemplate
 {
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     /**
      * @param  array<string, list<array{value: string, id: string, label: string, depth: int, parent: string}>>  $values  Each facet's values
@@ -37,6 +37,8 @@ final class PlanTemplate
                 $entry = [
                     'key' => $facet->key,
                     'param' => $facet->param,
+                    // Its prefix in the URL's path, null for a parameter
+                    'path' => $facet->path,
                     'label' => $facet->label,
                     'type' => $facet->type,
                     'logic' => $facet->logic,
@@ -81,6 +83,8 @@ final class PlanTemplate
             'defaultSort' => $definition->defaultSort,
             'sortParam' => $definition->sortParam,
             'searchParam' => $definition->searchParam,
+            // Which views may be indexed: their values are links (design §8.5)
+            'seo' => $definition->seo ? ['maxDepth' => $definition->seoMaxDepth, 'minResults' => $definition->seoMinResults] : null,
             'sorts' => FacetPlan::sorts($definition),
             // The client transport's results (FacetPlan::results())
             'fields' => Hits::fields($definition),

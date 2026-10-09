@@ -10,7 +10,7 @@ use Pollora\MeiliScout\Listings\Query\ListingResult;
  * The structured data of an indexable view (design §8.4): an ItemList of its
  * results, the questions of its rule (FAQPage) and, when the SEO plugin has
  * no graph of its own, a breadcrumb (the site, the listing's page and its
- * ancestors; facets in the path will add theirs). Joined to Yoast's, Rank
+ * ancestors, the facets in the path). Joined to Yoast's, Rank
  * Math's and All in One SEO's graphs, printed alone otherwise.
  */
 final class StructuredData
@@ -105,6 +105,7 @@ final class StructuredData
         }
 
         $crumbs[] = ['name' => SeoPolicy::baseTitle($definition), 'url' => $view->base];
+        array_push($crumbs, ...$view->crumbs);
 
         $items = [];
         foreach ($crumbs as $i => $crumb) {

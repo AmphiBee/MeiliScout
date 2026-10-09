@@ -21,6 +21,7 @@ final class FacetDefinition
      * @param  'list'|'range'|'boolean'  $type
      * @param  'or'|'and'  $logic  How the values of a list combine
      * @param  array<string, string>  $labels  Meta values' labels, by value
+     * @param  string|null  $path  Its prefix in the URL's path ({prefix}-{a},{b}), null when it is a parameter
      */
     public function __construct(
         public readonly string $key,
@@ -35,7 +36,16 @@ final class FacetDefinition
         public readonly int $limit,
         public readonly int $decimals,
         public readonly string $booleanValue,
+        public readonly ?string $path = null,
     ) {}
+
+    /**
+     * Its values go in the URL's path rather than its query string.
+     */
+    public function inPath(): bool
+    {
+        return $this->path !== null;
+    }
 
     public function isTaxonomy(): bool
     {

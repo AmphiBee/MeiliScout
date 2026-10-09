@@ -10,8 +10,10 @@ use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
 /**
  * A listing's state to and from the URL: one canonical form per state.
  *
- *     /{base}/page/N/?{facet}={a},{b}&{range}={min}..{max}&{boolean}=1&sort={key}&q={search}
+ *     /{base}/{prefix}-{a},{b}/page/N/?{facet}={a},{b}&{range}={min}..{max}&{boolean}=1&sort={key}&q={search}
  *
+ * - Facets marked `path` as segments after the base, in the definition's
+ *   order, values written as in the query string; the others as parameters.
  * - Facets in the order of the definition, then the sort (left out when it is
  *   the default), then the search.
  * - A list's values unique, sorted by bytes, each one encoded as rawurlencode()
@@ -97,6 +99,10 @@ final class UrlCodec
         $pairs = [];
 
         foreach ($definition->facets as $facet) {
+            if ($facet->inPath()) {
+                continue;
+            }
+
             if ($facet->type === FacetDefinition::RANGE) {
                 $range = $state->rangeOf($facet->key);
                 if ($range !== []) {
@@ -117,8 +123,7 @@ final class UrlCodec
                 continue;
             }
 
-            $encoded = array_map(static fn (string $value) => rawurlencode($facet->isTaxonomy() ? rawurldecode($value) : $value), $values);
-            $pairs[] = $facet->param.'='.implode(',', $encoded);
+            $pairs[] = $facet->param.'='.self::encodedValues($facet, $values);
         }
 
         if ($state->sort !== '' && $state->sort !== $definition->defaultSort) {
@@ -141,6 +146,11 @@ final class UrlCodec
     {
         $base = strtok($base, '?') ?: $base;
 
+        $segments = self::pathSegments($definition, $state);
+        if ($segments !== []) {
+            $base = user_trailingslashit(trailingslashit($base).implode('/', $segments));
+        }
+
         if ($state->page > 1) {
             global $wp_rewrite;
 
@@ -159,10 +169,152 @@ final class UrlCodec
     }
 
     /**
+     * The path segments of a state's facets in the path: {prefix}-{a},{b}.
+     *
+     * @return list<string>
+     */
+    public static function pathSegments(ListingDefinition $definition, ListingState $state): array
+    {
+        $segments = [];
+
+        foreach ($definition->pathFacets() as $facet) {
+            $values = $state->valuesOf($facet->key);
+            if ($values !== []) {
+                $segments[] = $facet->path.'-'.self::encodedValues($facet, $values);
+            }
+        }
+
+        return $segments;
+    }
+
+    /**
+     * The state a request asks for, on a listing whose first page is $base:
+     * the facets of the path after it, then the query string. Null when the
+     * path is not the base followed by facet segments and a page.
+     */
+    public static function fromRequest(ListingDefinition $definition, string $path, string $query, string $base): ?ListingState
+    {
+        $basePath = rtrim((string) parse_url($base, PHP_URL_PATH), '/');
+        $path = rtrim($path, '/');
+
+        if ($path !== $basePath && ! str_starts_with($path, $basePath.'/')) {
+            return null;
+        }
+
+        $segments = array_values(array_filter(explode('/', substr($path, strlen($basePath))), fn ($segment) => $segment !== ''));
+        $page = 1;
+        $fromPath = [];
+
+        for ($i = 0; $i < count($segments); $i++) {
+            if ($segments[$i] === 'page' && isset($segments[$i + 1]) && ctype_digit($segments[$i + 1])) {
+                $page = max(1, (int) $segments[++$i]);
+
+                continue;
+            }
+
+            $matched = self::pathSegment($definition, rawurldecode($segments[$i]));
+            if ($matched === null) {
+                return null;
+            }
+
+            [$key, $values] = $matched;
+            $fromPath[$key] = array_merge($fromPath[$key] ?? [], $values);
+        }
+
+        $state = self::fromQueryString($definition, $query, $page);
+
+        if ($fromPath === []) {
+            return $state;
+        }
+
+        $values = $state->values;
+        foreach ($definition->pathFacets() as $facet) {
+            if (isset($fromPath[$facet->key])) {
+                $values[$facet->key] = self::sorted([...($values[$facet->key] ?? []), ...$fromPath[$facet->key]]);
+            }
+        }
+
+        // In the definition's order, as fromQueryString() writes them
+        $ordered = [];
+        foreach ($definition->facets as $facet) {
+            if (isset($values[$facet->key])) {
+                $ordered[$facet->key] = $values[$facet->key];
+            }
+        }
+
+        return new ListingState($ordered, $state->ranges, $state->sort, $state->page, $state->search);
+    }
+
+    /**
+     * Whether a path segment (decoded) is one of the listing's facets: its key and values.
+     *
+     * @return array{0: string, 1: list<string>}|null
+     */
+    public static function pathSegment(ListingDefinition $definition, string $segment): ?array
+    {
+        foreach ($definition->pathFacets() as $facet) {
+            $prefix = $facet->path.'-';
+            if (strncasecmp($segment, $prefix, strlen($prefix)) !== 0) {
+                continue;
+            }
+
+            $values = array_values(array_filter(array_map(
+                static fn (string $value) => sanitize_title($value),
+                explode(',', substr($segment, strlen($prefix)))
+            ), static fn (string $value) => $value !== ''));
+
+            return $values === [] ? null : [$facet->key, $values];
+        }
+
+        return null;
+    }
+
+    /**
+     * The canonical URL of a request on a listing whose first page is $base,
+     * its other parameters kept after the listing's; null when the request
+     * already is canonical, or not one of the listing's URLs.
+     */
+    public static function canonicalUrl(ListingDefinition $definition, string $path, string $query, string $base): ?string
+    {
+        $state = self::fromRequest($definition, $path, $query, $base);
+
+        if ($state === null) {
+            return null;
+        }
+
+        [$mine, $others] = self::split($definition, $query);
+        $canonical = self::url($definition, $state, $base, implode('&', $others));
+
+        $canonicalPath = (string) parse_url($canonical, PHP_URL_PATH);
+        $canonicalOwn = self::queryString($definition, $state);
+
+        return $canonicalPath === $path && $canonicalOwn === implode('&', $mine) ? null : $canonical;
+    }
+
+    /**
      * The request's query string with the listing's parameters in canonical
      * form, the others left as they came; null when it already is.
      */
     public static function canonicalQuery(ListingDefinition $definition, string $query): ?string
+    {
+        [$mine, $others] = self::split($definition, $query);
+
+        $state = self::fromQueryString($definition, $query);
+        $canonical = self::queryString($definition, $state);
+
+        if ($canonical === implode('&', $mine)) {
+            return null;
+        }
+
+        return implode('&', array_filter([$canonical, implode('&', $others)]));
+    }
+
+    /**
+     * A query string's pairs: the listing's, and the others, in the order they came.
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private static function split(ListingDefinition $definition, string $query): array
     {
         $own = [$definition->sortParam, $definition->searchParam];
         foreach ($definition->facets as $facet) {
@@ -180,14 +332,18 @@ final class UrlCodec
             in_array($name, $own, true) ? $mine[] = $pair : $others[] = $pair;
         }
 
-        $state = self::fromQueryString($definition, $query);
-        $canonical = self::queryString($definition, $state);
+        return [$mine, $others];
+    }
 
-        if ($canonical === implode('&', $mine)) {
-            return null;
-        }
-
-        return implode('&', array_filter([$canonical, implode('&', $others)]));
+    /**
+     * A list's values as the URL writes them: each one encoded, joined by bare
+     * commas; terms decoded first (a slug is stored encoded).
+     *
+     * @param  list<string>  $values
+     */
+    private static function encodedValues(FacetDefinition $facet, array $values): string
+    {
+        return implode(',', array_map(static fn (string $value) => rawurlencode($facet->isTaxonomy() ? rawurldecode($value) : $value), $values));
     }
 
     /**

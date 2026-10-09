@@ -372,6 +372,16 @@
 	content: none;
 }
 
+/* A value leading to an indexable view is a link (design §8.5): it reads as its label */
+.meiliscout-facet__text {
+	color: inherit;
+	text-decoration: none;
+}
+
+.meiliscout-facet__text[href]:hover {
+	text-decoration: underline;
+}
+
 /* Themes style every button: two classes keep this one a link */
 .meiliscout-facet .meiliscout-facet__more {
 	min-height: 0;

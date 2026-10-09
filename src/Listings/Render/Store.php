@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Listings\Render;
 
 use Pollora\MeiliScout\Listings\Query\ListingResult;
+use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
 use Pollora\MeiliScout\Listings\Transport\TenantTokens;
 
@@ -29,8 +30,16 @@ final class Store
         $facets = [];
         foreach ($definition->facets as $facet) {
             $range = $state->rangeOf($facet->key);
+            $options = $result->facets[$facet->key]['options'] ?? [];
+
+            // Design §8.5: a value leading to an indexable view is a link to it
+            foreach ($options as $i => $option) {
+                $target = SeoPolicy::linkTarget($definition, $state, $facet->key, $option['value'], $option['count']);
+                $options[$i]['url'] = $target === null ? null : UrlCodec::url($definition, $target, $base);
+            }
+
             $facets[$facet->key] = [
-                'options' => $result->facets[$facet->key]['options'] ?? [],
+                'options' => $options,
                 'stats' => $result->facets[$facet->key]['stats'] ?? null,
                 // Values past the facet's limit, unfolded
                 'expanded' => false,

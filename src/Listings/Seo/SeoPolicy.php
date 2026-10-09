@@ -74,7 +74,7 @@ final class SeoPolicy
             [$result, $base] = $run;
 
             if ($result->state->page > max(1, $result->pages())) {
-                self::notFound();
+                Listings::notFound();
 
                 return;
             }
@@ -129,7 +129,7 @@ final class SeoPolicy
             $vars[$facet] = $term->name;
         }
 
-        $view = self::evaluate($result, $base, $rule, $vars, (string) get_option('blog_public') !== '0');
+        $view = self::evaluate($result, $base, $rule, $vars, (string) get_option('blog_public') !== '0', self::crumbs($result, $base));
 
         /**
          * Filters the SEO view of a listing (indexable, canonical, robots,
@@ -149,7 +149,10 @@ final class SeoPolicy
      *
      * @param  array<string, string>  $vars  The rule's variables: site, title (the listing's page), sep, and each selected facet's term
      */
-    public static function evaluate(ListingResult $result, string $base, ?SeoRule $rule = null, array $vars = [], bool $blogPublic = true): SeoView
+    /**
+     * @param  list<array{name: string, url: string}>  $crumbs
+     */
+    public static function evaluate(ListingResult $result, string $base, ?SeoRule $rule = null, array $vars = [], bool $blogPublic = true, array $crumbs = []): SeoView
     {
         $definition = $result->definition;
         $state = $result->state;
@@ -191,23 +194,103 @@ final class SeoPolicy
             intro: $rule !== null && $page === 1 ? $render($rule->intro) : '',
             faq: $rule !== null && $page === 1 ? array_map(fn (array $pair) => ['question' => $render($pair['question']), 'answer' => $render($pair['answer'])], $rule->faq) : [],
             rule: $rule,
+            crumbs: $crumbs,
         );
     }
 
     /**
-     * Why a view is not indexable, null when it is.
+     * The crumbs of the facets in the path: each one's terms, at the view
+     * made of it and the facets before it.
      *
-     * @return 'search'|'filters'|'sort'|'empty'|null
+     * @return list<array{name: string, url: string}>
+     */
+    public static function crumbs(ListingResult $result, string $base): array
+    {
+        $definition = $result->definition;
+        $values = [];
+        $crumbs = [];
+
+        foreach ($definition->pathFacets() as $facet) {
+            $slugs = $result->state->valuesOf($facet->key);
+            if ($slugs === []) {
+                continue;
+            }
+
+            $values[$facet->key] = $slugs;
+            $names = array_map(function (string $slug) use ($facet): string {
+                $term = get_term_by('slug', $slug, $facet->name);
+
+                return $term instanceof \WP_Term ? html_entity_decode($term->name, ENT_QUOTES | ENT_HTML5, 'UTF-8') : $slug;
+            }, $slugs);
+
+            $crumbs[] = ['name' => implode(', ', $names), 'url' => UrlCodec::url($definition, new ListingState($values), $base)];
+        }
+
+        return $crumbs;
+    }
+
+    /**
+     * Why a view is not indexable, null when it is (decision 6): only facets
+     * of the path, one value each, at most the listing's depth of them, with
+     * enough results; nothing in the query string.
+     *
+     * @return 'search'|'filters'|'sort'|'values'|'depth'|'empty'|'few'|null
      */
     public static function reason(ListingDefinition $definition, ListingState $state, int $total): ?string
     {
+        $inPath = [];
+        $elsewhere = array_filter($state->ranges) !== [];
+
+        foreach ($definition->facets as $facet) {
+            $values = $state->valuesOf($facet->key);
+            if ($values === []) {
+                continue;
+            }
+            if ($facet->inPath()) {
+                $inPath[$facet->key] = count($values);
+            } else {
+                $elsewhere = true;
+            }
+        }
+
         return match (true) {
             $state->search !== '' => 'search',
-            array_filter($state->values) !== [] || array_filter($state->ranges) !== [] => 'filters',
+            $elsewhere => 'filters',
             $state->sort !== '' && $state->sort !== $definition->defaultSort => 'sort',
+            max([0, ...$inPath]) > 1 => 'values',
+            count($inPath) > $definition->seoMaxDepth => 'depth',
             $total === 0 => 'empty',
+            $inPath !== [] && $total < $definition->seoMinResults => 'few',
             default => null,
         };
+    }
+
+    /**
+     * The state a facet's value leads to, when that view is indexable-shaped
+     * (decision 6, design §8.5): its value is then a link, the others are not.
+     * The value toggled; null when the view it leads to may not be indexed.
+     *
+     * @param  int  $count  The value's count: the results of the view it adds
+     */
+    public static function linkTarget(ListingDefinition $definition, ListingState $state, string $facetKey, string $value, int $count): ?ListingState
+    {
+        $facet = $definition->facet($facetKey);
+
+        if ($facet === null || ! $facet->inPath() || ! $definition->seo) {
+            return null;
+        }
+
+        $values = $state->values;
+        $selected = in_array($value, $state->valuesOf($facetKey), true);
+        $values[$facetKey] = $selected ? array_values(array_diff($values[$facetKey], [$value])) : [...($values[$facetKey] ?? []), $value];
+        sort($values[$facetKey], SORT_STRING);
+        $values = array_filter($values);
+
+        $target = new ListingState($values, $state->ranges, $state->sort, 1, $state->search);
+        $reason = self::reason($definition, $target, $selected ? max(1, $count) : $count);
+
+        // Removing a value gives fewer filters: its results are not known, but more
+        return $reason === null || ($selected && $reason === 'few') ? $target : null;
     }
 
     /**
@@ -260,19 +343,5 @@ final class SeoPolicy
     {
         self::$current = null;
         self::$views = null;
-    }
-
-    /**
-     * A page past the last one: WordPress would answer 200 on a page's /page/N/
-     * and, once it is a 404, redirect_canonical() would send it to page 1.
-     */
-    private static function notFound(): void
-    {
-        global $wp_query;
-
-        remove_action('template_redirect', 'redirect_canonical');
-        $wp_query->set_404();
-        status_header(404);
-        nocache_headers();
     }
 }

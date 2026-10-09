@@ -18,7 +18,8 @@
 		"limit": { "type": "number", "default": 0 },
 		"decimals": { "type": "number", "default": 0 },
 		"key": { "type": "string", "default": "" },
-		"param": { "type": "string", "default": "" }
+		"param": { "type": "string", "default": "" },
+		"path": { "type": "string", "default": "" }
 	},
 	"supports": {
 		"html": false,

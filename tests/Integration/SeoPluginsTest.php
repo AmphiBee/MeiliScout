@@ -78,8 +78,9 @@ test('each SEO plugin is told the view: indexable pages with their canonical and
 
     $definition = DefinitionRegistry::get(SEO_LISTING);
     $base = Listings::baseUrl($definition);
-    $term = get_terms(['taxonomy' => 'project_type', 'number' => 1, 'hide_empty' => true, 'use_meilisearch' => false])[0];
-    $param = $definition->facet('type')->param ?? 'type';
+    // The most used term: a view of the path with enough results
+    $term = get_terms(['taxonomy' => 'project_type', 'number' => 1, 'hide_empty' => true, 'orderby' => 'count', 'order' => 'DESC', 'use_meilisearch' => false])[0];
+    $type = $definition->facet('type');
 
     $page2 = seoHead($base.'page/2/');
     expect($page2['status'])->toBe(200)
@@ -95,7 +96,8 @@ test('each SEO plugin is told the view: indexable pages with their canonical and
         ->and($page2['description'][0])->toMatch('/^The \d+ projects of the test\.$/')
         ->and($page2['types'])->toContain('ItemList');
 
-    $filtered = seoHead($base.'?'.$param.'='.$term->slug);
+    // A filter out of the path: a parameter
+    $filtered = seoHead($base.'?'.$definition->sortParam.'='.array_key_last($definition->sorts));
     expect($filtered['status'])->toBe(200)
         ->and($filtered['robots'])->toHaveCount(1)
         ->and($filtered['robots'][0])->toContain('noindex')
@@ -106,6 +108,16 @@ test('each SEO plugin is told the view: indexable pages with their canonical and
         ->and($filtered['types'])->not->toContain('ItemList');
 
     expect(seoHead($base.'page/999/')['status'])->toBe(404);
+
+    // Facets in the path (phase 5): a term is an indexable view, its breadcrumb ends with it
+    if ($type?->inPath()) {
+        $path = seoHead($base.$type->path.'-'.$term->slug.'/');
+
+        expect($path['status'])->toBe(200)
+            ->and($path['robots'][0])->not->toContain('noindex')
+            ->and($path['canonical'])->toBe([$base.$type->path.'-'.$term->slug.'/'])
+            ->and($path['types'])->toContain('ItemList');
+    }
 })->with([
     'WordPress alone' => [null],
     'Yoast SEO' => ['wordpress-seo/wp-seo.php'],
