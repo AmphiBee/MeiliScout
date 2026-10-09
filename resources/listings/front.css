@@ -36,6 +36,7 @@
 }
 
 @media (min-width: 782px) {
+
 	:where(.meiliscout-listing:has(> .meiliscout-listing__filters fieldset)) {
 		grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
 		align-items: start;
@@ -107,6 +108,7 @@
 :where(.meiliscout-facet__text) {
 	flex: 1;
 	min-width: 0;
+
 	/* Whole words: a narrow column wraps between them, not inside */
 	word-break: normal;
 	overflow-wrap: break-word;
@@ -338,7 +340,18 @@
 	outline-offset: 2px;
 }
 
+/* The results get the focus after a page link: shown to keyboard users only */
+:where(.meiliscout-listing__results):focus {
+	outline: none;
+}
+
+:where(.meiliscout-listing__results):focus-visible {
+	outline: 2px solid var(--meiliscout-accent);
+	outline-offset: 4px;
+}
+
 @media (prefers-reduced-motion: reduce) {
+
 	:where(.meiliscout-listing__results[aria-busy="true"]) {
 		transition: none;
 	}

@@ -529,7 +529,8 @@ final class BlockListings
             esc_attr($region),
             $html,
             esc_attr((string) wp_json_encode(['listing' => $id])),
-            $name === 'results' ? ' data-wp-bind--aria-busy="state.busy"' : ''
+            // Named after its page, focused after a page link (resources/listings/view.js focusResults())
+            $name === 'results' ? ' role="region" tabindex="-1" data-wp-bind--aria-label="state.resultsLabel" data-wp-bind--aria-busy="state.busy"' : ''
         );
     }
 

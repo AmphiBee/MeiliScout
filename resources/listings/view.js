@@ -101,6 +101,18 @@ const { state, actions } = store( NAMESPACE, {
 			const label = pluralLabel( labels, total );
 			return label.replace( '%d', String( total ) );
 		},
+		get resultsLabel() {
+			const { page, pages } = state.listings[ getContext().listing ];
+			return pages > 1
+				? state.i18n.resultsPage
+						.replace( '%1$d', String( page ) )
+						.replace( '%2$d', String( pages ) )
+				: state.i18n.results;
+		},
+		get linkTabindex() {
+			// The box ticks the value; its link stays for search engines and pages without JavaScript
+			return ready( state.listings[ getContext().listing ] ) ? -1 : null;
+		},
 		get hits() {
 			return state.listings[ getContext().listing ].hits || [];
 		},
@@ -345,7 +357,7 @@ const { state, actions } = store( NAMESPACE, {
 		 *
 		 * @param {MouseEvent} event
 		 */
-		navigate( event ) {
+		*navigate( event ) {
 			const { listing: id } = getContext();
 			const listing = state.listings[ id ];
 			const link = event.target.closest( 'a' );
@@ -365,12 +377,10 @@ const { state, actions } = store( NAMESPACE, {
 			const page = Number(
 				( target.pathname.match( /\/page\/(\d+)\/?$/ ) || [] )[ 1 ] || 1
 			);
-			return actions.update(
-				id,
-				{ ...current( listing ), page },
-				'push',
-				{ counts: false }
-			);
+			yield actions.update( id, { ...current( listing ), page }, 'push', {
+				counts: false,
+			} );
+			focusResults( id );
 		},
 
 		/**
@@ -459,6 +469,8 @@ const { state, actions } = store( NAMESPACE, {
 				yield router.navigate( target, {
 					html: withStyles( html ),
 					replace: history === 'replace',
+					// The total (a live region) or the results' region, focused, say what changed
+					screenReaderAnnouncement: false,
 				} );
 
 				moveTo( listing, next );
@@ -573,6 +585,26 @@ function rangeLabel( min, max ) {
  * @param {Object} listing
  * @return {boolean} Whether the client can move this listing.
  */
+/**
+ * After a page link: the focus on the new page of results, scrolled into view
+ * when its top went past the screen's. The link clicked is gone with the
+ * region it was in.
+ *
+ * @param {string} id
+ */
+function focusResults( id ) {
+	const region = document.getElementById(
+		`meiliscout-listing-${ id }-results`
+	);
+	if ( ! region ) {
+		return;
+	}
+	region.focus( { preventScroll: true } );
+	if ( region.getBoundingClientRect().top < 0 ) {
+		region.scrollIntoView( { block: 'start' } );
+	}
+}
+
 function ready( listing ) {
 	return Boolean( listing.template ) && listing.transport !== 'page';
 }
