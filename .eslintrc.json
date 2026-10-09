@@ -4,12 +4,28 @@
 		"plugin:@wordpress/eslint-plugin/recommended"
 	],
 	"rules": {
-		"jsx-a11y/label-has-associated-control": [ "error", { "assert": "either", "depth": 3 } ]
+		"jsx-a11y/label-has-associated-control": [
+			"error",
+			{
+				"assert": "either",
+				"depth": 3
+			}
+		]
 	},
 	"settings": {
 		"import/core-modules": [
 			"@wordpress/interactivity",
 			"@wordpress/interactivity-router"
 		]
-	}
+	},
+	"overrides": [
+		{
+			"files": [
+				"resources/**/test/*.js"
+			],
+			"extends": [
+				"plugin:@wordpress/eslint-plugin/test-unit"
+			]
+		}
+	]
 }

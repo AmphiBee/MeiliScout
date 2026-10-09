@@ -1,0 +1,455 @@
+{
+    "about": "FacetPlan::counts() (PHP) and resources/listings/plan.js counts() (JS) on the listing of definition.json, from the template the client gets (terms' clauses as TaxQueryBuilder writes them for these ids; meta clauses and bounds checked against the builders). No base filter: the tenant token adds it. indexUid stands for the posts index.",
+    "template": {
+        "index": "posts",
+        "facets": [
+            {
+                "key": "category",
+                "type": "list",
+                "logic": "or",
+                "field": "taxonomies.category.tree",
+                "decimals": 0,
+                "values": {
+                    "news": {
+                        "id": "3",
+                        "clause": "(taxonomies.category.tree IN [3])"
+                    },
+                    "travel": {
+                        "id": "7",
+                        "clause": "(taxonomies.category.tree IN [7])"
+                    },
+                    "europe": {
+                        "id": "8",
+                        "clause": "(taxonomies.category.tree IN [8])"
+                    }
+                }
+            },
+            {
+                "key": "tag",
+                "type": "list",
+                "logic": "and",
+                "field": "taxonomies.post_tag.term_id",
+                "decimals": 0,
+                "values": {
+                    "a": {
+                        "id": "21",
+                        "clause": "(taxonomies.post_tag.slug IN ['a'])"
+                    },
+                    "b": {
+                        "id": "22",
+                        "clause": "(taxonomies.post_tag.slug IN ['b'])"
+                    }
+                }
+            },
+            {
+                "key": "color",
+                "type": "list",
+                "logic": "or",
+                "field": "metas.color",
+                "decimals": 0,
+                "values": {
+                    "red": {
+                        "id": "red",
+                        "clause": "(metas.color = 'red')"
+                    },
+                    "green": {
+                        "id": "green",
+                        "clause": "(metas.color = 'green')"
+                    },
+                    "red,blue": {
+                        "id": "red,blue",
+                        "clause": "(metas.color = 'red,blue')"
+                    },
+                    "it's": {
+                        "id": "it's",
+                        "clause": "(metas.color = 'it\\'s')"
+                    }
+                }
+            },
+            {
+                "key": "price",
+                "type": "range",
+                "logic": "or",
+                "field": "metas.price",
+                "decimals": 2,
+                "values": {},
+                "bounds": {
+                    "min": "(metas.price >= {n})",
+                    "max": "(metas.price <= {n})"
+                }
+            },
+            {
+                "key": "featured",
+                "type": "boolean",
+                "logic": "or",
+                "field": "metas.featured",
+                "decimals": 0,
+                "values": {
+                    "1": {
+                        "id": "1",
+                        "clause": "(metas.featured = 1)"
+                    }
+                }
+            }
+        ]
+    },
+    "cases": [
+        {
+            "name": "nothing selected: one search counts every facet",
+            "state": {
+                "values": {},
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "one value of an OR facet: its counts ignore it",
+            "state": {
+                "values": {
+                    "category": [
+                        "news"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "(taxonomies.category.tree IN [3])",
+                    "facets": [
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "two values of an OR facet: joined by OR",
+            "state": {
+                "values": {
+                    "category": [
+                        "news",
+                        "travel"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "((taxonomies.category.tree IN [3]) OR (taxonomies.category.tree IN [7]))",
+                    "facets": [
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "two values of an AND facet: joined by AND, counted with the rest",
+            "state": {
+                "values": {
+                    "tag": [
+                        "a",
+                        "b"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "((taxonomies.post_tag.slug IN ['a']) AND (taxonomies.post_tag.slug IN ['b']))",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "a quote in a meta value, as the builders escape it",
+            "state": {
+                "values": {
+                    "color": [
+                        "it's",
+                        "red,blue"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "((metas.color = 'it\\'s') OR (metas.color = 'red,blue'))",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "metas.color"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "a range open on one side",
+            "state": {
+                "values": {},
+                "ranges": {
+                    "price": {
+                        "min": 10
+                    }
+                },
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "(metas.price >= 10)",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "metas.price"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "a range: its bounds ignore it",
+            "state": {
+                "values": {},
+                "ranges": {
+                    "price": {
+                        "min": 10,
+                        "max": 20.5
+                    }
+                },
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "((metas.price >= 10) AND (metas.price <= 20.5))",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "metas.price"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "a boolean, counted with the rest",
+            "state": {
+                "values": {
+                    "featured": [
+                        "1"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "(metas.featured = 1)",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "a search goes in every search",
+            "state": {
+                "values": {
+                    "color": [
+                        "red"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": "road trip"
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "q": "road trip",
+                    "filter": "(metas.color = 'red')",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "road trip",
+                    "facets": [
+                        "metas.color"
+                    ],
+                    "limit": 0
+                }
+            ]
+        },
+        {
+            "name": "everything at once",
+            "state": {
+                "values": {
+                    "category": [
+                        "europe",
+                        "news"
+                    ],
+                    "tag": [
+                        "a"
+                    ],
+                    "color": [
+                        "green",
+                        "red"
+                    ],
+                    "featured": [
+                        "1"
+                    ]
+                },
+                "ranges": {
+                    "price": {
+                        "max": 99.99
+                    }
+                },
+                "sort": "",
+                "page": 1,
+                "search": "x"
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.price <= 99.99) AND (metas.featured = 1)",
+                    "facets": [
+                        "taxonomies.post_tag.term_id",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "(taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.price <= 99.99) AND (metas.featured = 1)",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND (metas.price <= 99.99) AND (metas.featured = 1)",
+                    "facets": [
+                        "metas.color"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.featured = 1)",
+                    "facets": [
+                        "metas.price"
+                    ],
+                    "limit": 0
+                }
+            ]
+        }
+    ]
+}
