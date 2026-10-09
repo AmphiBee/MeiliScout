@@ -4,7 +4,7 @@ Filterable listings of posts on the front end: facets with their counts, sorts, 
 
 The module is **off by default** and needs **WordPress 6.9** (the Interactivity API's router). It loads no script or style on a page without a listing.
 
-> Phases 1 to 6 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO with or without an SEO plugin, SEO rules, facets in the path, and languages (Polylang, WPML).
+Listings are declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO is written with or without an SEO plugin, with rules per view; facets may go in the path; Polylang and WPML are supported. The design behind it: `docs/plans/2026-10-front-listings-design.md`.
 
 ## Turning it on
 
@@ -15,7 +15,7 @@ Settings › Listings:
 - **Listings key**: the key the tokens are signed with, and a button to replace it (see [Tokens](#tokens-and-the-listings-key)).
 - **Default styles** and their colors (see [Styles](#styles)).
 
-The screen also lists the declared listings with the errors of those that cannot be served, and the fields browsers can read.
+The screen also lists the declared listings with the errors of those that cannot be served, and the fields browsers can read. MeiliScout › Listings says more of each one ([below](#checking-a-listing)).
 
 A theme's code keeps working while the module is off: `meiliscout_register_listing()` and `meiliscout_listing()` exist, and a listing renders nothing.
 
@@ -52,7 +52,7 @@ meiliscout_listing('projects');                 // prints it
 $html = meiliscout_get_listing('projects');     // returns it
 ```
 
-A definition is checked once, on first use. One that cannot be served (an unindexed post type or meta key, a reserved parameter, an unknown option...) renders nothing for visitors, and its errors for administrators, here and in Settings › Listings.
+A definition is checked once, on first use. One that cannot be served (an unindexed post type or meta key, a reserved parameter, an unknown option...) renders nothing for visitors, and its errors for administrators, here, in Settings › Listings and in MeiliScout › Listings.
 
 ### Arguments
 
@@ -130,7 +130,7 @@ Parameter names WordPress, WooCommerce or page caches read (`p`, `page`, `orderb
 
 The browser writes the same URLs: the PHP and JavaScript halves share their test cases (`tests/fixtures/listings`).
 
-Facets in the path need no rewrite rule: on `do_parse_request`, the segments after a listing's first page are hidden from WordPress, which resolves the page (and its `/page/N/`) with its own rules; then they are put back. Only a path made of a listing's first page, its facet segments and a page is touched, and not one that is the path of a post (a child page named `type-…` stays that page). The order of the facets is the order of the URL: changing it, or a prefix, breaks the links shared so far.
+Facets in the path need no rewrite rule: on `do_parse_request`, the segments after a listing's first page are hidden from WordPress, which resolves the page (and its `/page/N/`) with its own rules; then they are put back. Only a path made of a listing's first page, its facet segments and a page is touched, and not one that is the path of a post (a child page named `type-…` stays that page, and hides the view of that term: MeiliScout › Listings names such pages). The order of the facets is the order of the URL: changing it, or a prefix, breaks the links shared so far. `comment` cannot be a prefix: WordPress writes `comment-page-2` after a page.
 
 In the editor, a taxonomy facet goes in the path from its block's *URL* panel (*In the path*, and its prefix).
 
@@ -276,7 +276,7 @@ The listing's form sends DOM events, which bubble to the document; `event.detail
 ```js
 document.addEventListener( 'meiliscout:results', ( event ) => {
 	if ( event.detail.listing === 'projects' ) {
-		document.getElementById( 'projects' ).scrollIntoView();
+		window.dataLayer?.push( { event: 'listing', url: event.detail.url } );
 	}
 } );
 ```
@@ -324,7 +324,7 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
       label.meiliscout-sort (__label, __select)
       button.meiliscout-listing__apply       (hidden when apply is instant; See N results in button mode)
       a.meiliscout-listing__reset
-  .meiliscout-listing__results              (the router region; aria-busy while loading)
+  .meiliscout-listing__results              (the router region: role=region, named after its page, tabindex=-1; aria-busy while loading)
     ul.meiliscout-results > li.meiliscout-result > article.meiliscout-card (__title, __meta, __excerpt)
     p.meiliscout-results__empty
   nav.meiliscout-pagination > a.meiliscout-pagination__link (__previous, __number, __dots, __next; the current page and the dots without href)
@@ -333,6 +333,19 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
 ```
 
 A value no post of the current selection has (count 0) is hidden, unless it is selected.
+
+## Accessibility
+
+What a listing does for keyboard and screen reader users, without anything from the theme:
+
+- **Without JavaScript**, it all works: the filters are a `GET` form with its *Apply* button (redirected to the canonical URL), the values leading to an indexable view and the pages are links, every value of a facet shows.
+- **Native controls**: checkboxes in a `fieldset` named by its `legend`, labelled number fields, a labelled `select`; the focus is visible on each (`:focus-visible`, the accent's color).
+- **After a filter**, the focus stays on the control used; the total (`aria-live="polite"`) says how many results there are now. The results' region is `aria-busy` while they load.
+- **After a page link**, the link is gone with the region it was in: the focus moves to the results' region, named after its page (*Results, page 2 of 12*), which screen readers read out, and the page scrolls up to it when its top went past the screen's. The router's generic *Page loaded* is not announced.
+- **Active filters** are buttons named after what they remove (*Remove filter: Culture*); *Show more* says whether it is expanded (`aria-expanded`); the current page is `aria-current="page"`, the dots are hidden from screen readers.
+- Values hidden because no post has them (count 0) are `hidden`, not merely invisible.
+
+A theme that restyles the listing keeps these as long as it keeps the markup; one that prints its own (developer mode) keeps them by printing the parts.
 
 ## SEO
 
@@ -347,7 +360,7 @@ What a listing's page tells search engines is decided by MeiliScout and written 
 | A page past the last one (`/projects/page/99/`) | 404 | | | |
 
 - The depth and the results a view of the path needs are the listing's `seo` (`max_depth`, `min_results`). A search is never indexed (decision G), a parameter never makes a view indexable.
-- A facet's value that leads to an indexable view is a link to it (`<a href>` around its label, a box is still ticked by a click with JavaScript): search engines find those views, and no others (design §8.5).
+- A facet's value that leads to an indexable view is a link to it (`<a href>` around its label; with JavaScript, a click ticks the box, and the link leaves the tab order: the box is the control): search engines find those views, and no others (design §8.5).
 - The breadcrumb ends with the facets of the path, each one at the view made of it and those before: in Yoast's (`wpseo_breadcrumb_links`), Rank Math's (when its breadcrumb is on) and All in One SEO's trail, and in MeiliScout's own `BreadcrumbList`.
 - The SEO plugin's setting that puts paginated pages in `noindex` (All in One SEO's default) does not apply to an indexable view: its pages are how its posts are found. The site's other archives keep it.
 - A site closed to search engines (Settings › Reading) keeps WordPress's `noindex, nofollow`.
@@ -379,7 +392,7 @@ type=*                  any one term of type
 type=12|level=*         the term 12 of type and any one term of level
 ```
 
-A view with a search, a range, a meta facet or two terms of one facet has no rule. Of the rules matching a view, the most specific wins (a term before `*`, the first facet first), in the view's language before a rule for every language (empty locale). The language is the site's (`meiliscout/listings/seo_locale`) until listings know languages.
+A view with a search, a range, a meta facet or two terms of one facet has no rule. Of the rules matching a view, the most specific wins (a term before `*`, the first facet first), in the view's language before a rule for every language (empty locale). The view's language is its locale (`fr_FR`), the site's without a multilingual plugin (`meiliscout/listings/seo_locale`).
 
 - **Variables**: `{site}`, `{title}` (the listing's page), `{page}`, `{pages}`, `{total}`, and each facet's term by the facet's key (`{type}`). Past the first page, the title says which page it is (` - Page 2`), unless it holds `{page}`.
 - The **title** and **description** go through the SEO plugin, and the title into the fragments' `<title>`.
@@ -435,6 +448,44 @@ Browsers search the posts index with a token, so while the module is on the inde
 - An expired or refused token is asked for again once (`GET /wp-json/meiliscout/v1/listings/{id}/token`, cacheable 5 minutes), then the page is loaded.
 - **Replace the key** (Settings › Listings) makes a new key and deletes the previous one: every token given so far is refused at once, browsers ask for a new one.
 
+## Performance
+
+A change in a listing is two requests in parallel: the counts, from the browser to Meilisearch (no PHP), and the results (a fragment from WordPress, or nothing more in the `client` transport, whose cards come with the counts).
+
+`wp meiliscout bench-listings <id>` times them for a few states of a routed listing (the first page, a later one, one facet, two facets): the median time to first byte of the page, of its fragment and of the counts' multi-search as the browser sends it, with their sizes. Requests leave from where the command runs.
+
+On the demo site (DDEV, PHP 8.3, opcache, Redis, Polylang, 70 posts in French, 4 facets; 30 requests each, from the web container, 2026-10-09):
+
+| | Time to first byte | Size (gzip) |
+|---|---|---|
+| Page | 310–370 ms | 120–130 KB (18–20 KB) |
+| Fragment, listing in PHP | 150–230 ms | 2–7 KB (1–2 KB) |
+| Fragment, listing block | 260–280 ms | 24–27 KB (3 KB) |
+| Counts (Meilisearch multi-search) | 15–27 ms | 1–2 KB (0.5 KB) |
+| An empty REST request (`/wp-json/`), for comparison | 180 ms | |
+
+- The counts are the visible part of a change: tens of milliseconds, whatever WordPress costs.
+- A fragment costs WordPress's start (and REST's) plus the listing's query and cards, about 25 ms here: what makes it slow is what makes every request slow (plugins, no object cache). The block's fragment renders the whole block again, its Post Template included.
+- The fragment is a `GET` on the listing's canonical URL with `Cache-Control: public, max-age=60` (except a `personalised` listing): a page cache or a CDN in front of `/wp-json/meiliscout/v1/listings/*/fragment` serves it at the cost of a static file, and so does the page itself.
+- The `client` transport skips WordPress on every change: its cards come in the counts' multi-search.
+
+## Checking a listing
+
+**MeiliScout › Listings** (while the module runs) shows every declared listing, from PHP or a block (with a link to the post holding it):
+
+- its address in each language, a link to see it; its transport, sorts, query string parameters, and what search engines may index of it, with its number of [SEO rules](#seo-rules);
+- its facets: source, type, parameter, prefix in the path by language;
+- its **checks**: the errors that keep it from being served (its definition), a hierarchical facet on a posts index older than schema 5, post types the index has fewer published posts of than the site (an indexation late or failed), a taxonomy the listing's post types do not have, a route that is not published or has no translation in a language, two listings on one page, a post living where a view of a prefix would be (`/projects/type-x/` a child page), terms of several languages sharing a slug, a parameter WordPress or a plugin reads;
+- **Compare the counts with MySQL**: the total and every value's count (the first 30 of each facet), as the page shows them, against the same `WP_Query` run on MySQL, in a language.
+
+`wp meiliscout check-listings` runs the same checks and comparisons for every listing and language, then asks each routed listing's URLs over HTTP as a visitor would: its first page and fragment (200), a view of each facet of the path (200), a value that is no term (404), two values out of order (301 to the canonical URL). It exits with 1 on an error, a count that differs, or a URL answering otherwise: a check for a deployment. `wp meiliscout bench-listings` times them ([Performance](#performance)).
+
+```sh
+wp meiliscout check-listings
+wp meiliscout check-listings --listing=projects --lang=en
+wp meiliscout check-listings --skip-http --format=json
+```
+
 ## Filters
 
 | Filter | |
@@ -458,4 +509,5 @@ Browsers search the posts index with a token, so while the module is on the inde
 - `vendor/bin/pest tests/Unit/Listings`: definitions, the URL codec, the facets' plan, cards, against the shared cases of `tests/fixtures/listings`.
 - `npm run test:js`: the browser's codec, plan and cards against the same cases; `path-cases.json`: the paths read and written, and the values' links, by both halves.
 - `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`); SEO rules, their CSV and preview (`SeoRulesTest`); languages, with Polylang or WPML set up by the demo's `scripts/languages-polylang.php` or `languages-wpml.php` (`ListingLanguagesTest`); facets in the path over HTTP: canonical forms, 301, 404, a child page, links (`PathFacetsTest`); each SEO plugin's `<head>` over HTTP (`SeoPluginsTest`, the plugins turned on in the site's options in turn).
+- `composer test:integration` also runs `ListingChecksTest`: the demo listings' counts against MySQL in every language, their URLs over HTTP, and the checks a listing declared by the test trips.
 - `vendor/bin/pest tests/Unit/Listings/SeoPolicyTest.php tests/Unit/Listings/RuleKeyTest.php`: the indexing decision, the rules' variables and keys, the adapters' robots.

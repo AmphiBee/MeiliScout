@@ -42,6 +42,10 @@ ddev exec --dir /var/www/html/public/wp-content/plugins/meiliscout composer test
 ddev wp meiliscout seo-rules preview /realisations-filtrables/page/2/
 ddev wp meiliscout seo-rules export|import <file>
 
+# The front listings: checks, counts against MySQL, URLs over HTTP (exit 1 on a problem); timings
+ddev wp meiliscout check-listings [--listing=<id>] [--lang=<code>] [--skip-http]
+ddev wp meiliscout bench-listings <id> [--lang=<code>] [--runs=20]
+
 # Compare WP_Query (--terms: get_terms()) results on MySQL and Meilisearch (exit 1 on a DIFF)
 ddev wp meiliscout check-queries [--terms] [--case=<label>] [--args='<json>']
 ```
@@ -121,6 +125,8 @@ Off by default (`listings_enabled`), WordPress 6.9. Coverage and API: `docs/LIST
 - Default look: `resources/listings/front.css` → `build/listings/style.css`, colors from the theme palette (`Listings::themeColors()`)
 - SEO (`Seo/`): `SeoPolicy` on `wp` for the listing on its route (indexable = facets of the path only, one value each, `seo.max_depth`, `seo.min_results`, nothing in the query; `noindex, follow` otherwise; 404 past the last page; `linkTarget()`: values leading to an indexable view are links) into a `SeoView`; `Adapters/` write it through Yoast, Rank Math, SEOPress, AIOSEO or core; `StructuredData` (ItemList, FAQPage, breadcrumb); rules in the `{prefix}meiliscout_seo_rules` table (`SeoRules`, keys `RuleKey`, `RulesCsv`, `SeoRulesService`), admin screen `resources/admin/screens/SeoRules.js` (`Listings/Admin/SeoRulesController`), `wp meiliscout seo-rules`; the rule's intro and questions are the `intro`/`faq` parts (router regions)
 - Languages (`Language/`): `LanguageAdapter` (`Polylang`, `Wpml`, `NoLanguage`, `Languages::adapter()`), routes translated (`Listings::routePost()`), prefixes per language (`FacetDefinition::prefix()`), decision D in `Listings::checkPath()`, `Translations` (switcher, hreflang decision C), block listings shared by translations (`posts` in the saved entry), rules copied (`SeoRulesService::duplicate()`). Core: `Integrations/Polylang` (`term_id` var), `Integrations/Wpml` (language field, terms without adjustment, SQL callbacks translated, `wpml_*` reasons). Demo setups: `scripts/languages-polylang.php`, `languages-wpml.php`
+- Admin and diagnostics: screen `resources/admin/screens/Listings.js` (`Listings/Admin/ListingsController`, `GET listings`, `GET listings/{id}/parity`); `Diagnostics/ListingChecks` (what the screen and `check-listings` check), `CountParity` (counts against MySQL), `RouteProbe` (URLs over HTTP), `ListingBench` (`bench-listings`)
+- Accessibility: the results' region is focusable and named after its page; `view.js` `focusResults()` after a page link; the router's announcement is off (the total is a live region)
 - PHP and JS halves share their cases: `tests/fixtures/listings` (Pest `tests/Unit/Listings`, `npm run test:js`, `tests/Integration/ListingCasesTest.php`)
 
 ### Configuration
@@ -144,7 +150,7 @@ Off by default (`listings_enabled`), WordPress 6.9. Coverage and API: `docs/LIST
 - **Service Providers**: Modular service registration pattern
 
 ### Admin
-- One page (`admin.php?page=meiliscout`, `Providers/Admin/AdminServiceProvider`) where a React app (`resources/admin/`) renders its screens from the hash: Overview, Content, Indexation, Search preview, SEO rules (while listings run), Settings
+- One page (`admin.php?page=meiliscout`, `Providers/Admin/AdminServiceProvider`) where a React app (`resources/admin/`) renders its screens from the hash: Overview, Content, Indexation, Search preview, Listings and SEO rules (while listings run), Settings
 - REST endpoints under `meiliscout/v1`, one controller per screen in `src/Admin/Rest/`, all for `manage_options`
 - API keys never go to the browser: the app only learns whether one is set
 - Plain CSS scoped to `.meiliscout-admin`, design tokens as custom properties (look of the Meilisearch Cloud dashboard)
