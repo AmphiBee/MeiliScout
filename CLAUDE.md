@@ -31,6 +31,9 @@ ddev exec --dir /var/www/html/public/content/plugins/meiliscout composer test:ty
 # Run all tests (lint + types + unit)
 composer test
 
+# The listings' client against the shared cases (tests/fixtures/listings)
+npm run test:js
+
 # Integration tests: a real WordPress and Meilisearch (the demo site), every
 # WP_Query parity case and every filter the unit tests build
 ddev exec --dir /var/www/html/public/wp-content/plugins/meiliscout composer test:integration
@@ -99,6 +102,15 @@ ddev exec --dir /var/www/html/public/content/plugins/meiliscout composer test:ty
 - `ActivityLog`: Last 100 operations (full indexations, real-time tasks), failed tasks kept to retry them
 - `SearchFallbacks`: Queries asking for Meilisearch that MySQL served, per hour, for 24 h
 - `MetaKeyCatalog`: Meta keys of the indexable posts, with a type guessed from their values
+
+#### Front listings (`src/Listings/`)
+Off by default (`listings_enabled`), WordPress 6.9. Coverage and API: `docs/LISTINGS.md`; design: `docs/plans/2026-10-front-listings-design.md` (branch `proto/front-listings`).
+- `Definition/`: `ListingDefinition` (validated once, every error given), `DefinitionRegistry`
+- `State/UrlCodec`: one canonical query string per state; `resources/listings/codec.js` writes the same
+- `Query/`: `FacetPlan` (disjunctive multi-search, clauses written by the core builders through `FacetClauses`), `ListingQuery`, `PlanTemplate` (what the client replays; `VERSION` is the client's contract)
+- `Render/`: `Renderer` (GET form, Interactivity API directives, one router region), `Store`, `Hits` (client transport's cards); `Transport/`: tenant tokens, listings key, fragment and token endpoints
+- `PublicFields`: the posts index's `displayedAttributes` while the module is on
+- PHP and JS halves share their cases: `tests/fixtures/listings` (Pest `tests/Unit/Listings`, `npm run test:js`, `tests/Integration/ListingCasesTest.php`)
 
 ### Configuration
 - **Config System**: `src/Config/Config.php` (environment, constant, then option) and `src/Config/Settings.php`
@@ -172,6 +184,7 @@ The plugin provides several filters for customization:
 - `meiliscout/reindex_on_meta_change`: Whether a changed meta key re-indexes the post (default: selected meta keys only)
 - `meiliscout/http_client_options`: Options of the Symfony HttpClient used for Meilisearch (default: `['timeout' => 10]`)
 - `meiliscout/index_prefix`: Prefix of the index names (default: `MEILI_INDEX_PREFIX`, else the site's domain)
+- `meiliscout/listings/token_lifetime`: How long a front listing's tenant token lasts (default: a day)
 - `meiliscout/supported_query_vars`, `meiliscout/ignored_sql_filters`, `meiliscout/ignored_term_sql_filters`, `meiliscout/skip_term_query_integration`, `meiliscout/integrate_term_query`, `meiliscout/term/ranking_rules`, `meiliscout/term/document`, `meiliscout/skip_query_integration`, `meiliscout/integrate_query`, `meiliscout/search_params`, `meiliscout/hydrate_from_documents`, `meiliscout/search_memo`, `meiliscout/max_total_hits`, `meiliscout/php_order_limit`, `meiliscout/post/ranking_rules`, `meiliscout/debug_header`, `meiliscout/indexable_post_statuses`: see `docs/FILTERS.md`
 
 ## Environment Variables

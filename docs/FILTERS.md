@@ -63,7 +63,8 @@ add_filter('meiliscout/register_async_queue_processor', '__return_false');
 ```
 
 ### meiliscout/post/displayed_attributes
-Restrict which fields Meilisearch may return. Defaults to `['*']`.
+Restrict which fields Meilisearch may return. Defaults to `['*']`; while front
+listings are on, to their public fields ([LISTINGS.md](LISTINGS.md#public-fields)).
 
 ```php
 // Keep the columns QueryIntegration needs to rebuild WP_Post, or listings break.
@@ -182,8 +183,9 @@ add_filter('meiliscout/search_params', function (array $params) {
 ### meiliscout/hydrate_from_documents
 Builds the `WP_Post` objects from the documents instead of loading them from the
 database (default: false). Saves a query on the primary key, but the posts are
-as fresh as the index, protected posts lose their content, and only displayed
-attributes are there.
+as fresh as the index, and protected posts lose their content. Ignored while the
+posts index does not return every column of a post (`displayedAttributes`
+narrowed, front listings on): the posts are loaded from the database.
 
 ```php
 add_filter('meiliscout/hydrate_from_documents', '__return_true');
@@ -369,4 +371,13 @@ add_filter('meiliscout/log_directory', fn() => '/tmp/meiliscout-logs');
 Enable async mode in `.env`:
 ```
 MEILISCOUT_ASYNC_INDEXING=true
+```
+
+### meiliscout/listings/token_lifetime
+How long the tenant token of a front listing lasts, in seconds (default a day,
+at least an hour). Tokens expire on the hour, so that pages cached within the
+same hour carry the same one. See [LISTINGS.md](LISTINGS.md#tokens-and-the-listings-key).
+
+```php
+add_filter('meiliscout/listings/token_lifetime', fn (int $lifetime, $listing) => 6 * HOUR_IN_SECONDS, 10, 2);
 ```

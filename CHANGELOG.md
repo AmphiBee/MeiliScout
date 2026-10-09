@@ -7,6 +7,12 @@
 - **Posts schema 5:** each term of a hierarchical taxonomy carries the ids of its ancestors (`taxonomies.<taxonomy>.tree`, the term first). `tax_query` with `include_children` (`cat`, `category_name`, archives…) is one `IN` on the tree instead of the list of every descendant, and a facet on the tree counts a parent with its children. `AND` keeps the list WordPress builds. A term moved to another parent, or whose parent is deleted, re-indexes the posts of its subtree.
 - The same search asked twice in a request reaches Meilisearch once (`meiliscout/search_memo`): a Query Loop's pagination blocks run its query again, 3 searches out of 4 on a paginated loop. Forgotten when a post or its terms change during the request.
 
+### Front listings
+
+- **A new module, off by default** (Settings › Listings, WordPress 6.9): filterable listings of posts declared with `meiliscout_register_listing()` and printed with `meiliscout_listing()`. Facets on taxonomies (OR, AND, a term counted with its descendants) and meta keys (lists, ranges, booleans), sorts, a search, active filters, pagination; a `GET` form and real links without JavaScript, one canonical URL per state (301 to it). See [docs/LISTINGS.md](docs/LISTINGS.md).
+- The browser counts the facets straight on Meilisearch, with a tenant token per listing signed by a key of their own (search only, posts index only), replaced from Settings › Listings. Results as an HTML fragment (default), as cards made in the browser from public fields (`transport => 'client'`), or by loading the page.
+- While the module is on, the posts index returns public fields only: the ones a card shows, and the meta keys listings declare public (`meiliscout/post/displayed_attributes` keeps the last word). `meiliscout/hydrate_from_documents` is ignored while the index returns only some fields.
+
 ### Upgrading
 
 The posts documents change (schema 5): until a full indexation rebuilds the posts index, queries list the descendants as before.
