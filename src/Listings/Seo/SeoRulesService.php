@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Listings\Seo;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\InvalidListing;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Listings;
 use Pollora\MeiliScout\Listings\Query\ListingQuery;
 use Pollora\MeiliScout\Listings\Seo\Adapters\Adapters;
@@ -53,6 +54,64 @@ final class SeoRulesService
         }
 
         return $replaces;
+    }
+
+    /**
+     * Copies a rule to the site's other languages (design §8.3): its key with
+     * each term's translation, the language's locale, its text as it is, to
+     * translate. A language whose rule exists already, or where a term has no
+     * translation, is skipped.
+     *
+     * @return array{created: list<string>, skipped: array<string, string>} Locales created; skipped, with the reason
+     *
+     * @throws \InvalidArgumentException An unknown rule, or one for every language
+     */
+    public static function duplicate(int $id): array
+    {
+        $rule = SeoRules::get($id) ?? throw new \InvalidArgumentException(__('No such rule.', 'meiliscout'));
+        $adapter = Languages::adapter();
+
+        if ($rule->locale === '') {
+            throw new \InvalidArgumentException(__('This rule is for every language already.', 'meiliscout'));
+        }
+
+        $definition = self::definition($rule->listing);
+        $report = ['created' => [], 'skipped' => []];
+
+        foreach ($adapter->languages() as $language) {
+            $locale = $adapter->locale($language);
+            if ($locale === $rule->locale) {
+                continue;
+            }
+
+            $parts = [];
+            foreach (RuleKey::parse($rule->key) as $facetKey => $value) {
+                $facet = $definition->facet($facetKey);
+                $term = $value === RuleKey::ANY || $facet === null ? null : get_term((int) $value, $facet->name);
+                $translated = $term instanceof \WP_Term ? $adapter->translateTerm($term, $language) : null;
+
+                if ($value !== RuleKey::ANY && $translated === null) {
+                    /* translators: %s: a term's id */
+                    $report['skipped'][$locale] = sprintf(__('The term %s has no translation.', 'meiliscout'), $value);
+
+                    continue 2;
+                }
+
+                $parts[] = $facetKey.'='.($value === RuleKey::ANY ? RuleKey::ANY : $translated->term_id);
+            }
+
+            $key = implode('|', $parts);
+            if (self::exists($rule->listing, $locale, $key)) {
+                $report['skipped'][$locale] = __('A rule exists already.', 'meiliscout');
+
+                continue;
+            }
+
+            SeoRules::save(new SeoRule($rule->listing, $locale, $key, RuleKey::specificity($key), $rule->title, $rule->description, $rule->h1, $rule->intro, $rule->faq));
+            $report['created'][] = $locale;
+        }
+
+        return $report;
     }
 
     /**

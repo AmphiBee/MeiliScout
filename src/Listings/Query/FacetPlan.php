@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Listings\Query;
 
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
 use Pollora\MeiliScout\Listings\Render\Hits;
@@ -34,14 +35,15 @@ final class FacetPlan
      */
     public static function baseArgs(ListingDefinition $definition): array
     {
-        return [
+        // The request's language (Polylang: a tax_query on its language taxonomy)
+        return Languages::adapter()->baseArgs([
             'post_type' => $definition->postTypes,
             'post_status' => 'publish',
             'has_password' => false,
             'tax_query' => $definition->base['tax_query'] ?? [],
             'meta_query' => $definition->base['meta_query'] ?? [],
             'posts_per_page' => 1,
-        ];
+        ]);
     }
 
     /**

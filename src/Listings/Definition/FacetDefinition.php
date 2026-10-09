@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Listings\Definition;
 
+use Pollora\MeiliScout\Listings\Language\Languages;
+
 /**
  * One facet of a listing: where its values come from, how several combine,
  * and how it shows in the URL.
@@ -22,6 +24,7 @@ final class FacetDefinition
      * @param  'or'|'and'  $logic  How the values of a list combine
      * @param  array<string, string>  $labels  Meta values' labels, by value
      * @param  string|null  $path  Its prefix in the URL's path ({prefix}-{a},{b}), null when it is a parameter
+     * @param  array<string, string>  $paths  Its prefix by language, when they differ (fr => type, en => kind)
      */
     public function __construct(
         public readonly string $key,
@@ -37,7 +40,26 @@ final class FacetDefinition
         public readonly int $decimals,
         public readonly string $booleanValue,
         public readonly ?string $path = null,
+        public readonly array $paths = [],
     ) {}
+
+    /**
+     * Its prefix in the path in a language (the request's by default).
+     */
+    public function prefix(?string $language = null): ?string
+    {
+        return $this->paths[$language ?? Languages::current()] ?? $this->path;
+    }
+
+    /**
+     * Every prefix it may have in a path, whatever the language.
+     *
+     * @return list<string>
+     */
+    public function prefixes(): array
+    {
+        return array_values(array_unique(array_filter([$this->path, ...array_values($this->paths)])));
+    }
 
     /**
      * Its values go in the URL's path rather than its query string.

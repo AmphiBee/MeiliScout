@@ -419,3 +419,14 @@ add_filter('meiliscout/listings/structured_data', fn (array $graph) => []);
 // Rules looked up in Polylang's language until listings know languages
 add_filter('meiliscout/listings/seo_locale', fn (string $locale) => function_exists('pll_current_language') ? (string) pll_current_language('locale') : $locale);
 ```
+
+### meiliscout/post/term_reader, meiliscout/post/filterable_attributes, meiliscout/fallback_reason, meiliscout/indexes_activated
+For integrations (WPML uses all four): a callable that runs the reading of
+posts' terms at indexing (WPML: without its adjustment to the current
+language); the posts index's filterable attributes (a field the integration
+writes in the documents); a reason to run a query on MySQL; an action once a
+full indexation's indexes are active.
+
+### meiliscout/listings/language_adapter
+The front listings' multilingual plugin: a `LanguageAdapter` (Polylang's,
+WPML's, or none). See [LISTINGS.md](LISTINGS.md#languages).

@@ -166,15 +166,20 @@ final class ListingDefinition
             if (! $facet->isTaxonomy() || $facet->type !== FacetDefinition::LIST) {
                 $errors[] = sprintf('The facet "%s": only a taxonomy list may go in the path.', $facet->key);
             }
-            if (! preg_match('/^[a-z0-9]+(-[a-z0-9]+)*$/', (string) $facet->path)) {
-                $errors[] = sprintf('The facet "%s": its path prefix may only hold lowercase letters, digits and single dashes.', $facet->key);
-            }
-            foreach ($prefixes as $other => $prefix) {
-                if ($prefix === $facet->path || str_starts_with($prefix.'-', $facet->path.'-') || str_starts_with($facet->path.'-', $prefix.'-')) {
-                    $errors[] = sprintf('The path prefixes of "%s" and "%s" cannot be told apart.', $other, $facet->key);
+            foreach ($facet->prefixes() as $mine) {
+                if (! preg_match('/^[a-z0-9]+(-[a-z0-9]+)*$/', $mine)) {
+                    $errors[] = sprintf('The facet "%s": its path prefix may only hold lowercase letters, digits and single dashes.', $facet->key);
+                }
+                // Every language's prefixes are read in every language (the language is not known yet)
+                foreach ($prefixes as $other => $theirs) {
+                    foreach ($theirs as $prefix) {
+                        if ($prefix === $mine || str_starts_with($prefix.'-', $mine.'-') || str_starts_with($mine.'-', $prefix.'-')) {
+                            $errors[] = sprintf('The path prefixes of "%s" and "%s" cannot be told apart.', $other, $facet->key);
+                        }
+                    }
                 }
             }
-            $prefixes[$facet->key] = (string) $facet->path;
+            $prefixes[$facet->key] = $facet->prefixes();
         }
 
         $seo = $args['seo'] ?? true;
@@ -340,12 +345,14 @@ final class ListingDefinition
             limit: max(0, (int) ($args['limit'] ?? 0)),
             decimals: max(0, min(6, (int) ($args['decimals'] ?? 0))),
             booleanValue: (string) ($args['value'] ?? '1'),
-            // true: the facet's parameter name
+            // true: the facet's parameter name; by language: the first is the default
             path: match (true) {
                 ! isset($args['path']) || $args['path'] === false => null,
                 $args['path'] === true => (string) ($args['param'] ?? $key),
+                is_array($args['path']) => (string) (reset($args['path']) ?: ''),
                 default => (string) $args['path'],
             },
+            paths: is_array($args['path'] ?? null) ? array_map('strval', $args['path']) : [],
         );
     }
 }

@@ -180,7 +180,7 @@ final class UrlCodec
         foreach ($definition->pathFacets() as $facet) {
             $values = $state->valuesOf($facet->key);
             if ($values !== []) {
-                $segments[] = $facet->path.'-'.self::encodedValues($facet, $values);
+                $segments[] = $facet->prefix().'-'.self::encodedValues($facet, $values);
             }
         }
 
@@ -253,8 +253,15 @@ final class UrlCodec
     public static function pathSegment(ListingDefinition $definition, string $segment): ?array
     {
         foreach ($definition->pathFacets() as $facet) {
-            $prefix = $facet->path.'-';
-            if (strncasecmp($segment, $prefix, strlen($prefix)) !== 0) {
+            // Any language's prefix: the canonical URL has the request's
+            $prefix = null;
+            foreach ($facet->prefixes() as $candidate) {
+                if (strncasecmp($segment, $candidate.'-', strlen($candidate) + 1) === 0) {
+                    $prefix = $candidate.'-';
+                    break;
+                }
+            }
+            if ($prefix === null) {
                 continue;
             }
 

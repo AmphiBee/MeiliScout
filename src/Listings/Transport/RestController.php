@@ -8,6 +8,7 @@ use Pollora\MeiliScout\Listings\Blocks\BlockListings;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\InvalidListing;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Listings;
 use Pollora\MeiliScout\Listings\Query\ListingQuery;
 use Pollora\MeiliScout\Listings\Render\Renderer;
@@ -46,6 +47,16 @@ final class RestController
 
     public static function token(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
     {
+        return Languages::adapter()->in((string) $request->get_param('lang'), fn () => self::tokenIn($request));
+    }
+
+    public static function fragment(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
+    {
+        return Languages::adapter()->in((string) $request->get_param('lang'), fn () => self::fragmentIn($request));
+    }
+
+    private static function tokenIn(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
+    {
         $definition = self::definition((string) $request['id']);
 
         if ($definition instanceof \WP_Error) {
@@ -64,7 +75,7 @@ final class RestController
         return $response;
     }
 
-    public static function fragment(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
+    private static function fragmentIn(\WP_REST_Request $request): \WP_REST_Response|\WP_Error
     {
         $definition = self::definition((string) $request['id']);
 
@@ -121,7 +132,8 @@ final class RestController
      */
     private static function title(ListingDefinition $definition, int $page): string
     {
-        $post = $definition->route['page'] ?? $definition->route['post'] ?? null;
+        // Its translation in the request's language
+        $post = Listings::routePost($definition) ?: null;
         $title = $post !== null
             ? get_the_title($post)
             : (string) (get_post_type_object((string) ($definition->route['archive'] ?? ''))?->labels->name ?? '');

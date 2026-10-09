@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Listings\Render;
 
 use Pollora\MeiliScout\Listings\Query\ListingResult;
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
 use Pollora\MeiliScout\Listings\Transport\TenantTokens;
@@ -71,10 +72,14 @@ final class Store
                     // The client transport's cards (Hits), null in the others
                     'hits' => $result->hits,
                     'pageLinks' => self::pageLinks(Renderer::pageItems($state->page, $result->pages()), fn (int $page) => UrlCodec::url($definition, $state->onPage($page), $base)),
-                    'endpoints' => [
-                        'fragment' => rest_url('meiliscout/v1/listings/'.$definition->id.'/fragment'),
-                        'token' => rest_url('meiliscout/v1/listings/'.$definition->id.'/token'),
-                    ],
+                    // In the page's language: its terms, its token's filter
+                    'endpoints' => array_map(
+                        fn (string $url) => Languages::current() === '' ? $url : add_query_arg('lang', Languages::current(), $url),
+                        [
+                            'fragment' => rest_url('meiliscout/v1/listings/'.$definition->id.'/fragment'),
+                            'token' => rest_url('meiliscout/v1/listings/'.$definition->id.'/token'),
+                        ]
+                    ),
                     // Cards that depend on the visitor (decision E): the fragment is asked for with the visitor's session
                     'personalised' => $definition->personalised,
                     'nonce' => $definition->personalised && is_user_logged_in() ? wp_create_nonce('wp_rest') : null,

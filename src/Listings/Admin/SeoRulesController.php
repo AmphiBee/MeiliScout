@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Listings\Admin;
 use Pollora\MeiliScout\Admin\Rest\Controller;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\InvalidListing;
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Listings;
 use Pollora\MeiliScout\Listings\Seo\RuleKey;
 use Pollora\MeiliScout\Listings\Seo\RulesCsv;
@@ -34,6 +35,7 @@ final class SeoRulesController extends Controller
         $this->route('/listings/seo-rules', 'GET', [$this, 'index']);
         $this->route('/listings/seo-rules', 'POST', [$this, 'save']);
         $this->route('/listings/seo-rules/(?P<id>\d+)', 'DELETE', [$this, 'delete']);
+        $this->route('/listings/seo-rules/(?P<id>\d+)/duplicate', 'POST', [$this, 'duplicate']);
         $this->route('/listings/seo-rules/export', 'GET', [$this, 'export']);
         $this->route('/listings/seo-rules/import', 'POST', [$this, 'import']);
         $this->route('/listings/seo-rules/preview', 'GET', [$this, 'preview'], ['url' => ['type' => 'string', 'required' => true]]);
@@ -42,12 +44,16 @@ final class SeoRulesController extends Controller
     public function index(): WP_REST_Response
     {
         SeoRules::install();
+        $adapter = Languages::adapter();
+        $locales = array_map([$adapter, 'locale'], $adapter->languages());
 
         return $this->respond([
             'listings' => $this->listings(),
             'rules' => array_map([$this, 'rule'], SeoRules::all()),
             'locale' => get_locale(),
-            'locales' => array_values(array_unique(array_merge([get_locale()], get_available_languages(), ['en_US']))),
+            'locales' => array_values(array_unique(array_merge([get_locale()], $locales, get_available_languages(), ['en_US']))),
+            // The multilingual plugin's languages: rules can be copied to them
+            'languages' => $locales,
         ]);
     }
 
@@ -69,6 +75,17 @@ final class SeoRulesController extends Controller
         SeoRules::delete((int) $request['id']);
 
         return $this->index();
+    }
+
+    public function duplicate(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        try {
+            $report = SeoRulesService::duplicate((int) $request['id']);
+        } catch (\InvalidArgumentException|\RuntimeException $e) {
+            return new WP_Error('meiliscout_seo_rule', $e->getMessage(), ['status' => 400]);
+        }
+
+        return $this->respond(['duplicated' => $report] + $this->index()->get_data());
     }
 
     public function export(WP_REST_Request $request): WP_REST_Response

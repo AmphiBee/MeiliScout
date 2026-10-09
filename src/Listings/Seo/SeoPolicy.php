@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Listings\Seo;
 
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
+use Pollora\MeiliScout\Listings\Language\Languages;
 use Pollora\MeiliScout\Listings\Listings;
 use Pollora\MeiliScout\Listings\Query\ListingResult;
 use Pollora\MeiliScout\Listings\Seo\Adapters\Adapters;
@@ -320,7 +321,10 @@ final class SeoPolicy
      */
     public static function locale(): string
     {
-        return (string) apply_filters('meiliscout/listings/seo_locale', get_locale());
+        $language = Languages::current();
+        $locale = $language === '' ? get_locale() : Languages::adapter()->locale($language);
+
+        return (string) apply_filters('meiliscout/listings/seo_locale', $locale);
     }
 
     /**
@@ -328,7 +332,8 @@ final class SeoPolicy
      */
     public static function baseTitle(ListingDefinition $definition): string
     {
-        $post = $definition->route['page'] ?? $definition->route['post'] ?? null;
+        // Its translation in the request's language
+        $post = Listings::routePost($definition) ?: null;
         $title = $post !== null
             ? get_the_title($post)
             : (string) (get_post_type_object((string) ($definition->route['archive'] ?? ''))?->labels->name ?? '');

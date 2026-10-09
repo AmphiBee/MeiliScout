@@ -8,6 +8,8 @@ use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Foundation\Container;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
 use Pollora\MeiliScout\Integrations\QueryMonitor\QueryMonitor;
+use Pollora\MeiliScout\Integrations\Polylang;
+use Pollora\MeiliScout\Integrations\Wpml;
 use Pollora\MeiliScout\Query\AutoIntegration;
 use Pollora\MeiliScout\Query\DebugHeader;
 use Pollora\MeiliScout\Query\QueryIntegration;
@@ -58,6 +60,10 @@ class QueryServiceProvider extends ServiceProvider
         });
 
         add_action('wp', [DebugHeader::class, 'send']);
+
+        // Multilingual plugins: Polylang's query vars, WPML's SQL filters and the language of its posts
+        Polylang::boot();
+        Wpml::boot();
 
         // Query Monitor loads after the plugin: its classes exist once it asks for collectors
         add_filter('qm/collectors', [QueryMonitor::class, 'registerCollector'], 20);

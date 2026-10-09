@@ -99,7 +99,24 @@ final class QuerySupport
      */
     public static function check(QueryInterface $query): ?string
     {
-        return self::unsupportedVar($query) ?? self::sqlFilter($query) ?? self::unindexedStatus($query) ?? self::unindexedType($query);
+        return self::unsupportedVar($query) ?? self::integration($query) ?? self::sqlFilter($query) ?? self::unindexedStatus($query) ?? self::unindexedType($query);
+    }
+
+    /**
+     * Why an integration sends the query to MySQL (WPML: wpml_display_as_translated).
+     */
+    private static function integration(QueryInterface $query): ?string
+    {
+        /**
+         * Filters the reason a query runs on MySQL rather than Meilisearch, for
+         * an integration that knows Meilisearch would answer it wrongly.
+         *
+         * @param  string|null  $reason  Null: no reason.
+         * @param  QueryInterface  $query
+         */
+        $reason = apply_filters('meiliscout/fallback_reason', null, $query);
+
+        return is_string($reason) && $reason !== '' ? $reason : null;
     }
 
     /**

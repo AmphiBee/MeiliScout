@@ -129,6 +129,35 @@ class SeoRulesCommand
     }
 
     /**
+     * Copies rules to the site's other languages (Polylang, WPML): their terms
+     * translated, their text as it is, to translate. Existing rules are kept.
+     *
+     * ## OPTIONS
+     *
+     * <id>...
+     * : The rules' ids.
+     *
+     * @param  array<int, string>  $args
+     */
+    public function duplicate(array $args): void
+    {
+        foreach ($args as $id) {
+            try {
+                $report = SeoRulesService::duplicate((int) $id);
+            } catch (\InvalidArgumentException $e) {
+                WP_CLI::warning(sprintf('Rule %d: %s', (int) $id, $e->getMessage()));
+
+                continue;
+            }
+
+            WP_CLI::log(sprintf('Rule %d: created in %s.', (int) $id, implode(', ', $report['created']) ?: 'no language'));
+            foreach ($report['skipped'] as $locale => $reason) {
+                WP_CLI::log(sprintf('  %s skipped: %s', $locale, $reason));
+            }
+        }
+    }
+
+    /**
      * Deletes rules.
      *
      * ## OPTIONS

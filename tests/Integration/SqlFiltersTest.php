@@ -22,7 +22,8 @@ function meiliscout_test_unchanged(string $where): string
 
 function servedWith(string $hook, callable $callback, array $ignored = []): array
 {
-    $ignore = static fn () => $ignored;
+    // Added to the site's own (a multilingual plugin's)
+    $ignore = static fn (array $list) => [...$list, ...$ignored];
     add_filter($hook, $callback);
     add_filter('meiliscout/ignored_sql_filters', $ignore);
 
@@ -42,7 +43,8 @@ test('a plugin restricting the posts in SQL sends the query to MySQL', function 
 })->group('integration');
 
 test('a filter that changes nothing for the query lets Meilisearch serve it', function () {
-    expect(servedWith('posts_where', 'meiliscout_test_unchanged')['served'])->toBeTrue();
+    // A hook no multilingual plugin changes: WPML's posts_where would send any undeclared callback there to MySQL
+    expect(servedWith('posts_groupby', 'meiliscout_test_unchanged')['served'])->toBeTrue();
 })->group('integration');
 
 test('a callback declared harmless, by name or by hook, lets Meilisearch serve the query', function () {

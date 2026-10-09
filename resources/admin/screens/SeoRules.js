@@ -646,6 +646,33 @@ const SeoRules = () => {
 			.catch( ( error ) => showToast( errorMessage( error ), 'error' ) );
 	};
 
+	// To the multilingual plugin's other languages
+	const duplicate = ( rule ) =>
+		post( `/listings/seo-rules/${ rule.id }/duplicate` )
+			.then( ( answer ) => {
+				resource.setData( answer );
+				const { created, skipped } = answer.duplicated;
+				showToast(
+					created.length
+						? sprintf(
+								/* translators: %s: locales */
+								__(
+									'Copied to %s: translate its text.',
+									'meiliscout'
+								),
+								created.join( ', ' )
+						  )
+						: Object.entries( skipped )
+								.map(
+									( [ locale, reason ] ) =>
+										locale + ' : ' + reason
+								)
+								.join( ' ' ),
+					created.length ? 'info' : 'error'
+				);
+			} )
+			.catch( ( error ) => showToast( errorMessage( error ), 'error' ) );
+
 	const exportCsv = () =>
 		apiFetch( {
 			path: addQueryArgs( '/meiliscout/v1/listings/seo-rules/export', {
@@ -877,6 +904,21 @@ const SeoRules = () => {
 											>
 												{ __( 'Edit', 'meiliscout' ) }
 											</button>
+											{ data.languages.length > 1 &&
+												rule.locale && (
+													<button
+														type="button"
+														className="ms-link-button"
+														onClick={ () =>
+															duplicate( rule )
+														}
+													>
+														{ __(
+															'Copy to translations',
+															'meiliscout'
+														) }
+													</button>
+												) }
 											<button
 												type="button"
 												className="ms-link-button"

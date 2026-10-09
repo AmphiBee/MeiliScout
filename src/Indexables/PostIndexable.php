@@ -136,6 +136,14 @@ class PostIndexable implements Indexable
         // Terms, one field per taxonomy: taxonomies.category.slug, taxonomies.post_tag.term_id...
         $filterableAttributes[] = 'taxonomies';
 
+        /**
+         * Filters the posts index's filterable attributes: an integration adds
+         * the fields it writes in the documents (WPML: language).
+         *
+         * @param  list<string>  $filterableAttributes
+         */
+        $filterableAttributes = (array) apply_filters('meiliscout/post/filterable_attributes', $filterableAttributes);
+
         return [
             'searchableAttributes' => SearchableAttributes::forIndex(),
             'filterableAttributes' => array_values(array_unique($filterableAttributes)),
@@ -283,14 +291,16 @@ class PostIndexable implements Indexable
         // Preload meta cache using WordPress core function
         update_meta_cache('post', $postIds);
 
-        // Preload terms cache using WordPress core function
-        update_object_term_cache($postIds, $postTypes);
-
-        // Build preloaded terms array from cache
+        // Preload terms cache using WordPress core function, then build the terms from it,
+        // both as an integration reads them (WPML would fill the cache with adjusted terms)
         $this->preloadedTerms = [];
-        foreach ($posts as $post) {
-            $this->preloadedTerms[$post->ID] = $this->buildTermsFromCache($post);
-        }
+        self::readingTerms(function () use ($posts, $postIds, $postTypes): void {
+            update_object_term_cache($postIds, $postTypes);
+
+            foreach ($posts as $post) {
+                $this->preloadedTerms[$post->ID] = $this->buildTermsFromCache($post);
+            }
+        });
 
         // Build preloaded meta array from cache
         $this->preloadedMeta = [];
@@ -624,22 +634,46 @@ class PostIndexable implements Indexable
         }
 
         // Fallback to individual queries (single item mode)
-        $terms = [];
-        $taxonomies = get_object_taxonomies($post->post_type);
+        return self::readingTerms(function () use ($post): array {
+            $terms = [];
 
-        foreach ($taxonomies as $taxonomy) {
-            $rawTerms = wp_get_post_terms($post->ID, $taxonomy);
-            // An unknown taxonomy gives a WP_Error
-            if (is_wp_error($rawTerms)) {
-                continue;
+            foreach (get_object_taxonomies($post->post_type) as $taxonomy) {
+                $rawTerms = wp_get_post_terms($post->ID, $taxonomy);
+                // An unknown taxonomy gives a WP_Error
+                if (is_wp_error($rawTerms)) {
+                    continue;
+                }
+
+                foreach ($rawTerms as $term) {
+                    $terms[] = $this->termEntry($term);
+                }
             }
 
-            foreach ($rawTerms as $term) {
-                $terms[] = $this->termEntry($term);
-            }
-        }
+            return $terms;
+        });
+    }
 
-        return $terms;
+    /**
+     * Reads posts' terms as an integration wants them read: WPML adjusts a
+     * term to the current language, which would index a post of another
+     * language with the wrong terms (Integrations\Wpml).
+     *
+     * @template T
+     *
+     * @param  callable(): T  $read
+     * @return T
+     */
+    private static function readingTerms(callable $read): mixed
+    {
+        /**
+         * Filters how posts' terms are read at indexing: a callable running the
+         * reading it is given, or null to read them as WordPress does.
+         *
+         * @param  (callable(callable): mixed)|null  $reader
+         */
+        $reader = apply_filters('meiliscout/post/term_reader', null);
+
+        return is_callable($reader) ? $reader($read) : $read();
     }
 
     /**
