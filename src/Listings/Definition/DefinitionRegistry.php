@@ -27,6 +27,14 @@ final class DefinitionRegistry
         unset(self::$built[$id]);
     }
 
+    /**
+     * Forgets a listing (tests).
+     */
+    public static function remove(string $id): void
+    {
+        unset(self::$declared[$id], self::$built[$id]);
+    }
+
     public static function has(string $id): bool
     {
         return isset(self::$declared[$id]);

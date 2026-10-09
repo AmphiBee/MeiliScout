@@ -1638,3 +1638,70 @@
 .ms-seo-form .ms-card__foot {
 	justify-content: flex-end;
 }
+
+/* Listings */
+
+.ms-listing-checks {
+	margin: 0;
+	padding: 4px 20px 12px;
+	list-style: none;
+}
+
+.ms-listing-checks li {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	padding: 6px 0;
+	line-height: 1.45;
+}
+
+.ms-listing-checks .ms-pill {
+	flex: 0 0 auto;
+}
+
+.ms-listing__lines .ms-row {
+	align-items: baseline;
+}
+
+.ms-listing__lines .ms-row__label {
+	flex: 0 0 160px;
+}
+
+.ms-listing__value {
+	flex: 1 1 320px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.ms-listing-urls {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.ms-listing-urls li {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin: 2px 0;
+}
+
+.ms-listing__reserved {
+	color: var(--ms-error);
+	text-decoration: line-through;
+}
+
+.ms-listing-parity {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 100%;
+}
+
+.ms-listing-parity .ms-input {
+	width: auto;
+}
+
+.ms-listing-parity p {
+	margin: 0;
+}

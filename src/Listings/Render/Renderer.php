@@ -135,7 +135,7 @@ final class Renderer
         $results = $result->hits !== null ? self::clientResults($result) : self::results($result);
 
         return sprintf(
-            '<div id="%1$s-results" class="meiliscout-listing__results" data-meiliscout="results" data-wp-interactive="%2$s" data-wp-router-region="%1$s" data-wp-context="%3$s" data-wp-bind--aria-busy="state.busy">%4$s</div>',
+            '<div id="%1$s-results" class="meiliscout-listing__results" data-meiliscout="results" role="region" tabindex="-1" data-wp-interactive="%2$s" data-wp-router-region="%1$s" data-wp-context="%3$s" data-wp-bind--aria-label="state.resultsLabel" data-wp-bind--aria-busy="state.busy">%4$s</div>',
             esc_attr($id),
             esc_attr(Store::NAMESPACE),
             esc_attr(self::context($definition)),
@@ -279,7 +279,7 @@ final class Renderer
             .'<ul class="meiliscout-facet__options" role="list"><template data-wp-each--option="state.options" data-wp-each-key="context.option.value">'
             .'<li class="meiliscout-facet__option" data-wp-bind--hidden="state.optionHidden" data-wp-bind--data-depth="context.option.depth">'
             .'<label class="meiliscout-facet__label"><input class="meiliscout-facet__input" type="checkbox" name="%5$s" form="%6$s" data-wp-bind--value="context.option.value" data-wp-bind--checked="context.option.selected"> '
-            .'<a class="meiliscout-facet__text" data-wp-bind--href="context.option.url" data-wp-on--click="actions.follow" data-wp-text="context.option.label"></a> '
+            .'<a class="meiliscout-facet__text" data-wp-bind--href="context.option.url" data-wp-bind--tabindex="state.linkTabindex" data-wp-on--click="actions.follow" data-wp-text="context.option.label"></a> '
             .'<span class="meiliscout-facet__count" data-wp-text="context.option.countLabel"></span></label></li>'
             .'</template></ul>'
             .'<button type="button" class="meiliscout-facet__more" hidden data-wp-bind--hidden="!state.hasOverflow" data-wp-bind--aria-expanded="state.expanded" data-wp-on--click="actions.toggleMore" data-wp-text="state.moreLabel"></button>'

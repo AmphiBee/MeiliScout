@@ -104,6 +104,9 @@ final class Store
                     'one' => _n('See %d result', 'See %d results', 1, 'meiliscout'),
                     'many' => _n('See %d result', 'See %d results', 2, 'meiliscout'),
                 ],
+                'results' => __('Results', 'meiliscout'),
+                /* translators: 1: a page number, 2: the number of pages */
+                'resultsPage' => __('Results, page %1$d of %2$d', 'meiliscout'),
                 'more' => __('Show more', 'meiliscout'),
                 'less' => __('Show less', 'meiliscout'),
                 'previous' => __('Previous', 'meiliscout'),
@@ -200,6 +203,16 @@ final class Store
 
                 return sprintf($total === 0 ? $labels['zero'] : ($total === 1 ? $labels['one'] : $labels['many']), $total);
             },
+            // The results' region, named after its page: what a screen reader says when it gets the focus
+            'resultsLabel' => function () use ($listing): string {
+                $current = $listing();
+                $i18n = wp_interactivity_state(self::NAMESPACE)['i18n'];
+                $pages = (int) ($current['pages'] ?? 1);
+
+                return $pages > 1 ? sprintf($i18n['resultsPage'], (int) ($current['page'] ?? 1), $pages) : $i18n['results'];
+            },
+            // A value's link is for search engines and pages without JavaScript; the box is the control
+            'linkTabindex' => fn (): ?int => null,
             'hits' => function () use ($listing): array {
                 return (array) ($listing()['hits'] ?? []);
             },
