@@ -152,6 +152,11 @@ class IndexCommand
         $totalMinutes = (int) floor($totalElapsed / 60);
         $totalSeconds = (int) round(fmod($totalElapsed, 60.0));
 
+        // Every chunk is in: the documents of content deleted meanwhile can go
+        if (! $clearIndices) {
+            $indexer->deleteAllOrphans();
+        }
+
         // Every chunk is in: searches can move to these indexes
         $indexer->activate();
 
