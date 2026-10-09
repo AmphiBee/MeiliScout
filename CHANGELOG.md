@@ -1,21 +1,10 @@
 # Changelog
 
-## Unreleased
-
-### Indexing
-
-- A full indexation without `--clear` removes the documents of posts and terms the database no longer has (deleted by an import, a restore, a direct SQL query), and of post types and taxonomies no longer indexed. They stayed searchable and counted.
-- `wp meiliscout index --chunk-size` sent only the first post type: the chunk offset applied to each type. Every type is sent now, and `--clear --chunk-size` no longer leaves pages or custom types out of the index.
-- `wp meiliscout index --chunk-size` failed on its first chunk when WP-CLI ran with `--path` or through a wrapper (`ddev wp`): each chunk now gets the run's global parameters.
-
-### WP_Query
-
-- The same search asked twice in a request reaches Meilisearch once (`meiliscout/search_memo`): a Query Loop's pagination blocks run its query again, 3 searches out of 4 on a paginated loop. Forgotten when a post or its terms change during the request.
-- **Posts schema 5:** each term of a hierarchical taxonomy carries the ids of its ancestors (`taxonomies.<taxonomy>.tree`, the term first). `tax_query` with `include_children` (`cat`, `category_name`, archives…) is one `IN` on the tree instead of the list of every descendant, and a facet on the tree counts a parent with its children. `AND` keeps the list WordPress builds. A term moved to another parent, or whose parent is deleted, re-indexes the posts of its subtree.
+## [2.1.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.1.0) - 2026-10-09
 
 ### Front listings
 
-- **A new module, off by default** (Settings › Listings, WordPress 6.9): filterable listings of posts declared with `meiliscout_register_listing()` and printed with `meiliscout_listing()`. Facets on taxonomies (OR, AND, a term counted with its descendants) and meta keys (lists, ranges, booleans), sorts, a search, active filters, pagination; a `GET` form and real links without JavaScript, one canonical URL per state (301 to it). See [docs/LISTINGS.md](docs/LISTINGS.md).
+- **A new module, off by default** (Settings › Listings, WordPress 6.9; #44 to #51): filterable listings of posts declared with `meiliscout_register_listing()` and printed with `meiliscout_listing()`. Facets on taxonomies (OR, AND, a term counted with its descendants) and meta keys (lists, ranges, booleans), sorts, a search, active filters, pagination; a `GET` form and real links without JavaScript, one canonical URL per state (301 to it). See [docs/LISTINGS.md](docs/LISTINGS.md).
 - The browser counts the facets straight on Meilisearch, with a tenant token per listing signed by a key of their own (search only, posts index only), replaced from Settings › Listings. Results as an HTML fragment (default), as cards made in the browser from public fields (`transport => 'client'`), or by loading the page.
 - **Developer mode:** the parts of a listing printed one by one, anywhere on the page (`meiliscout_listing_part()`, `meiliscout_facet()`, `meiliscout_active_filters()`, `meiliscout_listing_results()`, `meiliscout_pagination()`), Blade components (`<x-meiliscout::facet>`…) and Twig functions (Timber). Cards are part of the definition: a callable, a template part, a Blade view, a Twig template or a `CardRenderer`. DOM events `meiliscout:change` and `meiliscout:results`.
 - **Editor mode:** the *Filterable listing* block holds the core's Post Template and pagination, *Facet* blocks and *Listing part* blocks (search, sort, total, active filters, apply, reset); its settings and errors in the editor, its definition saved with the post or template.
@@ -29,12 +18,23 @@
 - **A facet's search field** (`'search' => true`): typing narrows a long list's values, in the browser.
 - **Sitemap:** the indexable views (each term of a facet of the path, the views of two facets an SEO rule names) in the sitemap of WordPress, Yoast SEO, Rank Math, SEOPress or All in One SEO, and at `/meiliscout-listings-sitemap.xml`.
 - While the module runs, the posts index counts 1,000 values per facet instead of 100 (`meiliscout/post/max_values_per_facet`): a facet with more values offered only the first 100.
-- The Facet block's settings offered no taxonomy on WordPress 6.9 (the listing block around it was not found).
 - **Accessibility:** after a page link, the focus goes to the results, named after their page (*Results, page 2 of 12*), scrolled into view; a value's link leaves the tab order once its box is the control.
+
+### WP_Query
+
+- **Posts schema 5:** each term of a hierarchical taxonomy carries the ids of its ancestors (`taxonomies.<taxonomy>.tree`, the term first). `tax_query` with `include_children` (`cat`, `category_name`, archives…) is one `IN` on the tree instead of the list of every descendant, and a facet on the tree counts a parent with its children. `AND` keeps the list WordPress builds. A term moved to another parent, or whose parent is deleted, re-indexes the posts of its subtree. (#41)
+- The same search asked twice in a request reaches Meilisearch once (`meiliscout/search_memo`): a Query Loop's pagination blocks run its query again, 3 searches out of 4 on a paginated loop. Forgotten when a post or its terms change during the request. (#42)
+
+### Indexing
+
+- A full indexation without `--clear` removes the documents of posts and terms the database no longer has (deleted by an import, a restore, a direct SQL query), and of post types and taxonomies no longer indexed. They stayed searchable and counted. (#43)
+- `wp meiliscout index --chunk-size` sent only the first post type: the chunk offset applied to each type. Every type is sent now, and `--clear --chunk-size` no longer leaves pages or custom types out of the index. (#43)
+- `wp meiliscout index --chunk-size` failed on its first chunk when WP-CLI ran with `--path` or through a wrapper (`ddev wp`): each chunk now gets the run's global parameters. (#43)
 
 ### Upgrading
 
-The posts documents change (schema 5): until a full indexation rebuilds the posts index, queries list the descendants as before.
+- The posts documents change (schema 5): until a full indexation rebuilds the posts index, queries list the descendants as before, and listings are served without counts.
+- The front listings module stays off until it is turned on (Settings › Listings). Turned on, the posts index returns public fields only and counts 1,000 values per facet: a settings update of the index, no re-indexation. See [docs/LISTINGS.md](docs/LISTINGS.md).
 
 ## [2.0.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.0.0) - 2026-10-08
 
