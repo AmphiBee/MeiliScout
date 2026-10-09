@@ -26,11 +26,14 @@ final class ListingsServiceProvider extends ServiceProvider
     {
         require_once __DIR__.'/functions.php';
 
-        if (self::unavailable() !== null) {
-            return;
-        }
+        $available = self::unavailable() === null;
 
-        Listings::boot();
+        // Also when off: the index returns every field again
+        PublicFields::boot($available);
+
+        if ($available) {
+            Listings::boot();
+        }
     }
 
     /**

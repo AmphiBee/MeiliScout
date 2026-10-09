@@ -23,6 +23,16 @@ use function apply_filters;
 class FieldsBuilder implements QueryBuilderInterface
 {
     /**
+     * The columns a WP_Post built from a document reads (post_password is never indexed).
+     */
+    public const POST_COLUMNS = [
+        'ID', 'post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title', 'post_excerpt',
+        'post_status', 'comment_status', 'ping_status', 'post_name', 'to_ping', 'pinged', 'post_modified',
+        'post_modified_gmt', 'post_content_filtered', 'post_parent', 'guid', 'menu_order', 'post_type',
+        'post_mime_type', 'comment_count',
+    ];
+
+    /**
      * @param  array<string, mixed>  $searchParams
      */
     public function build(QueryInterface $query, array &$searchParams): void
@@ -63,6 +73,19 @@ class FieldsBuilder implements QueryBuilderInterface
          * @param  bool  $fromDocuments  Default false.
          * @param  QueryInterface  $query
          */
-        return (bool) apply_filters('meiliscout/hydrate_from_documents', false, $query);
+        if (! apply_filters('meiliscout/hydrate_from_documents', false, $query)) {
+            return false;
+        }
+
+        // An index returning only some fields (listings: public fields) would build incomplete posts: loaded from the database
+        return self::canHydrate();
+    }
+
+    /**
+     * Whether the posts index returns every column of a WP_Post.
+     */
+    public static function canHydrate(): bool
+    {
+        return IndexSettings::firstUncovered(IndexSettings::displayed(IndexNames::active('posts')), self::POST_COLUMNS) === null;
     }
 }
