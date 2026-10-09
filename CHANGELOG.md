@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Indexing
+
+- A full indexation without `--clear` removes the documents of posts and terms the database no longer has (deleted by an import, a restore, a direct SQL query), and of post types and taxonomies no longer indexed. They stayed searchable and counted.
+- `wp meiliscout index --chunk-size` sent only the first post type: the chunk offset applied to each type. Every type is sent now, and `--clear --chunk-size` no longer leaves pages or custom types out of the index.
+- `wp meiliscout index --chunk-size` failed on its first chunk when WP-CLI ran with `--path` or through a wrapper (`ddev wp`): each chunk now gets the run's global parameters.
+
 ## 2.0.0 (unreleased)
 
 ### WP_Query
