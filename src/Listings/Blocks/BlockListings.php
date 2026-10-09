@@ -364,7 +364,7 @@ final class BlockListings
         $id = self::listingOf($block);
         $part = (string) ($attributes['part'] ?? '');
 
-        if ($id === null || ! in_array($part, ['search', 'sort', 'total', 'active', 'apply', 'reset', 'pagination'], true)) {
+        if ($id === null || ! in_array($part, ['search', 'sort', 'total', 'active', 'apply', 'reset', 'pagination', 'intro', 'faq'], true)) {
             return '';
         }
 

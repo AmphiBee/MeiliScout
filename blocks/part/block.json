@@ -4,12 +4,12 @@
 	"name": "meiliscout/listing-part",
 	"title": "Listing part",
 	"category": "theme",
-	"description": "A part of the listing: search, sort, total, active filters, apply, reset.",
+	"description": "A part of the listing: search, sort, total, active filters, apply, reset, the SEO rule's introduction or questions.",
 	"textdomain": "meiliscout",
 	"ancestor": [ "meiliscout/listing" ],
 	"usesContext": [ "meiliscout/listing" ],
 	"attributes": {
-		"part": { "type": "string", "default": "search", "enum": [ "search", "sort", "total", "active", "apply", "reset" ] }
+		"part": { "type": "string", "default": "search", "enum": [ "search", "sort", "total", "active", "apply", "reset", "intro", "faq" ] }
 	},
 	"variations": [
 		{ "name": "search", "title": "Listing search", "description": "Searches the listing's posts.", "icon": "search", "attributes": { "part": "search" }, "isDefault": true, "scope": [ "inserter", "transform" ], "isActive": [ "part" ] },
@@ -17,7 +17,9 @@
 		{ "name": "total", "title": "Listing total", "description": "How many results match.", "icon": "editor-ol", "attributes": { "part": "total" }, "scope": [ "inserter", "transform" ], "isActive": [ "part" ] },
 		{ "name": "active", "title": "Active filters", "description": "The filters chosen, each one removable.", "icon": "dismiss", "attributes": { "part": "active" }, "scope": [ "inserter", "transform" ], "isActive": [ "part" ] },
 		{ "name": "apply", "title": "Apply filters", "description": "Sends the filters: needed without JavaScript, and in button mode.", "icon": "yes", "attributes": { "part": "apply" }, "scope": [ "inserter", "transform" ], "isActive": [ "part" ] },
-		{ "name": "reset", "title": "Reset filters", "description": "Back to the listing without filters.", "icon": "image-rotate", "attributes": { "part": "reset" }, "scope": [ "inserter", "transform" ], "isActive": [ "part" ] }
+		{ "name": "reset", "title": "Reset filters", "description": "Back to the listing without filters.", "icon": "image-rotate", "attributes": { "part": "reset" }, "scope": [ "inserter", "transform" ], "isActive": [ "part" ] },
+		{ "name": "intro", "title": "Listing introduction", "description": "The heading and text of the SEO rule matching the filters.", "icon": "heading", "attributes": { "part": "intro" }, "scope": [ "inserter", "transform" ], "isActive": [ "part" ] },
+		{ "name": "faq", "title": "Listing questions", "description": "The questions and answers of the SEO rule matching the filters.", "icon": "editor-help", "attributes": { "part": "faq" }, "scope": [ "inserter", "transform" ], "isActive": [ "part" ] }
 	],
 	"supports": {
 		"html": false,

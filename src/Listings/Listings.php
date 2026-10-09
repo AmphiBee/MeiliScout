@@ -12,6 +12,8 @@ use Pollora\MeiliScout\Listings\Query\ListingQuery;
 use Pollora\MeiliScout\Listings\Query\ListingResult;
 use Pollora\MeiliScout\Listings\Render\Renderer;
 use Pollora\MeiliScout\Listings\Render\Store;
+use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
+use Pollora\MeiliScout\Listings\Seo\SeoRules;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
 use Pollora\MeiliScout\Listings\Transport\RestController;
@@ -31,6 +33,8 @@ final class Listings
         add_action('init', [self::class, 'registerModule']);
         add_action('rest_api_init', [RestController::class, 'routes']);
         add_action('template_redirect', [self::class, 'redirectToCanonical'], 0);
+        add_action('admin_init', [SeoRules::class, 'install']);
+        SeoPolicy::boot();
     }
 
     /**
@@ -318,6 +322,7 @@ final class Listings
         self::$results = [];
         self::$requests = [];
         Renderer::forgetForms();
+        SeoPolicy::forget();
     }
 
     /**
@@ -372,17 +377,7 @@ final class Listings
             return;
         }
 
-        foreach (DefinitionRegistry::ids() as $id) {
-            try {
-                $definition = DefinitionRegistry::get($id);
-            } catch (InvalidListing) {
-                continue;
-            }
-
-            if (! self::isOnRoute($definition)) {
-                continue;
-            }
-
+        foreach (self::routed() as $definition) {
             // UrlCodec has the last word: redirect_canonical() writes a page's
             // query string again, the comma between two values as %2C (one value)
             remove_action('template_redirect', 'redirect_canonical');
@@ -397,6 +392,30 @@ final class Listings
 
             return;
         }
+    }
+
+    /**
+     * The listings whose route is this request's page (on `wp` and after).
+     *
+     * @return list<ListingDefinition>
+     */
+    public static function routed(): array
+    {
+        $routed = [];
+
+        foreach (DefinitionRegistry::ids() as $id) {
+            try {
+                $definition = DefinitionRegistry::get($id);
+            } catch (InvalidListing) {
+                continue;
+            }
+
+            if (self::isOnRoute($definition)) {
+                $routed[] = $definition;
+            }
+        }
+
+        return $routed;
     }
 
     private static function isOnRoute(ListingDefinition $definition): bool

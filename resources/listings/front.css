@@ -214,6 +214,62 @@
 	font-size: 0.875em;
 }
 
+/* The SEO rule's introduction and questions: across the listing, gone when empty */
+
+:where(.meiliscout-listing__intro:empty, .meiliscout-listing__faq:empty) {
+	display: none;
+}
+
+:where(.meiliscout-listing > .meiliscout-listing__intro, .meiliscout-listing > .meiliscout-listing__faq) {
+	grid-column: 1 / -1;
+}
+
+:where(.meiliscout-listing__heading) {
+	margin: 0 0 var(--meiliscout-gap-small);
+}
+
+:where(.meiliscout-listing__text > :first-child) {
+	margin-top: 0;
+}
+
+:where(.meiliscout-listing__text > :last-child) {
+	margin-bottom: 0;
+}
+
+:where(.meiliscout-faq__item) {
+	padding: var(--meiliscout-gap-small) 0;
+	border-top: 1px solid var(--meiliscout-border);
+}
+
+:where(.meiliscout-faq__item:last-child) {
+	border-bottom: 1px solid var(--meiliscout-border);
+}
+
+:where(.meiliscout-faq__question) {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+:where(.meiliscout-faq__answer) {
+	margin-top: var(--meiliscout-gap-small);
+}
+
+:where(.meiliscout-faq__answer > :first-child) {
+	margin-top: 0;
+}
+
+:where(.meiliscout-faq__answer > :last-child) {
+	margin-bottom: 0;
+}
+
+/* The editor's preview of a part that has no content of its own */
+
+:where(.meiliscout-part__placeholder) {
+	margin: 0;
+	color: var(--meiliscout-muted);
+	font-style: italic;
+}
+
 /* Results and pagination */
 
 :where(.meiliscout-results) {

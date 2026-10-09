@@ -53,6 +53,9 @@ final class Store
                     'facets' => $facets,
                     'base' => $base,
                     'url' => UrlCodec::url($definition, $state, $base),
+                    // The state the SEO rule's intro and questions were rendered for, and the one shown (client transport)
+                    'renderedUrl' => UrlCodec::url($definition, $state, $base),
+                    'shownUrl' => UrlCodec::url($definition, $state, $base),
                     'transport' => $result->template === null ? 'page' : $definition->transport,
                     'host' => $token === null ? null : TenantTokens::publicHost(),
                     'token' => $token,
