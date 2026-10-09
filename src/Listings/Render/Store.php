@@ -211,6 +211,10 @@ final class Store
 
                 return $pages > 1 ? sprintf($i18n['resultsPage'], (int) ($current['page'] ?? 1), $pages) : $i18n['results'];
             },
+            // A facet's search field works in the browser only
+            'facetSearchHidden' => fn (): bool => true,
+            'facetQuery' => fn (): string => '',
+            'noMatch' => fn (): bool => false,
             // A value's link is for search engines and pages without JavaScript; the box is the control
             'linkTabindex' => fn (): ?int => null,
             'hits' => function () use ($listing): array {

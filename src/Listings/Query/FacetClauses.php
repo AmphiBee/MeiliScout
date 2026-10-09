@@ -8,6 +8,7 @@ use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
 use Pollora\MeiliScout\Query\Builders\MetaQueryBuilder;
+use Pollora\MeiliScout\Query\Builders\PostFieldsBuilder;
 use Pollora\MeiliScout\Query\Builders\TaxQueryBuilder;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 
@@ -30,7 +31,7 @@ final class FacetClauses
     /**
      * The WP_Query arguments of a facet's selection, empty when it has none.
      *
-     * @return array{tax_query?: list<array<string, mixed>>, meta_query?: list<array<string, mixed>>}
+     * @return array{tax_query?: list<array<string, mixed>>, meta_query?: list<array<string, mixed>>, author__in?: list<int>}
      */
     public static function args(FacetDefinition $facet, ListingState $state): array
     {
@@ -51,6 +52,10 @@ final class FacetClauses
 
         if ($values === []) {
             return [];
+        }
+
+        if ($facet->isAuthor()) {
+            return ['author__in' => array_map([self::class, 'authorId'], $values)];
         }
 
         if ($facet->type === FacetDefinition::BOOLEAN) {
@@ -81,6 +86,10 @@ final class FacetClauses
             return self::build(new TaxQueryBuilder, ['tax_query' => [
                 ['taxonomy' => $facet->name, 'field' => 'slug', 'terms' => [$value], 'operator' => 'IN', 'include_children' => $facet->hierarchical],
             ]]);
+        }
+
+        if ($facet->isAuthor()) {
+            return self::build(new PostFieldsBuilder, ['author__in' => [self::authorId($value)]]);
         }
 
         $value = $facet->type === FacetDefinition::BOOLEAN ? $facet->booleanValue : $value;
@@ -155,9 +164,19 @@ final class FacetClauses
     }
 
     /**
+     * A user's id from their slug (user_nicename, as author archives write it), 0 for none.
+     */
+    public static function authorId(string $slug): int
+    {
+        $user = get_user_by('slug', $slug);
+
+        return $user instanceof \WP_User ? $user->ID : 0;
+    }
+
+    /**
      * @param  array<string, mixed>  $vars
      */
-    private static function build(TaxQueryBuilder|MetaQueryBuilder $builder, array $vars): string
+    private static function build(TaxQueryBuilder|MetaQueryBuilder|PostFieldsBuilder $builder, array $vars): string
     {
         $params = [];
         $builder->build(new ArrayQuery($vars), $params);

@@ -289,12 +289,13 @@ final class ListingDefinition
             return null;
         }
 
-        [$source, $name] = array_pad(explode(':', (string) ($args['source'] ?? ''), 2), 2, '');
+        $rawSource = (string) ($args['source'] ?? '');
+        [$source, $name] = $rawSource === 'author' ? ['author', 'author'] : array_pad(explode(':', $rawSource, 2), 2, '');
         $type = (string) ($args['type'] ?? FacetDefinition::LIST);
         $logic = (string) ($args['logic'] ?? 'or');
 
-        if (! in_array($source, ['taxonomy', 'meta'], true) || $name === '') {
-            $errors[] = sprintf('The facet "%s" needs a source: taxonomy:<name> or meta:<key>.', $key);
+        if (! in_array($source, ['taxonomy', 'meta', 'author'], true) || $name === '') {
+            $errors[] = sprintf('The facet "%s" needs a source: taxonomy:<name>, meta:<key> or author.', $key);
 
             return null;
         }
@@ -329,7 +330,32 @@ final class ListingDefinition
             return null;
         }
 
+        if (! empty($args['search']) && $type !== FacetDefinition::LIST) {
+            $errors[] = sprintf('The facet "%s": only a list has values to search.', $key);
+
+            return null;
+        }
+
+        // A post has one author: all of two authors is no post
+        if ($source === 'author' && $logic === 'and') {
+            $errors[] = sprintf('The facet "%s": a post has one author, its values combine with or.', $key);
+
+            return null;
+        }
+
         $taxonomy = $source === 'taxonomy' ? get_taxonomy($name) : null;
+        $label = (string) ($args['label'] ?? match (true) {
+            (bool) $taxonomy => $taxonomy->labels->singular_name,
+            $source === 'author' => __('Author', 'meiliscout'),
+            default => $key,
+        });
+
+        // WordPress reads author: an author facet keyed so is named after its title (auteur), as blocks are
+        $param = (string) ($args['param'] ?? $key);
+        if (! isset($args['param']) && $source === 'author' && ReservedParameters::isReserved($param)) {
+            $title = sanitize_title($label);
+            $param = $title !== '' && ! ReservedParameters::isReserved($title) ? $title : $key.'_';
+        }
         $hierarchical = $taxonomy !== null && $taxonomy !== false && $taxonomy->hierarchical && ($args['hierarchy'] ?? 'tree') !== 'flat';
 
         return new FacetDefinition(
@@ -339,8 +365,8 @@ final class ListingDefinition
             type: $type,
             logic: $logic,
             hierarchical: $hierarchical,
-            param: (string) ($args['param'] ?? $key),
-            label: (string) ($args['label'] ?? ($taxonomy ? $taxonomy->labels->singular_name : $key)),
+            param: $param,
+            label: $label,
             labels: array_map('strval', (array) ($args['labels'] ?? [])),
             limit: max(0, (int) ($args['limit'] ?? 0)),
             decimals: max(0, min(6, (int) ($args['decimals'] ?? 0))),
@@ -348,11 +374,12 @@ final class ListingDefinition
             // true: the facet's parameter name; by language: the first is the default
             path: match (true) {
                 ! isset($args['path']) || $args['path'] === false => null,
-                $args['path'] === true => (string) ($args['param'] ?? $key),
+                $args['path'] === true => $param,
                 is_array($args['path']) => (string) (reset($args['path']) ?: ''),
                 default => (string) $args['path'],
             },
             paths: is_array($args['path'] ?? null) ? array_map('strval', $args['path']) : [],
+            search: (bool) ($args['search'] ?? false),
         );
     }
 }
