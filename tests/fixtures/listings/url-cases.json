@@ -1,0 +1,644 @@
+{
+	"about": "UrlCodec (PHP) and resources/listings/codec.js (JS) on the listing of definition.json. Each case: the state a query string asks for, its canonical query string, and its URL; redirect, PHP only, is where UrlCodec::canonicalQuery() sends the request (null: already canonical). Cases marked accents need WordPress's remove_accents(): the unit suite leaves them to the integration suite.",
+	"template": {
+		"sortParam": "sort",
+		"searchParam": "q",
+		"defaultSort": "date",
+		"sorts": {
+			"date": [
+				"post_date:desc"
+			],
+			"title": [
+				"post_title_sort:asc"
+			]
+		},
+		"facets": [
+			{
+				"key": "category",
+				"param": "categorie",
+				"type": "list",
+				"logic": "or",
+				"taxonomy": true,
+				"decimals": 0
+			},
+			{
+				"key": "tag",
+				"param": "etiquette",
+				"type": "list",
+				"logic": "and",
+				"taxonomy": true,
+				"decimals": 0
+			},
+			{
+				"key": "color",
+				"param": "color",
+				"type": "list",
+				"logic": "or",
+				"taxonomy": false,
+				"decimals": 0
+			},
+			{
+				"key": "price",
+				"param": "price",
+				"type": "range",
+				"logic": "or",
+				"taxonomy": false,
+				"decimals": 2
+			},
+			{
+				"key": "featured",
+				"param": "featured",
+				"type": "boolean",
+				"logic": "or",
+				"taxonomy": false,
+				"decimals": 0
+			}
+		]
+	},
+	"base": "https://example.test/blog/",
+	"cases": [
+		{
+			"name": "no parameter",
+			"query": "",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "",
+			"url": "https://example.test/blog/",
+			"redirect": null
+		},
+		{
+			"name": "one term",
+			"query": "categorie=news",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "categorie=news",
+			"url": "https://example.test/blog/?categorie=news",
+			"redirect": null
+		},
+		{
+			"name": "values sorted and unique",
+			"query": "categorie=travel,news,news",
+			"state": {
+				"values": {
+					"category": [
+						"news",
+						"travel"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "categorie=news,travel",
+			"url": "https://example.test/blog/?categorie=news,travel",
+			"redirect": "categorie=news,travel"
+		},
+		{
+			"name": "a form repeats the name",
+			"query": "categorie=travel&categorie=news",
+			"state": {
+				"values": {
+					"category": [
+						"news",
+						"travel"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "categorie=news,travel",
+			"url": "https://example.test/blog/?categorie=news,travel",
+			"redirect": "categorie=news,travel"
+		},
+		{
+			"name": "slugs in lowercase",
+			"query": "categorie=News,TRAVEL",
+			"state": {
+				"values": {
+					"category": [
+						"news",
+						"travel"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "categorie=news,travel",
+			"url": "https://example.test/blog/?categorie=news,travel",
+			"redirect": "categorie=news,travel"
+		},
+		{
+			"name": "a slug sanitized as WordPress does",
+			"query": "categorie=Road%20trip,big.data",
+			"state": {
+				"values": {
+					"category": [
+						"big-data",
+						"road-trip"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "categorie=big-data,road-trip",
+			"url": "https://example.test/blog/?categorie=big-data,road-trip",
+			"redirect": "categorie=big-data,road-trip"
+		},
+		{
+			"name": "accents removed from a slug",
+			"accents": true,
+			"query": "categorie=%C3%89t%C3%A9,c%C5%93ur",
+			"state": {
+				"values": {
+					"category": [
+						"coeur",
+						"ete"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "categorie=coeur,ete",
+			"url": "https://example.test/blog/?categorie=coeur,ete",
+			"redirect": "categorie=coeur,ete"
+		},
+		{
+			"name": "a non-Latin slug, stored encoded, written encoded",
+			"query": "categorie=%D0%BF%D1%80%D0%B8",
+			"state": {
+				"values": {
+					"category": [
+						"%d0%bf%d1%80%d0%b8"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "categorie=%D0%BF%D1%80%D0%B8",
+			"url": "https://example.test/blog/?categorie=%D0%BF%D1%80%D0%B8",
+			"redirect": null
+		},
+		{
+			"name": "an AND facet sorts its values too",
+			"query": "etiquette=b,a",
+			"state": {
+				"values": {
+					"tag": [
+						"a",
+						"b"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "etiquette=a,b",
+			"url": "https://example.test/blog/?etiquette=a,b",
+			"redirect": "etiquette=a,b"
+		},
+		{
+			"name": "an encoded comma stays in its meta value",
+			"query": "color=red%2Cblue,green",
+			"state": {
+				"values": {
+					"color": [
+						"green",
+						"red,blue"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "color=green,red%2Cblue",
+			"url": "https://example.test/blog/?color=green,red%2Cblue",
+			"redirect": "color=green,red%2Cblue"
+		},
+		{
+			"name": "a meta value keeps its case and its spaces",
+			"query": "color=Light+Blue",
+			"state": {
+				"values": {
+					"color": [
+						"Light Blue"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "color=Light%20Blue",
+			"url": "https://example.test/blog/?color=Light%20Blue",
+			"redirect": "color=Light%20Blue"
+		},
+		{
+			"name": "meta values in byte order: uppercase first, accents last",
+			"query": "color=%C3%A9cru,blue,Blue",
+			"state": {
+				"values": {
+					"color": [
+						"Blue",
+						"blue",
+						"écru"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "color=Blue,blue,%C3%A9cru",
+			"url": "https://example.test/blog/?color=Blue,blue,%C3%A9cru",
+			"redirect": "color=Blue,blue,%C3%A9cru"
+		},
+		{
+			"name": "byte order beyond the UTF-16 surrogates: ﬁ (U+FB01) before 🍕 (U+1F355)",
+			"query": "color=%F0%9F%8D%95,%EF%AC%81",
+			"state": {
+				"values": {
+					"color": [
+						"ﬁ",
+						"🍕"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "color=%EF%AC%81,%F0%9F%8D%95",
+			"url": "https://example.test/blog/?color=%EF%AC%81,%F0%9F%8D%95",
+			"redirect": "color=%EF%AC%81,%F0%9F%8D%95"
+		},
+		{
+			"name": "characters encodeURIComponent() leaves alone, encoded as rawurlencode() does",
+			"query": "color=it's(1)!*",
+			"state": {
+				"values": {
+					"color": [
+						"it's(1)!*"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "color=it%27s%281%29%21%2A",
+			"url": "https://example.test/blog/?color=it%27s%281%29%21%2A",
+			"redirect": "color=it%27s%281%29%21%2A"
+		},
+		{
+			"name": "a lone percent sign is kept",
+			"query": "color=100%",
+			"state": {
+				"values": {
+					"color": [
+						"100%"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "color=100%25",
+			"url": "https://example.test/blog/?color=100%25",
+			"redirect": "color=100%25"
+		},
+		{
+			"name": "empty values are dropped",
+			"query": "categorie=&color=,&price=..",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "",
+			"url": "https://example.test/blog/",
+			"redirect": ""
+		},
+		{
+			"name": "a range",
+			"query": "price=10..20.5",
+			"state": {
+				"values": {},
+				"ranges": {
+					"price": {
+						"min": 10,
+						"max": 20.5
+					}
+				},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "price=10..20.5",
+			"url": "https://example.test/blog/?price=10..20.5",
+			"redirect": null
+		},
+		{
+			"name": "a range open on one side",
+			"query": "price=..20",
+			"state": {
+				"values": {},
+				"ranges": {
+					"price": {
+						"max": 20
+					}
+				},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "price=..20",
+			"url": "https://example.test/blog/?price=..20",
+			"redirect": null
+		},
+		{
+			"name": "a form sends the bounds apart",
+			"query": "price_min=20&price_max=",
+			"state": {
+				"values": {},
+				"ranges": {
+					"price": {
+						"min": 20
+					}
+				},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "price=20..",
+			"url": "https://example.test/blog/?price=20..",
+			"redirect": "price=20.."
+		},
+		{
+			"name": "bounds the wrong way round are swapped",
+			"query": "price=50..10",
+			"state": {
+				"values": {},
+				"ranges": {
+					"price": {
+						"min": 10,
+						"max": 50
+					}
+				},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "price=10..50",
+			"url": "https://example.test/blog/?price=10..50",
+			"redirect": "price=10..50"
+		},
+		{
+			"name": "bounds rounded half away from zero, as PHP 8.4 rounds",
+			"query": "price=-10.555..1.005",
+			"state": {
+				"values": {},
+				"ranges": {
+					"price": {
+						"min": -10.56,
+						"max": 1.01
+					}
+				},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "price=-10.56..1.01",
+			"url": "https://example.test/blog/?price=-10.56..1.01",
+			"redirect": "price=-10.56..1.01"
+		},
+		{
+			"name": "trailing zeros dropped",
+			"query": "price=10.50..20.00",
+			"state": {
+				"values": {},
+				"ranges": {
+					"price": {
+						"min": 10.5,
+						"max": 20
+					}
+				},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "price=10.5..20",
+			"url": "https://example.test/blog/?price=10.5..20",
+			"redirect": "price=10.5..20"
+		},
+		{
+			"name": "a range that is not one is ignored",
+			"query": "price=cheap",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "",
+			"url": "https://example.test/blog/",
+			"redirect": ""
+		},
+		{
+			"name": "a boolean is 1 or nothing",
+			"query": "featured=1",
+			"state": {
+				"values": {
+					"featured": [
+						"1"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "featured=1",
+			"url": "https://example.test/blog/?featured=1",
+			"redirect": null
+		},
+		{
+			"name": "a boolean other than 1 is ignored",
+			"query": "featured=yes",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "",
+			"url": "https://example.test/blog/",
+			"redirect": ""
+		},
+		{
+			"name": "the default sort is left out",
+			"query": "sort=date",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "",
+			"url": "https://example.test/blog/",
+			"redirect": ""
+		},
+		{
+			"name": "another sort",
+			"query": "sort=title",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "title",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "sort=title",
+			"url": "https://example.test/blog/?sort=title",
+			"redirect": null
+		},
+		{
+			"name": "an unknown sort is ignored, a repeated one keeps the last",
+			"query": "sort=title&sort=random",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": ""
+			},
+			"canonical": "",
+			"url": "https://example.test/blog/",
+			"redirect": ""
+		},
+		{
+			"name": "a search, trimmed of ASCII spaces",
+			"query": "q=+hello%20world%09",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": "hello world"
+			},
+			"canonical": "q=hello%20world",
+			"url": "https://example.test/blog/?q=hello%20world",
+			"redirect": "q=hello%20world"
+		},
+		{
+			"name": "a no-break space is not trimmed (PHP's trim())",
+			"query": "q=%C2%A0caf%C3%A9",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": " café"
+			},
+			"canonical": "q=%C2%A0caf%C3%A9",
+			"url": "https://example.test/blog/?q=%C2%A0caf%C3%A9",
+			"redirect": null
+		},
+		{
+			"name": "a search cut at 200 characters, not UTF-16 units",
+			"query": "q=%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95",
+			"state": {
+				"values": {},
+				"ranges": {},
+				"sort": "",
+				"page": 1,
+				"search": "🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕🍕"
+			},
+			"canonical": "q=%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95",
+			"url": "https://example.test/blog/?q=%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95",
+			"redirect": "q=%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95%F0%9F%8D%95"
+		},
+		{
+			"name": "parameters in the definition's order, then the sort and the search; others ignored",
+			"query": "q=x&utm_source=news&sort=title&featured=1&price=..5&color=red&etiquette=a&categorie=news",
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					],
+					"tag": [
+						"a"
+					],
+					"color": [
+						"red"
+					],
+					"featured": [
+						"1"
+					]
+				},
+				"ranges": {
+					"price": {
+						"max": 5
+					}
+				},
+				"sort": "title",
+				"page": 1,
+				"search": "x"
+			},
+			"canonical": "categorie=news&etiquette=a&color=red&price=..5&featured=1&sort=title&q=x",
+			"url": "https://example.test/blog/?categorie=news&etiquette=a&color=red&price=..5&featured=1&sort=title&q=x",
+			"redirect": "categorie=news&etiquette=a&color=red&price=..5&featured=1&sort=title&q=x&utm_source=news"
+		},
+		{
+			"name": "a page in the path",
+			"query": "categorie=news",
+			"page": 3,
+			"state": {
+				"values": {
+					"category": [
+						"news"
+					]
+				},
+				"ranges": {},
+				"sort": "",
+				"page": 3,
+				"search": ""
+			},
+			"canonical": "categorie=news",
+			"url": "https://example.test/blog/page/3/?categorie=news",
+			"redirect": null
+		}
+	]
+}

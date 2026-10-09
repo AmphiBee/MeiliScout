@@ -3,7 +3,7 @@ import {
 	useEffect,
 	useState,
 } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 
 import { post, errorMessage } from '../api';
 import {
@@ -65,7 +65,194 @@ const fromData = ( data ) => ( {
 	contains_filter: data.contains_filter.enabled,
 	query_integration: data.query_integration,
 	term_query_integration: data.term_query_integration,
+	listings: {
+		enabled: data.listings.enabled,
+		public_host: data.listings.public_host,
+	},
 } );
+
+const ListingsCard = ( { data, form, setForm, onRotate, rotating } ) => {
+	const listings = data.listings;
+	const setListings = ( changes ) =>
+		setForm( { ...form, listings: { ...form.listings, ...changes } } );
+	const invalid = listings.listings.filter(
+		( listing ) => listing.errors.length
+	);
+
+	return (
+		<section
+			id="listings"
+			className="ms-card"
+			aria-labelledby="ms-listings-title"
+		>
+			<div className="ms-card__head">
+				<h2 id="ms-listings-title">
+					{ __( 'Listings', 'meiliscout' ) }
+				</h2>
+				<p>
+					{ createInterpolateElement(
+						__(
+							'Filterable listings on the front end, declared by the theme with <code>meiliscout_register_listing()</code>. Browsers count their facets straight on Meilisearch, with a token that only searches the listing’s posts.',
+							'meiliscout'
+						),
+						{ code: <code /> }
+					) }
+				</p>
+			</div>
+			<div className="ms-row">
+				<Switch
+					checked={ form.listings.enabled }
+					disabled={ !! listings.unavailable }
+					onChange={ ( on ) => setListings( { enabled: on } ) }
+					label={ __( 'Front listings', 'meiliscout' ) }
+				/>
+				<div className="ms-row__label ms-row__label--text">
+					<strong>{ __( 'Front listings', 'meiliscout' ) }</strong>
+					<span>
+						{ listings.unavailable ||
+							__(
+								'While on, the posts index returns its public fields only: those a card shows, and the meta keys listings declare public.',
+								'meiliscout'
+							) }
+					</span>
+				</div>
+			</div>
+			<div className="ms-card__body">
+				<div className="ms-field">
+					<label htmlFor="ms-listings-host">
+						{ __( 'Public URL of Meilisearch', 'meiliscout' ) }{ ' ' }
+						<span className="ms-field__label-note">
+							{ __( '(optional)', 'meiliscout' ) }
+						</span>
+					</label>
+					<input
+						id="ms-listings-host"
+						className="ms-input"
+						type="url"
+						value={ form.listings.public_host }
+						onChange={ ( event ) =>
+							setListings( { public_host: event.target.value } )
+						}
+						placeholder={ listings.host }
+						aria-describedby="ms-listings-host-help"
+					/>
+					<span id="ms-listings-host-help" className="ms-field__help">
+						{ __(
+							'Where browsers reach Meilisearch, when the instance URL is one only the server can reach.',
+							'meiliscout'
+						) }
+					</span>
+				</div>
+
+				<div className="ms-field">
+					<span className="ms-field__label">
+						{ __( 'Listings key', 'meiliscout' ) }
+					</span>
+					<div
+						style={ {
+							display: 'flex',
+							flexWrap: 'wrap',
+							alignItems: 'center',
+							gap: 12,
+						} }
+					>
+						<span
+							role="status"
+							className={
+								'ms-status ' +
+								( listings.key?.current
+									? 'ms-status--success'
+									: '' )
+							}
+						>
+							{ listings.key
+								? sprintf(
+										/* translators: %s: the key's uid */
+										__( 'Key %s', 'meiliscout' ),
+										listings.key.uid.slice( 0, 8 )
+								  )
+								: __(
+										'No key yet: made when a listing first renders.',
+										'meiliscout'
+								  ) }
+						</span>
+						<button
+							type="button"
+							className="ms-button"
+							onClick={ onRotate }
+							disabled={ rotating }
+						>
+							{ rotating
+								? __( 'Replacing…', 'meiliscout' )
+								: __( 'Replace the key', 'meiliscout' ) }
+						</button>
+					</div>
+					<span className="ms-field__help">
+						{ __(
+							'Signs the tokens pages carry. Replacing it refuses every token given so far: browsers ask for a new one, cached pages included.',
+							'meiliscout'
+						) }
+					</span>
+				</div>
+
+				{ listings.hydration_ignored && (
+					<p className="ms-inline-note">
+						{ createInterpolateElement(
+							__(
+								'<code>meiliscout/hydrate_from_documents</code> is ignored: the index returns its public fields only, and posts are loaded from the database.',
+								'meiliscout'
+							),
+							{ code: <code /> }
+						) }
+					</p>
+				) }
+
+				{ invalid.map( ( listing ) => (
+					<Banner
+						key={ listing.id }
+						tone="error"
+						icon="alert"
+						title={ sprintf(
+							/* translators: %s: a listing's id */
+							__(
+								'The listing “%s” cannot be served',
+								'meiliscout'
+							),
+							listing.id
+						) }
+					>
+						<ul className="ms-list">
+							{ listing.errors.map( ( error ) => (
+								<li key={ error }>{ error }</li>
+							) ) }
+						</ul>
+					</Banner>
+				) ) }
+
+				<div className="ms-names">
+					<span className="ms-hint">
+						{ sprintf(
+							/* translators: %d: number of listings */
+							_n(
+								'%d listing declared · fields browsers read:',
+								'%d listings declared · fields browsers read:',
+								listings.listings.length,
+								'meiliscout'
+							),
+							listings.listings.length
+						) }
+					</span>
+					{ ( listings.enabled
+						? listings.fields
+						: listings.displayed
+					).map( ( field ) => (
+						<code key={ field }>{ field }</code>
+					) ) }
+				</div>
+			</div>
+		</section>
+	);
+};
 
 const TERM_INTEGRATIONS = [
 	{
@@ -185,6 +372,7 @@ const Settings = ( { refreshOverview, overview } ) => {
 	const [ saving, setSaving ] = useState( false );
 	const [ testing, setTesting ] = useState( false );
 	const [ test, setTest ] = useState( null );
+	const [ rotating, setRotating ] = useState( false );
 	const [ toast, showToast ] = useToast();
 
 	useEffect( () => {
@@ -249,6 +437,17 @@ const Settings = ( { refreshOverview, overview } ) => {
 			.finally( () => setSaving( false ) );
 	};
 
+	const rotateListingsKey = () => {
+		setRotating( true );
+		post( '/settings/listings-key' )
+			.then( ( result ) => {
+				resource.setData( result );
+				showToast( __( 'Listings key replaced.', 'meiliscout' ) );
+			} )
+			.catch( ( error ) => showToast( errorMessage( error ), 'error' ) )
+			.finally( () => setRotating( false ) );
+	};
+
 	const clearSearchKey = () =>
 		post( '/settings', { clear_search_key: true } )
 			.then( ( result ) => {
@@ -275,6 +474,9 @@ const Settings = ( { refreshOverview, overview } ) => {
 				</a>
 				<a href="#/settings#queries">
 					{ __( 'Queries', 'meiliscout' ) }
+				</a>
+				<a href="#/settings#listings">
+					{ __( 'Listings', 'meiliscout' ) }
 				</a>
 				<a href="#/settings#advanced">
 					{ __( 'Advanced', 'meiliscout' ) }
@@ -648,6 +850,14 @@ const Settings = ( { refreshOverview, overview } ) => {
 						</div>
 					) ) }
 				</section>
+
+				<ListingsCard
+					data={ data }
+					form={ form }
+					setForm={ setForm }
+					onRotate={ rotateListingsKey }
+					rotating={ rotating }
+				/>
 
 				<section
 					id="advanced"

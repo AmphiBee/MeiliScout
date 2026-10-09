@@ -1,0 +1,1066 @@
+{
+    "about": "FacetPlan::counts() and results() (PHP) and resources/listings/plan.js counts() and results() (JS) on the listing of definition.json, from the template the client gets (terms' clauses as TaxQueryBuilder writes them for these ids; meta clauses and bounds checked against the builders). No base filter: the tenant token adds it. indexUid stands for the posts index. overflow: the values past a facet's limit, which the client folds (a selected value never is).",
+    "template": {
+        "index": "posts",
+        "perPage": 6,
+        "defaultSort": "date",
+        "sorts": {
+            "date": [
+                "post_date:desc"
+            ],
+            "title": [
+                "post_title_sort:asc"
+            ]
+        },
+        "fields": [
+            "ID",
+            "url",
+            "post_title",
+            "post_excerpt",
+            "post_date",
+            "post_type",
+            "taxonomies",
+            "metas.color",
+            "metas.price"
+        ],
+        "excerptLength": 55,
+        "facets": [
+            {
+                "key": "category",
+                "type": "list",
+                "logic": "or",
+                "field": "taxonomies.category.tree",
+                "decimals": 0,
+                "values": {
+                    "news": {
+                        "id": "3",
+                        "clause": "(taxonomies.category.tree IN [3])"
+                    },
+                    "travel": {
+                        "id": "7",
+                        "clause": "(taxonomies.category.tree IN [7])"
+                    },
+                    "europe": {
+                        "id": "8",
+                        "clause": "(taxonomies.category.tree IN [8])"
+                    }
+                }
+            },
+            {
+                "key": "tag",
+                "type": "list",
+                "logic": "and",
+                "field": "taxonomies.post_tag.term_id",
+                "decimals": 0,
+                "values": {
+                    "a": {
+                        "id": "21",
+                        "clause": "(taxonomies.post_tag.slug IN ['a'])"
+                    },
+                    "b": {
+                        "id": "22",
+                        "clause": "(taxonomies.post_tag.slug IN ['b'])"
+                    }
+                }
+            },
+            {
+                "key": "color",
+                "type": "list",
+                "logic": "or",
+                "field": "metas.color",
+                "decimals": 0,
+                "values": {
+                    "red": {
+                        "id": "red",
+                        "clause": "(metas.color = 'red')"
+                    },
+                    "green": {
+                        "id": "green",
+                        "clause": "(metas.color = 'green')"
+                    },
+                    "red,blue": {
+                        "id": "red,blue",
+                        "clause": "(metas.color = 'red,blue')"
+                    },
+                    "it's": {
+                        "id": "it's",
+                        "clause": "(metas.color = 'it\\'s')"
+                    }
+                }
+            },
+            {
+                "key": "price",
+                "type": "range",
+                "logic": "or",
+                "field": "metas.price",
+                "decimals": 2,
+                "values": {},
+                "bounds": {
+                    "min": "(metas.price >= {n})",
+                    "max": "(metas.price <= {n})"
+                }
+            },
+            {
+                "key": "featured",
+                "type": "boolean",
+                "logic": "or",
+                "field": "metas.featured",
+                "decimals": 0,
+                "values": {
+                    "1": {
+                        "id": "1",
+                        "clause": "(metas.featured = 1)"
+                    }
+                }
+            }
+        ]
+    },
+    "cases": [
+        {
+            "name": "nothing selected: one search counts every facet",
+            "state": {
+                "values": {},
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "one value of an OR facet: its counts ignore it",
+            "state": {
+                "values": {
+                    "category": [
+                        "news"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "(taxonomies.category.tree IN [3])",
+                    "facets": [
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "(taxonomies.category.tree IN [3])",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "two values of an OR facet: joined by OR",
+            "state": {
+                "values": {
+                    "category": [
+                        "news",
+                        "travel"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "((taxonomies.category.tree IN [3]) OR (taxonomies.category.tree IN [7]))",
+                    "facets": [
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "((taxonomies.category.tree IN [3]) OR (taxonomies.category.tree IN [7]))",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "two values of an AND facet: joined by AND, counted with the rest",
+            "state": {
+                "values": {
+                    "tag": [
+                        "a",
+                        "b"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "((taxonomies.post_tag.slug IN ['a']) AND (taxonomies.post_tag.slug IN ['b']))",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "((taxonomies.post_tag.slug IN ['a']) AND (taxonomies.post_tag.slug IN ['b']))",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "a quote in a meta value, as the builders escape it",
+            "state": {
+                "values": {
+                    "color": [
+                        "it's",
+                        "red,blue"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "((metas.color = 'it\\'s') OR (metas.color = 'red,blue'))",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "metas.color"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "((metas.color = 'it\\'s') OR (metas.color = 'red,blue'))",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "a range open on one side",
+            "state": {
+                "values": {},
+                "ranges": {
+                    "price": {
+                        "min": 10
+                    }
+                },
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "(metas.price >= 10)",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "metas.price"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "(metas.price >= 10)",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "a range: its bounds ignore it",
+            "state": {
+                "values": {},
+                "ranges": {
+                    "price": {
+                        "min": 10,
+                        "max": 20.5
+                    }
+                },
+                "sort": "",
+                "page": 3,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "((metas.price >= 10) AND (metas.price <= 20.5))",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "facets": [
+                        "metas.price"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "((metas.price >= 10) AND (metas.price <= 20.5))",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 12,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "a boolean, counted with the rest",
+            "state": {
+                "values": {
+                    "featured": [
+                        "1"
+                    ]
+                },
+                "ranges": {},
+                "sort": "",
+                "page": 1,
+                "search": ""
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "filter": "(metas.featured = 1)",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.color",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "(metas.featured = 1)",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "a search goes in every search",
+            "state": {
+                "values": {
+                    "color": [
+                        "red"
+                    ]
+                },
+                "ranges": {},
+                "sort": "title",
+                "page": 1,
+                "search": "road trip"
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "q": "road trip",
+                    "filter": "(metas.color = 'red')",
+                    "facets": [
+                        "taxonomies.category.tree",
+                        "taxonomies.post_tag.term_id",
+                        "metas.price",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "road trip",
+                    "facets": [
+                        "metas.color"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "q": "road trip",
+                "filter": "(metas.color = 'red')",
+                "sort": [
+                    "post_title_sort:asc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        },
+        {
+            "name": "everything at once",
+            "state": {
+                "values": {
+                    "category": [
+                        "europe",
+                        "news"
+                    ],
+                    "tag": [
+                        "a"
+                    ],
+                    "color": [
+                        "green",
+                        "red"
+                    ],
+                    "featured": [
+                        "1"
+                    ]
+                },
+                "ranges": {
+                    "price": {
+                        "max": 99.99
+                    }
+                },
+                "sort": "title",
+                "page": 1,
+                "search": "x"
+            },
+            "searches": [
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.price <= 99.99) AND (metas.featured = 1)",
+                    "facets": [
+                        "taxonomies.post_tag.term_id",
+                        "metas.featured"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "(taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.price <= 99.99) AND (metas.featured = 1)",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND (metas.price <= 99.99) AND (metas.featured = 1)",
+                    "facets": [
+                        "metas.color"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.featured = 1)",
+                    "facets": [
+                        "metas.price"
+                    ],
+                    "limit": 0
+                }
+            ],
+            "results": {
+                "indexUid": "posts",
+                "q": "x",
+                "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.price <= 99.99) AND (metas.featured = 1)",
+                "sort": [
+                    "post_title_sort:asc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
+        }
+    ],
+    "overflow": [
+        {
+            "limit": 0,
+            "options": [
+                {
+                    "value": "a",
+                    "label": "a",
+                    "count": 5,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "b",
+                    "label": "b",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "c",
+                    "label": "c",
+                    "count": 3,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "d",
+                    "label": "d",
+                    "count": 0,
+                    "selected": true,
+                    "depth": 0
+                },
+                {
+                    "value": "e",
+                    "label": "e",
+                    "count": 2,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "f",
+                    "label": "f",
+                    "count": 1,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "g",
+                    "label": "g",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                }
+            ],
+            "overflow": [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ]
+        },
+        {
+            "limit": 1,
+            "options": [
+                {
+                    "value": "a",
+                    "label": "a",
+                    "count": 5,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "b",
+                    "label": "b",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "c",
+                    "label": "c",
+                    "count": 3,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "d",
+                    "label": "d",
+                    "count": 0,
+                    "selected": true,
+                    "depth": 0
+                },
+                {
+                    "value": "e",
+                    "label": "e",
+                    "count": 2,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "f",
+                    "label": "f",
+                    "count": 1,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "g",
+                    "label": "g",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                }
+            ],
+            "overflow": [
+                false,
+                false,
+                true,
+                false,
+                true,
+                true,
+                false
+            ]
+        },
+        {
+            "limit": 2,
+            "options": [
+                {
+                    "value": "a",
+                    "label": "a",
+                    "count": 5,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "b",
+                    "label": "b",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "c",
+                    "label": "c",
+                    "count": 3,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "d",
+                    "label": "d",
+                    "count": 0,
+                    "selected": true,
+                    "depth": 0
+                },
+                {
+                    "value": "e",
+                    "label": "e",
+                    "count": 2,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "f",
+                    "label": "f",
+                    "count": 1,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "g",
+                    "label": "g",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                }
+            ],
+            "overflow": [
+                false,
+                false,
+                false,
+                false,
+                true,
+                true,
+                false
+            ]
+        },
+        {
+            "limit": 3,
+            "options": [
+                {
+                    "value": "a",
+                    "label": "a",
+                    "count": 5,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "b",
+                    "label": "b",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "c",
+                    "label": "c",
+                    "count": 3,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "d",
+                    "label": "d",
+                    "count": 0,
+                    "selected": true,
+                    "depth": 0
+                },
+                {
+                    "value": "e",
+                    "label": "e",
+                    "count": 2,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "f",
+                    "label": "f",
+                    "count": 1,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "g",
+                    "label": "g",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                }
+            ],
+            "overflow": [
+                false,
+                false,
+                false,
+                false,
+                true,
+                true,
+                false
+            ]
+        },
+        {
+            "limit": 10,
+            "options": [
+                {
+                    "value": "a",
+                    "label": "a",
+                    "count": 5,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "b",
+                    "label": "b",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "c",
+                    "label": "c",
+                    "count": 3,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "d",
+                    "label": "d",
+                    "count": 0,
+                    "selected": true,
+                    "depth": 0
+                },
+                {
+                    "value": "e",
+                    "label": "e",
+                    "count": 2,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "f",
+                    "label": "f",
+                    "count": 1,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "g",
+                    "label": "g",
+                    "count": 0,
+                    "selected": false,
+                    "depth": 0
+                }
+            ],
+            "overflow": [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ]
+        },
+        {
+            "limit": 1,
+            "options": [
+                {
+                    "value": "a",
+                    "label": "a",
+                    "count": 5,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "b",
+                    "label": "b",
+                    "count": 4,
+                    "selected": false,
+                    "depth": 0
+                },
+                {
+                    "value": "c",
+                    "label": "c",
+                    "count": 3,
+                    "selected": true,
+                    "depth": 0
+                }
+            ],
+            "overflow": [
+                false,
+                true,
+                false
+            ]
+        }
+    ]
+}

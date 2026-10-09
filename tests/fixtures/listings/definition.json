@@ -1,0 +1,45 @@
+{
+	"post_types": [
+		"post"
+	],
+	"sorts": {
+		"date": {
+			"label": "Newest first",
+			"orderby": "date",
+			"order": "DESC"
+		},
+		"title": {
+			"label": "Title",
+			"orderby": "title",
+			"order": "ASC"
+		}
+	},
+	"facets": {
+		"category": {
+			"source": "taxonomy:category",
+			"param": "categorie"
+		},
+		"tag": {
+			"source": "taxonomy:post_tag",
+			"logic": "and",
+			"param": "etiquette"
+		},
+		"color": {
+			"source": "meta:color"
+		},
+		"price": {
+			"source": "meta:price",
+			"type": "range",
+			"decimals": 2
+		},
+		"featured": {
+			"source": "meta:featured",
+			"type": "boolean"
+		}
+	},
+	"per_page": 6,
+	"public_metas": [
+		"color",
+		"price"
+	]
+}
