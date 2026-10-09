@@ -804,6 +804,12 @@ function applyCounts( listing, next, counted, total = true ) {
 		entry.options = withOverflow(
 			Object.entries( facet.values ).map( ( [ value, known ] ) => {
 				const count = distribution[ known.id ] ?? 0;
+				const isSelected = selected.includes( value );
+				// In an OR list with a selection: what the value adds (ListingQuery::option())
+				const adds =
+					! isSelected && counted.added?.[ facet.field ]
+						? counted.added[ facet.field ][ known.id ] ?? 0
+						: null;
 				const target = linkTarget(
 					listing.template,
 					next,
@@ -815,8 +821,10 @@ function applyCounts( listing, next, counted, total = true ) {
 					value,
 					label: known.label,
 					count,
-					selected: selected.includes( value ),
+					selected: isSelected,
 					depth: known.depth,
+					added: adds,
+					countLabel: adds === null ? String( count ) : '+' + adds,
 					url: target
 						? urlOf( listing.template, target, listing.base )
 						: null,

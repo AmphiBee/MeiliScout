@@ -280,7 +280,7 @@ final class Renderer
             .'<li class="meiliscout-facet__option" data-wp-bind--hidden="state.optionHidden" data-wp-bind--data-depth="context.option.depth">'
             .'<label class="meiliscout-facet__label"><input class="meiliscout-facet__input" type="checkbox" name="%5$s" form="%6$s" data-wp-bind--value="context.option.value" data-wp-bind--checked="context.option.selected"> '
             .'<a class="meiliscout-facet__text" data-wp-bind--href="context.option.url" data-wp-on--click="actions.follow" data-wp-text="context.option.label"></a> '
-            .'<span class="meiliscout-facet__count" data-wp-text="context.option.count"></span></label></li>'
+            .'<span class="meiliscout-facet__count" data-wp-text="context.option.countLabel"></span></label></li>'
             .'</template></ul>'
             .'<button type="button" class="meiliscout-facet__more" hidden data-wp-bind--hidden="!state.hasOverflow" data-wp-bind--aria-expanded="state.expanded" data-wp-on--click="actions.toggleMore" data-wp-text="state.moreLabel"></button>'
             .'</fieldset>',

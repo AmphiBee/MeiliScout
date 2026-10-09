@@ -94,7 +94,7 @@
                 "logic": "or",
                 "field": "metas.price",
                 "decimals": 2,
-                "values": {},
+                "values": [],
                 "bounds": {
                     "min": "(metas.price >= {n})",
                     "max": "(metas.price <= {n})"
@@ -119,8 +119,8 @@
         {
             "name": "nothing selected: one search counts every facet",
             "state": {
-                "values": {},
-                "ranges": {},
+                "values": [],
+                "ranges": [],
                 "sort": "",
                 "page": 1,
                 "search": ""
@@ -170,7 +170,7 @@
                         "news"
                     ]
                 },
-                "ranges": {},
+                "ranges": [],
                 "sort": "",
                 "page": 1,
                 "search": ""
@@ -189,6 +189,14 @@
                 },
                 {
                     "indexUid": "posts",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "filter": "NOT ((taxonomies.category.tree IN [3]))",
                     "facets": [
                         "taxonomies.category.tree"
                     ],
@@ -229,7 +237,7 @@
                         "travel"
                     ]
                 },
-                "ranges": {},
+                "ranges": [],
                 "sort": "",
                 "page": 1,
                 "search": ""
@@ -248,6 +256,14 @@
                 },
                 {
                     "indexUid": "posts",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "filter": "NOT (((taxonomies.category.tree IN [3]) OR (taxonomies.category.tree IN [7])))",
                     "facets": [
                         "taxonomies.category.tree"
                     ],
@@ -288,7 +304,7 @@
                         "b"
                     ]
                 },
-                "ranges": {},
+                "ranges": [],
                 "sort": "",
                 "page": 1,
                 "search": ""
@@ -341,7 +357,7 @@
                         "red,blue"
                     ]
                 },
-                "ranges": {},
+                "ranges": [],
                 "sort": "",
                 "page": 1,
                 "search": ""
@@ -360,6 +376,14 @@
                 },
                 {
                     "indexUid": "posts",
+                    "facets": [
+                        "metas.color"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "filter": "NOT (((metas.color = 'it\\'s') OR (metas.color = 'red,blue')))",
                     "facets": [
                         "metas.color"
                     ],
@@ -394,7 +418,7 @@
         {
             "name": "a range open on one side",
             "state": {
-                "values": {},
+                "values": [],
                 "ranges": {
                     "price": {
                         "min": 10
@@ -452,7 +476,7 @@
         {
             "name": "a range: its bounds ignore it",
             "state": {
-                "values": {},
+                "values": [],
                 "ranges": {
                     "price": {
                         "min": 10,
@@ -516,7 +540,7 @@
                         "1"
                     ]
                 },
-                "ranges": {},
+                "ranges": [],
                 "sort": "",
                 "page": 1,
                 "search": ""
@@ -568,7 +592,7 @@
                         "red"
                     ]
                 },
-                "ranges": {},
+                "ranges": [],
                 "sort": "title",
                 "page": 1,
                 "search": "road trip"
@@ -589,6 +613,15 @@
                 {
                     "indexUid": "posts",
                     "q": "road trip",
+                    "facets": [
+                        "metas.color"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "road trip",
+                    "filter": "NOT ((metas.color = 'red'))",
                     "facets": [
                         "metas.color"
                     ],
@@ -684,6 +717,24 @@
                     "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.featured = 1)",
                     "facets": [
                         "metas.price"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "(taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.price <= 99.99) AND (metas.featured = 1) AND NOT (((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])))",
+                    "facets": [
+                        "taxonomies.category.tree"
+                    ],
+                    "limit": 0
+                },
+                {
+                    "indexUid": "posts",
+                    "q": "x",
+                    "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND (metas.price <= 99.99) AND (metas.featured = 1) AND NOT (((metas.color = 'green') OR (metas.color = 'red')))",
+                    "facets": [
+                        "metas.color"
                     ],
                     "limit": 0
                 }

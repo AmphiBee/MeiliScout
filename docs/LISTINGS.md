@@ -80,7 +80,7 @@ A **facet**:
 |---|---|---|
 | `source` | required | `taxonomy:<name>`, or `meta:<key>` for an indexed meta key (Content › Meta keys) |
 | `type` | `list` | `list`, `range` (numbers between two bounds) or `boolean` (one checkbox); ranges and booleans read a meta key |
-| `logic` | `or` | How the values of a list combine. `or`: the counts of the others ignore the facet's own selection |
+| `logic` | `or` | How the values of a list combine: `or` (any of them: each value widens the results) or `and` (all of them: each value narrows them). In an `or` list with a selection, a value not selected shows what it adds (`+3`); in an `and` list, the results it would leave. In the editor: the Facet block's *Several values match* |
 | `hierarchy` | `tree` | A hierarchical taxonomy's terms are counted with their descendants and shown as a tree; `flat`: each term alone |
 | `label` | the taxonomy's name, else the key | The facet's title |
 | `labels` | `[]` | A meta facet's labels, by value (`['fr' => 'France']`) |
