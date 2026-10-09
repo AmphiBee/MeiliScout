@@ -1433,14 +1433,14 @@ msgstr "Les listings demandent WordPress %s ou plus récent."
 msgid "The public URL of Meilisearch is not a valid URL."
 msgstr "L’URL publique de Meilisearch n’est pas une URL valide."
 
-#: src/Listings/Definition/ListingDefinition.php:200
+#: src/Listings/Definition/ListingDefinition.php:242
 #: build/listings/editor.js:1
 #: build/listings/editor.js:3
 msgid "Newest first"
 msgstr "Les plus récents"
 
 #: src/Listings/Render/Renderer.php:365
-#: src/Listings/Render/Store.php:87
+#: src/Listings/Render/Store.php:96
 #: build/listings/editor.js:3
 msgid "Apply"
 msgstr "Appliquer"
@@ -1476,31 +1476,31 @@ msgid "Pages"
 msgstr "Pages"
 
 #: src/Listings/Render/Renderer.php:461
-#: src/Listings/Render/Store.php:95
+#: src/Listings/Render/Store.php:104
 msgid "Previous"
 msgstr "Précédent"
 
 #: src/Listings/Render/Renderer.php:462
-#: src/Listings/Render/Store.php:96
+#: src/Listings/Render/Store.php:105
 msgid "Next"
 msgstr "Suivant"
 
-#: src/Listings/Render/Store.php:80
-#: src/Listings/Render/Store.php:81
-#: src/Listings/Render/Store.php:82
+#: src/Listings/Render/Store.php:89
+#: src/Listings/Render/Store.php:90
+#: src/Listings/Render/Store.php:91
 #, php-format
 msgid "%d result"
 msgid_plural "%d results"
 msgstr[0] "%d résultat"
 msgstr[1] "%d résultats"
 
-#: src/Listings/Render/Store.php:84
+#: src/Listings/Render/Store.php:93
 #, php-format
 msgid "Remove filter: %s"
 msgstr "Retirer le filtre : %s"
 
 #. translators: 1: a facet's label, 2: its value
-#: src/Listings/Render/Store.php:86
+#: src/Listings/Render/Store.php:95
 #, php-format
 msgid "%1$s: %2$s"
 msgstr "%1$s : %2$s"
@@ -1578,20 +1578,20 @@ msgstr[1] "%d listings déclarés · champs lus par les navigateurs :"
 msgid "Listings key replaced."
 msgstr "Clé des listings remplacée."
 
-#: src/Listings/Render/Store.php:89
-#: src/Listings/Render/Store.php:90
-#: src/Listings/Render/Store.php:91
+#: src/Listings/Render/Store.php:98
+#: src/Listings/Render/Store.php:99
+#: src/Listings/Render/Store.php:100
 #, php-format
 msgid "See %d result"
 msgid_plural "See %d results"
 msgstr[0] "Voir %d résultat"
 msgstr[1] "Voir %d résultats"
 
-#: src/Listings/Render/Store.php:93
+#: src/Listings/Render/Store.php:102
 msgid "Show more"
 msgstr "Afficher plus"
 
-#: src/Listings/Render/Store.php:94
+#: src/Listings/Render/Store.php:103
 msgid "Show less"
 msgstr "Afficher moins"
 
@@ -2055,10 +2055,6 @@ msgid "No valid listing \"%s\"."
 msgstr "Aucun listing valide « %s »."
 
 #: build/app.js:45
-msgid "Filters are chosen: until facets go in the path, a filtered view is not indexed."
-msgstr "Des filtres sont choisis : tant que les facettes ne vont pas dans le chemin, une vue filtrée n’est pas indexée."
-
-#: build/app.js:45
 msgid "A search is never indexed."
 msgstr "Une recherche n’est jamais indexée."
 
@@ -2339,3 +2335,35 @@ msgstr "Questions du listing"
 msgctxt "block variation description"
 msgid "The questions and answers of the SEO rule matching the filters."
 msgstr "Les questions et réponses de la règle SEO correspondant aux filtres."
+
+#: build/app.js:45
+msgid "A filter outside the path (a parameter, a range): never indexed."
+msgstr "Un filtre hors du chemin (un paramètre, une plage) : jamais indexé."
+
+#: build/app.js:45
+msgid "Several values of one facet."
+msgstr "Plusieurs valeurs d’une facette."
+
+#: build/app.js:45
+msgid "More facets than the listing indexes."
+msgstr "Plus de facettes que le listing n’en indexe."
+
+#: build/app.js:45
+msgid "Fewer results than the listing indexes."
+msgstr "Moins de résultats que le listing n’en demande pour indexer."
+
+#: build/listings/editor.js:6
+msgid "In the path"
+msgstr "Dans le chemin"
+
+#: build/listings/editor.js:6
+msgid "Its values go in the path (/projects/type-redesign/) rather than a parameter: with one value, a view search engines may index."
+msgstr "Ses valeurs vont dans le chemin (/projets/type-refonte/) plutôt qu’en paramètre : avec une valeur, une vue que les moteurs de recherche peuvent indexer."
+
+#: build/listings/editor.js:6
+msgid "Prefix in the path"
+msgstr "Préfixe dans le chemin"
+
+#: build/listings/editor.js:6
+msgid "Lowercase letters, digits and dashes: {prefix}-{value}."
+msgstr "Lettres minuscules, chiffres et tirets : {préfixe}-{valeur}."

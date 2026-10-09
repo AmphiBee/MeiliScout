@@ -4,7 +4,7 @@ Filterable listings of posts on the front end: facets with their counts, sorts, 
 
 The module is **off by default** and needs **WordPress 6.9** (the Interactivity API's router). It loads no script or style on a page without a listing.
 
-> Phases 1 to 4 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO with or without an SEO plugin, and SEO rules. Facets in the path and languages come in the next phases.
+> Phases 1 to 5 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO with or without an SEO plugin, SEO rules, and facets in the path. Languages come next.
 
 ## Turning it on
 
@@ -69,7 +69,7 @@ A definition is checked once, on first use. One that cannot be served (an uninde
 | `public_metas` | `[]` | Meta keys browsers may read: the client transport's cards show them ([Public fields](#public-fields)) |
 | `personalised` | `false` | Cards that depend on the visitor: the fragment is asked for with the visitor's session, and never cached |
 | `route` | the current URL | `['page' => $id]` or `['archive' => $postType]`: the listing's first page. Required for the [canonical redirect](#urls) and the [SEO](#seo) |
-| `seo` | `true` | `false` leaves the robots, canonical and adjacent pages of its page to the SEO plugin, and its pages past the last one unanswered ([SEO](#seo)) |
+| `seo` | `true` | `false` leaves the robots, canonical and adjacent pages of its page to the SEO plugin, and its pages past the last one unanswered; `['max_depth' => 2, 'min_results' => 3]`: how many facets of the path, and how few results, a view may have to be indexed ([SEO](#seo)) |
 | `sort_param`, `search_param` | `sort`, `q` | Names of these parameters in the URL |
 | `card` | the theme's `meiliscout/card.php`, else a title, a date and an excerpt | The card of the `fragment` and `page` transports ([Cards](#cards)) |
 | `client_card` | the theme's `meiliscout/client-card.php`, else a title, a date and an excerpt | The card of the `client` transport: markup bound to `context.hit` ([below](#the-client-transports-card)) |
@@ -85,6 +85,7 @@ A **facet**:
 | `label` | the taxonomy's name, else the key | The facet's title |
 | `labels` | `[]` | A meta facet's labels, by value (`['fr' => 'France']`) |
 | `param` | the key | Its name in the URL |
+| `path` | none | A taxonomy list's values in the path rather than a parameter: its prefix, `'path' => 'type'` gives `/projects/type-refonte/` (`true`: its `param`). Needs a `route` ([URLs](#urls)) |
 | `limit` | `0` | Past that many values shown, the others fold behind a *Show more* button (a selected value never folds; without JavaScript, all show). `0`: no limit |
 | `decimals` | `0` | A range's precision |
 | `value` | `'1'` | The meta value a boolean facet counts as yes |
@@ -115,14 +116,23 @@ One state, one URL:
 
 - The facets in the definition's order, then the sort (left out when it is the default), then the search.
 - A list's values unique and sorted; terms by slug. A comma inside a value is written `%2C`.
+- Facets marked `path` go in the path, after the listing's first page and before its page, in the definition's order: `{prefix}-{a},{b}`.
 - A range is `min..max`, either side may be empty (`..5000`).
 - The page in the path, as WordPress paginates.
 
-On the listing's `route`, a URL in another form (a form sent without JavaScript, values in another order, a default sort...) is redirected (301) to its canonical form; other parameters (`utm_*`...) are kept after the listing's. WordPress's own `redirect_canonical()` is not run there: it would write the comma between two values as `%2C`.
+```
+/projects/type-refonte/page/2/?sector=Culture
+```
+
+On the listing's `route`, a URL in another form (a form sent without JavaScript, values in another order, a facet of the path sent as a parameter, segments in another order, `page/N` before them, a prefix in capitals...) is redirected (301) to its canonical form; a value of the path that is no term is a 404; other parameters (`utm_*`...) are kept after the listing's. WordPress's own `redirect_canonical()` is not run there: it would write the comma between two values as `%2C`.
 
 Parameter names WordPress, WooCommerce or page caches read (`p`, `page`, `orderby`, `utm_*`, `filter_*`, the public query vars...) are refused.
 
 The browser writes the same URLs: the PHP and JavaScript halves share their test cases (`tests/fixtures/listings`).
+
+Facets in the path need no rewrite rule: on `do_parse_request`, the segments after a listing's first page are hidden from WordPress, which resolves the page (and its `/page/N/`) with its own rules; then they are put back. Only a path made of a listing's first page, its facet segments and a page is touched, and not one that is the path of a post (a child page named `type-…` stays that page). The order of the facets is the order of the URL: changing it, or a prefix, breaks the links shared so far.
+
+In the editor, a taxonomy facet goes in the path from its block's *URL* panel (*In the path*, and its prefix).
 
 ## Transports
 
@@ -331,15 +341,18 @@ What a listing's page tells search engines is decided by MeiliScout and written 
 | View | Robots | Canonical | `prev` / `next` | Structured data |
 |---|---|---|---|---|
 | The listing without filters, search or sort, with results: `/projects/`, `/projects/page/3/` | `index, follow`, at every page | itself, page included | yes | `ItemList`, `FAQPage` |
-| Anything else: a facet, a range, a search, another sort (`?type=refonte`, `?sort=price`) | `noindex, follow` | none | none | none |
-| A view without results | `noindex, follow` | none | none | none |
+| Facets of the path only, one value each, two facets at most, three results at least: `/projects/type-refonte/`, `/projects/type-refonte/level-senior/page/2/` | `index, follow`, at every page | itself | yes | `ItemList`, `FAQPage` |
+| Anything else: a parameter (a facet out of the path, a range), two values of a facet, a third facet, a search, another sort (`?sector=Culture`, `/type-a,b/`, `?sort=price`) | `noindex, follow` | none | none | none |
+| A view without results, or with fewer than three | `noindex, follow` | none | none | none |
 | A page past the last one (`/projects/page/99/`) | 404 | | | |
 
-- Facets in the path, which make some filtered views indexable, come with phase 5. A search is never indexed (decision G).
+- The depth and the results a view of the path needs are the listing's `seo` (`max_depth`, `min_results`). A search is never indexed (decision G), a parameter never makes a view indexable.
+- A facet's value that leads to an indexable view is a link to it (`<a href>` around its label, a box is still ticked by a click with JavaScript): search engines find those views, and no others (design §8.5).
+- The breadcrumb ends with the facets of the path, each one at the view made of it and those before: in Yoast's (`wpseo_breadcrumb_links`), Rank Math's (when its breadcrumb is on) and All in One SEO's trail, and in MeiliScout's own `BreadcrumbList`.
 - The SEO plugin's setting that puts paginated pages in `noindex` (All in One SEO's default) does not apply to an indexable view: its pages are how its posts are found. The site's other archives keep it.
 - A site closed to search engines (Settings › Reading) keeps WordPress's `noindex, nofollow`.
 - Other parameters (`utm_*`...) do not change the view: its canonical leaves them out.
-- The structured data joins Yoast's, Rank Math's or All in One SEO's graph; without them (WordPress, SEOPress), MeiliScout prints its own, with a `BreadcrumbList` (the site, the page's ancestors, the page).
+- The structured data joins Yoast's, Rank Math's or All in One SEO's graph; without them (WordPress, SEOPress), MeiliScout prints its own, with a `BreadcrumbList` (the site, the page's ancestors, the page, the facets of the path).
 
 | Plugin | How |
 |---|---|
@@ -427,6 +440,6 @@ Browsers search the posts index with a token, so while the module is on the inde
 ## Testing
 
 - `vendor/bin/pest tests/Unit/Listings`: definitions, the URL codec, the facets' plan, cards, against the shared cases of `tests/fixtures/listings`.
-- `npm run test:js`: the browser's codec, plan and cards against the same cases.
-- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`); SEO rules, their CSV and preview (`SeoRulesTest`); each SEO plugin's `<head>` over HTTP (`SeoPluginsTest`, the plugins turned on in the site's options in turn).
+- `npm run test:js`: the browser's codec, plan and cards against the same cases; `path-cases.json`: the paths read and written, and the values' links, by both halves.
+- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`); SEO rules, their CSV and preview (`SeoRulesTest`); facets in the path over HTTP: canonical forms, 301, 404, a child page, links (`PathFacetsTest`); each SEO plugin's `<head>` over HTTP (`SeoPluginsTest`, the plugins turned on in the site's options in turn).
 - `vendor/bin/pest tests/Unit/Listings/SeoPolicyTest.php tests/Unit/Listings/RuleKeyTest.php`: the indexing decision, the rules' variables and keys, the adapters' robots.

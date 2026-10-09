@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T15:19:19+02:00\n"
+"POT-Creation-Date: 2026-10-09T15:44:12+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: meiliscout\n"
@@ -159,7 +159,7 @@ msgstr ""
 msgid "No results match these filters."
 msgstr ""
 
-#: src/Listings/Definition/ListingDefinition.php:200
+#: src/Listings/Definition/ListingDefinition.php:242
 #: build/listings/editor.js:1
 #: build/listings/editor.js:3
 msgid "Newest first"
@@ -192,7 +192,7 @@ msgid "Sort by"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:365
-#: src/Listings/Render/Store.php:87
+#: src/Listings/Render/Store.php:96
 #: build/listings/editor.js:3
 msgid "Apply"
 msgstr ""
@@ -202,49 +202,49 @@ msgid "Pages"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:461
-#: src/Listings/Render/Store.php:95
+#: src/Listings/Render/Store.php:104
 msgid "Previous"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:462
-#: src/Listings/Render/Store.php:96
+#: src/Listings/Render/Store.php:105
 msgid "Next"
-msgstr ""
-
-#: src/Listings/Render/Store.php:80
-#: src/Listings/Render/Store.php:81
-#: src/Listings/Render/Store.php:82
-#, php-format
-msgid "%d result"
-msgid_plural "%d results"
-msgstr[0] ""
-msgstr[1] ""
-
-#: src/Listings/Render/Store.php:84
-#, php-format
-msgid "Remove filter: %s"
-msgstr ""
-
-#. translators: 1: a facet's label, 2: its value
-#: src/Listings/Render/Store.php:86
-#, php-format
-msgid "%1$s: %2$s"
 msgstr ""
 
 #: src/Listings/Render/Store.php:89
 #: src/Listings/Render/Store.php:90
 #: src/Listings/Render/Store.php:91
 #, php-format
+msgid "%d result"
+msgid_plural "%d results"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Listings/Render/Store.php:93
+#, php-format
+msgid "Remove filter: %s"
+msgstr ""
+
+#. translators: 1: a facet's label, 2: its value
+#: src/Listings/Render/Store.php:95
+#, php-format
+msgid "%1$s: %2$s"
+msgstr ""
+
+#: src/Listings/Render/Store.php:98
+#: src/Listings/Render/Store.php:99
+#: src/Listings/Render/Store.php:100
+#, php-format
 msgid "See %d result"
 msgid_plural "See %d results"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Listings/Render/Store.php:93
+#: src/Listings/Render/Store.php:102
 msgid "Show more"
 msgstr ""
 
-#: src/Listings/Render/Store.php:94
+#: src/Listings/Render/Store.php:103
 msgid "Show less"
 msgstr ""
 
@@ -1273,7 +1273,19 @@ msgid "search key: can search %1$d of the %2$d indexes"
 msgstr ""
 
 #: build/app.js:45
-msgid "Filters are chosen: until facets go in the path, a filtered view is not indexed."
+msgid "A filter outside the path (a parameter, a range): never indexed."
+msgstr ""
+
+#: build/app.js:45
+msgid "Several values of one facet."
+msgstr ""
+
+#: build/app.js:45
+msgid "More facets than the listing indexes."
+msgstr ""
+
+#: build/app.js:45
+msgid "Fewer results than the listing indexes."
 msgstr ""
 
 #: build/app.js:45
@@ -2178,6 +2190,22 @@ msgstr ""
 
 #: build/listings/editor.js:6
 msgid "Changing it breaks the links already shared."
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "In the path"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Its values go in the path (/projects/type-redesign/) rather than a parameter: with one value, a view search engines may index."
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Prefix in the path"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Lowercase letters, digits and dashes: {prefix}-{value}."
 msgstr ""
 
 #: blocks/facet/block.json
