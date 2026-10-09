@@ -10,7 +10,15 @@
 
 The posts documents change (schema 5): until a full indexation rebuilds the posts index, queries list the descendants as before.
 
-## 2.0.0 (unreleased)
+## [2.0.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.0.0) - 2026-10-08
+
+### Admin
+
+- A new admin, one page with five screens: Overview, Content, Indexation, Search preview, Settings (#36). Order of the searched fields (Content › Relevance), MySQL fallbacks by reason, retry of a failed real-time task, real-time indexing off, detected type of each meta key, index size and freshness.
+
+### Indexes
+
+- Indexes are prefixed (`MEILI_INDEX_PREFIX`, or the site's domain), terms are grouped by taxonomy (`taxonomies.<taxonomy>.slug`; `terms.taxonomy` and `terms.slug` are no longer filterable), and a full indexation builds new indexes and switches searches over at the end (#35).
 
 ### WP_Query
 
@@ -27,6 +35,7 @@ The posts documents change (schema 5): until a full indexation rebuilds the post
 - Media can be indexed (Content › Post types): attachments with their `inherit` status, their parent's status and their mime group; `post_mime_type`, `attachment`, `attachment_id` and the media library are served.
 - A single post's query gets every status the index holds, as WordPress checks the status after the query.
 - The integration suite checks that every `WP_Query` argument is translated or falls back with a case of its own.
+- An indexable swapped in through `meiliscout/indexables` may narrow the index settings: queries read back what it pushed. A field the index does not return sends the query to MySQL (`undisplayed_attribute:<field>`), `search_columns` is checked against what the index searches, and a query without `LIMIT` stops at the lower of the two `maxTotalHits`.
 
 ### get_terms()
 
