@@ -4,7 +4,7 @@ Filterable listings of posts on the front end: facets with their counts, sorts, 
 
 The module is **off by default** and needs **WordPress 6.9** (the Interactivity API's router). It loads no script or style on a page without a listing.
 
-> Phases 1 and 2 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP, printed whole or part by part from PHP, Blade or Twig. Blocks, facets in the path, the SEO policy and languages come in the next phases.
+> Phases 1 to 3 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor. Facets in the path, the SEO policy and languages come in the next phases.
 
 ## Turning it on
 
@@ -13,6 +13,7 @@ Settings › Listings:
 - **Front listings**: the switch. Disabled, with the reason, on an older WordPress.
 - **Public URL of Meilisearch**: where browsers reach Meilisearch, when the instance URL (Settings › Connection) is one only the server can reach (`http://meilisearch:7700` in Docker). Empty: the instance URL.
 - **Listings key**: the key the tokens are signed with, and a button to replace it (see [Tokens](#tokens-and-the-listings-key)).
+- **Default styles** and their colors (see [Styles](#styles)).
 
 The screen also lists the declared listings with the errors of those that cannot be served, and the fields browsers can read.
 
@@ -165,6 +166,22 @@ meiliscout_register_listing('projects', [
 
 Everything is text: bind it with `data-wp-text`, never as HTML. A card that needs more (an image, a price formatted by PHP) uses the `fragment` transport.
 
+## Editor mode: the Filterable listing block
+
+In the block editor, insert **Filterable listing**. It starts with a search, a facet and the apply button in a narrow column, and the total, the active filters, a **Post Template** and the core's **pagination** in a wide one: the core's blocks, styled and arranged as anywhere else.
+
+- **The block's settings**: the content types (the indexed ones), items per page, whether filters apply at once or with a button, whether results change in place or by loading the page, the sorts.
+- **Facet** blocks, anywhere inside the listing: what each one filters on (a taxonomy of the chosen types, or an indexed field), how its values combine, its title, how many values show before *Show more*, its name in the URL. Their order in the document is the URL's order. Block supports (colors, typography, spacing, border) apply to each one.
+- **Listing part** blocks: Listing search, Listing sort, Listing total, Active filters, Apply filters, Reset filters.
+- A listing that cannot be served says why in the editor (an unindexed field, a reserved name...). A warning names the blocks of the Post Template that would make the results load the whole page (blocks that do not declare `interactivity.clientNavigation`).
+- The listing's definition is saved with the post (`save_post`, site editor templates included): the fragment and token endpoints, the public fields and Settings › Listings know it. A listing in a page or a post has it as its route; in a template, the current URL.
+- The Post Template's query is the listing's; the core pagination's links are the listing's canonical URLs (`/page/2/?…`), loaded in place.
+- A facet taking its name from a taxonomy that WordPress reads as a query var (most do) is named after its title in the URL (`?type-de-projet=…`), unless given one.
+
+Not in this version: the `client` transport (cards come from the Post Template, rendered by PHP), and a Post Template inheriting the main query (archive templates): the block runs its own query.
+
+While the module is off, the blocks print nothing.
+
 ## Developer mode: parts
 
 `meiliscout_listing()` prints the whole listing in MeiliScout's layout. A template that wants its own prints the parts one by one, anywhere on the page, in any order:
@@ -253,9 +270,28 @@ document.addEventListener( 'meiliscout:results', ( event ) => {
 
 ## Markup and styles
 
-The module prints plain markup with stable classes and **no styles**: the theme styles it. (Default styles that follow the theme's `theme.json` come with the blocks, in a later phase.)
+### Styles
 
-Stable hooks: `data-meiliscout` on the listing's elements (`listing`, `form`, `results`, `pagination`, `reset`), `data-meiliscout-part` on a part's wrapper (`.meiliscout-part.meiliscout-part--<part>`).
+The module ships a light default look (`build/listings/style.css`), loaded with the listings, that follows the theme:
+
+- it inherits the theme's fonts and sizes, uses its `theme.json` presets when there are some (`--wp--preset--color--*`, `--wp--preset--spacing--*`) and `currentColor` otherwise;
+- the look is under `:where()`, no specificity: any rule of the theme wins; the structure (lists without bullets, a link-like *Show more*) has one class, enough against a theme's rules on bare `ul`, `button` or `fieldset`, not against its rules on these classes;
+- native controls (checkboxes, number fields, select), with `accent-color` and a visible focus; no font, no reset.
+
+Its colors are tokens a theme sets in a line, or Settings › Listings: **accent**, **text on the accent**, **text**, **background of the fields**. Automatic by default: the theme palette's `primary`, `accent` or `brand` for the accent, else its text color (`contrast`, `foreground`…), `base`/`background` for the background. Each can be a color of the palette or one of its own.
+
+```css
+.my-theme {
+	--meiliscout-color-accent: #0a7;
+	--meiliscout-color-accent-contrast: #fff;
+	--meiliscout-border-radius: 0;
+	--meiliscout-spacing: 1.25rem;
+}
+```
+
+Turn the default look off (Settings › Listings › Default styles, or `meiliscout/listings/load_styles`) and the markup below is the theme's to style. A listing printed from PHP loads the stylesheet in the footer; enqueue `meiliscout-listings` on `wp_enqueue_scripts` to have it in the `<head>`. Blocks load it in the `<head>` themselves.
+
+### Markup
 
 ```
 .meiliscout-listing
@@ -307,9 +343,11 @@ Browsers search the posts index with a token, so while the module is on the inde
 | `meiliscout/listings/card` | A card's HTML (`fragment` and `page` transports), with the `WP_Post` and the `ListingDefinition` |
 | `meiliscout/listings/blade` | The Blade view factory of `blade:` cards (default: the application's `view`) |
 | `meiliscout/listings/twig` | The `Twig\Environment` of `twig:` cards (default: Timber's) |
+| `meiliscout/listings/load_styles` | Whether the default look is loaded (default: Settings › Listings › Default styles, on) |
+| `meiliscout/listings/theme_colors` | The default look's colors by token (`accent`, `accent-contrast`, `text`, `muted`, `background`, `border`): any CSS color |
 
 ## Testing
 
 - `vendor/bin/pest tests/Unit/Listings`: definitions, the URL codec, the facets' plan, cards, against the shared cases of `tests/fixtures/listings`.
 - `npm run test:js`: the browser's codec, plan and cards against the same cases.
-- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`).
+- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`).
