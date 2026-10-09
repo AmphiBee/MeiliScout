@@ -143,6 +143,8 @@ add_filter('meiliscout/supported_query_vars', fn (array $vars) => [...$vars, 'la
 
 ### Plugins changing the SQL
 
+**Multilingual plugins.** Polylang's language is a taxonomy, its `tax_query` is translated (the `term_id` var it sets alongside is declared handled). WPML's SQL filters are declared and their condition written for Meilisearch on the documents' `language` (`Integrations/Wpml`). A singular query (`p`, `name`, `attachment_id`) ignores `tax_query`, as WordPress does.
+
 `posts_where`, `posts_join`, `posts_clauses`, `posts_request` and the other SQL filters of `WP_Query` run before Meilisearch is asked. A multilingual, membership or shop plugin restricting the posts there would be ignored: so MeiliScout compares what each of these filters returns with what it was given, and when a plugin changed it, the query runs on MySQL (`sql_filter:<hook>`). A plugin hooked on them that changes nothing for a query costs nothing. Queries with `suppress_filters` (`get_posts()`) are not concerned.
 
 When the site translates a plugin's change itself (adding the language to the filter in `meiliscout/search_params`, for instance), declare the callback:
@@ -174,6 +176,8 @@ Every fallback has a reason, recorded on the query (`$query->meiliscout['reason'
 | `unsupported_compare:<op>` | `LIKE` (setting off), `REGEXP` | Settings › Advanced › Partial filters |
 | `multivalued_meta:<key>`, `structured_meta:<key>`, `meta_not_numeric:<key>`, `altered_meta:<key>` | A comparison Meilisearch makes otherwise on the values of this key (see Custom fields) | |
 | `sql_filter:<hook>` | A plugin changed the query's SQL through this filter | `meiliscout/ignored_sql_filters`, when the site translates the change |
+| `wpml_not_indexed` | WPML is on, and no full indexation wrote the posts' language yet | A full indexation |
+| `wpml_display_as_translated` | WPML shows a queried post type in its original language when untranslated (a subquery per post) | Translate everything, or turn the option off |
 | `unsupported_orderby:<field>` | An order the index cannot give, or `rand`/`post__in` over more than 1000 results | |
 | `unsupported_date_column:<column>` | Parts of a GMT column, another table | |
 | `schema_too_old` | The indexes predate the fields the query needs | Run a full indexation |

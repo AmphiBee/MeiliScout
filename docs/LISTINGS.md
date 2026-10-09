@@ -4,7 +4,7 @@ Filterable listings of posts on the front end: facets with their counts, sorts, 
 
 The module is **off by default** and needs **WordPress 6.9** (the Interactivity API's router). It loads no script or style on a page without a listing.
 
-> Phases 1 to 5 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO with or without an SEO plugin, SEO rules, and facets in the path. Languages come next.
+> Phases 1 to 6 of `docs/plans/2026-10-front-listings-design.md`: listings declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO with or without an SEO plugin, SEO rules, facets in the path, and languages (Polylang, WPML).
 
 ## Turning it on
 
@@ -404,6 +404,21 @@ wp meiliscout seo-rules delete <id>...
 wp meiliscout seo-rules preview /projects/page/2/?type=refonte
 ```
 
+## Languages
+
+With Polylang or WPML, a listing is one listing in every language (design §9):
+
+- **Its page** is its route's translation in the request's language: `route => ['page' => 42]` serves `/projects/` and `/en/projects-en/`. A language without a translation of the page has no listing.
+- **Its posts, counts and terms** are the language's: the base filter (and the browser's token) holds the language, the fragment and token endpoints are asked with `?lang=`.
+- **Prefixes per language**: `'path' => ['fr' => 'type', 'en' => 'kind']` (the first one for a language not listed). Every language's prefix is read; the canonical URL has the language's (301).
+- **A term of another language** in the path: the view in that language when its page has a translation (decision D, 301: `/projets/type-redesign/` → `/en/projects/kind-redesign/`), a 404 otherwise, or when the terms are of two languages.
+- **The language switcher** goes to the same view in the other language, its terms translated (the page's link when one has no translation). **hreflang** (decision C): on an indexable view only, towards the translations that are indexable too (one count per language); none on the others.
+- **Listing blocks** copied with a page into its translation stay one listing: each language renders its own block (its labels), the default language's block is the definition.
+- **SEO rules** are looked up in the language's locale. *Copy to translations* (MeiliScout › SEO rules, `wp meiliscout seo-rules duplicate <id>`) creates the rule in the other languages with its terms translated and its text to translate; existing rules are kept.
+- Polylang needs nothing more in MeiliScout: its language is a taxonomy, already indexed. WPML needs a full indexation once (the language goes in the documents, terms are read without its adjustment); until then, and for the post types it shows in their original language when untranslated, queries run on MySQL (`wpml_not_indexed`, `wpml_display_as_translated`, see [WP_QUERY.md](WP_QUERY.md)).
+
+Another plugin: a `Pollora\MeiliScout\Listings\Language\LanguageAdapter` through `meiliscout/listings/language_adapter`.
+
 ## Public fields
 
 Browsers search the posts index with a token, so while the module is on the index returns **public fields only** (its `displayedAttributes`): `ID`, `post_type`, `post_title`, `post_name`, `post_excerpt`, `post_parent`, `content_text`, `url`, `post_date`, `post_date_ts`, `terms`, `taxonomies`, `card`, and `metas.<key>` for the meta keys a listing declares in `public_metas`. A post's author, its other metas, its raw content are not returned to anyone. MeiliScout's own queries read nothing else.
@@ -435,11 +450,12 @@ Browsers search the posts index with a token, so while the module is on the inde
 | `meiliscout/listings/seo_view` | A listing's `SeoView` (indexable, canonical, adjacent pages, the rule's fields), with its `ListingResult` |
 | `meiliscout/listings/seo_adapter` | The `Adapter` writing the view through the SEO plugin in use |
 | `meiliscout/listings/structured_data` | The structured data of an indexable view (`ItemList`, `FAQPage`, `BreadcrumbList`), `[]` for none |
-| `meiliscout/listings/seo_locale` | The language SEO rules are looked up in (default: `get_locale()`) |
+| `meiliscout/listings/seo_locale` | The language SEO rules are looked up in (default: the language's locale) |
+| `meiliscout/listings/language_adapter` | The multilingual plugin's `LanguageAdapter` (Polylang's, WPML's, or none) |
 
 ## Testing
 
 - `vendor/bin/pest tests/Unit/Listings`: definitions, the URL codec, the facets' plan, cards, against the shared cases of `tests/fixtures/listings`.
 - `npm run test:js`: the browser's codec, plan and cards against the same cases; `path-cases.json`: the paths read and written, and the values' links, by both halves.
-- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`); SEO rules, their CSV and preview (`SeoRulesTest`); facets in the path over HTTP: canonical forms, 301, 404, a child page, links (`PathFacetsTest`); each SEO plugin's `<head>` over HTTP (`SeoPluginsTest`, the plugins turned on in the site's options in turn).
+- `composer test:integration` (on the demo site): the URL cases with WordPress's own functions, the builders on real terms, the cards' dates against `mysql2date()`; the parts, cards of every kind, Blade components and Twig functions (`ListingTemplatesTest`); the listing block, its saved definition, its regions and URLs, its fragment (`ListingBlocksTest`); SEO rules, their CSV and preview (`SeoRulesTest`); languages, with Polylang or WPML set up by the demo's `scripts/languages-polylang.php` or `languages-wpml.php` (`ListingLanguagesTest`); facets in the path over HTTP: canonical forms, 301, 404, a child page, links (`PathFacetsTest`); each SEO plugin's `<head>` over HTTP (`SeoPluginsTest`, the plugins turned on in the site's options in turn).
 - `vendor/bin/pest tests/Unit/Listings/SeoPolicyTest.php tests/Unit/Listings/RuleKeyTest.php`: the indexing decision, the rules' variables and keys, the adapters' robots.
