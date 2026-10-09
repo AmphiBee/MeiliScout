@@ -3,7 +3,7 @@
 	"apiVersion": 3,
 	"name": "meiliscout/listing-part",
 	"title": "Listing part",
-	"category": "theme",
+	"category": "meiliscout",
 	"description": "A part of the listing: search, sort, total, active filters, apply, reset, the SEO rule's introduction or questions.",
 	"textdomain": "meiliscout",
 	"ancestor": [ "meiliscout/listing" ],
