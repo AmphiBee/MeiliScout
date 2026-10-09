@@ -113,7 +113,7 @@ final class Listings
     {
         $query = (string) ($_SERVER['QUERY_STRING'] ?? '');
 
-        if ($query === '' || ! in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
+        if (! in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', ['GET', 'HEAD'], true)) {
             return;
         }
 
@@ -128,7 +128,11 @@ final class Listings
                 continue;
             }
 
-            $canonical = UrlCodec::canonicalQuery($definition, $query);
+            // UrlCodec has the last word: redirect_canonical() writes a page's
+            // query string again, the comma between two values as %2C (one value)
+            remove_action('template_redirect', 'redirect_canonical');
+
+            $canonical = $query === '' ? null : UrlCodec::canonicalQuery($definition, $query);
 
             if ($canonical !== null) {
                 $path = strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');

@@ -4,9 +4,12 @@
  * A change to the filters becomes a state, a URL (codec.js) and two requests
  * at once: the facets' counts, straight to Meilisearch with the listing's
  * tenant token (plan.js), and the results, as an HTML fragment the
- * interactivity router puts in place (navigate(url, { html })). A listing whose
- * client cannot run (no template, another contract version) stays as the
- * server rendered it: its form and links work without JavaScript.
+ * interactivity router puts in place (navigate(url, { html })). In the client
+ * transport, the results come with the counts, as documents the store turns
+ * into cards (hits.js), and the URL is pushed as is.
+ *
+ * A listing whose client cannot run (no template, another contract version)
+ * stays as the server rendered it: its form and links work without JavaScript.
  */
 import {
 	store,
@@ -15,10 +18,11 @@ import {
 	withScope,
 } from '@wordpress/interactivity';
 import { parse, url as urlOf } from './codec';
-import { counts, read } from './plan';
+import { counts, read, results } from './plan';
+import { hitFromDocument, pageItems, pageLinks } from './hits';
 
 const NAMESPACE = 'meiliscout/listing';
-const CONTRACT = 1;
+const CONTRACT = 2;
 
 /** Requests in flight, by listing: a newer change aborts them. */
 const controllers = new Map();
@@ -59,6 +63,25 @@ const { state, actions } = store( NAMESPACE, {
 			const labels = state.i18n.total;
 			const label = pluralLabel( labels, total );
 			return label.replace( '%d', String( total ) );
+		},
+		get hits() {
+			return state.listings[ getContext().listing ].hits || [];
+		},
+		get hasHits() {
+			return state.hits.length > 0;
+		},
+		get pageLinks() {
+			const listing = state.listings[ getContext().listing ];
+			if ( ! ready( listing ) ) {
+				return listing.pageLinks || [];
+			}
+			const at = current( listing );
+			return pageLinks(
+				pageItems( listing.page, listing.pages ),
+				( page ) =>
+					urlOf( listing.template, { ...at, page }, listing.base ),
+				state.i18n
+			);
 		},
 		get hasFilters() {
 			const listing = state.listings[ getContext().listing ];
@@ -232,8 +255,11 @@ const { state, actions } = store( NAMESPACE, {
 		navigate( event ) {
 			const { listing: id } = getContext();
 			const listing = state.listings[ id ];
+			const link = event.target.closest( 'a' );
+			// The current page and the dots have no link
 			if (
 				! ready( listing ) ||
+				! link?.href ||
 				event.metaKey ||
 				event.ctrlKey ||
 				event.shiftKey ||
@@ -242,7 +268,7 @@ const { state, actions } = store( NAMESPACE, {
 				return;
 			}
 			event.preventDefault();
-			const target = new URL( event.target.closest( 'a' ).href );
+			const target = new URL( link.href );
 			const page = Number(
 				( target.pathname.match( /\/page\/(\d+)\/?$/ ) || [] )[ 1 ] || 1
 			);
@@ -259,7 +285,7 @@ const { state, actions } = store( NAMESPACE, {
 		 *
 		 * @param {string}  id
 		 * @param {Object}  next
-		 * @param {string}  history        push, or replace
+		 * @param {string}  history        push, replace, or none (back and forward)
 		 * @param {Object}  options
 		 * @param {boolean} options.counts Whether the counts change.
 		 */
@@ -276,6 +302,45 @@ const { state, actions } = store( NAMESPACE, {
 			const controller = new AbortController();
 			controllers.set( id, controller );
 			listing.busy = true;
+
+			if ( listing.transport === 'client' ) {
+				try {
+					const answer = yield clientResults(
+						listing,
+						next,
+						recount,
+						controller.signal
+					);
+					if ( controller.signal.aborted ) {
+						return;
+					}
+					if ( history !== 'none' ) {
+						window.history[
+							history === 'replace' ? 'replaceState' : 'pushState'
+						]( window.history.state, '', target );
+					}
+					moveTo( listing, next );
+					listing.hits = answer.hits;
+					if ( answer.counted ) {
+						applyCounts( listing, next, answer.counted );
+					} else {
+						listing.total = answer.total;
+						listing.pages = Math.ceil(
+							answer.total / listing.template.perPage
+						);
+					}
+				} catch ( error ) {
+					if ( error?.name !== 'AbortError' ) {
+						// The page the server renders for this state
+						window.location.assign( target );
+					}
+				} finally {
+					if ( controllers.get( id ) === controller ) {
+						listing.busy = false;
+					}
+				}
+				return;
+			}
 
 			try {
 				const [ counted, html ] = yield Promise.all( [
@@ -297,22 +362,7 @@ const { state, actions } = store( NAMESPACE, {
 					replace: history === 'replace',
 				} );
 
-				Object.assign( listing, {
-					values: next.values,
-					ranges: next.ranges,
-					sort: next.sort || listing.template.defaultSort,
-					search: next.search,
-					page: next.page,
-				} );
-				for ( const facet of listing.template.facets ) {
-					if ( facet.type === 'range' ) {
-						const range = next.ranges[ facet.key ] || {};
-						listing.facets[ facet.key ].min =
-							range.min !== undefined ? String( range.min ) : '';
-						listing.facets[ facet.key ].max =
-							range.max !== undefined ? String( range.max ) : '';
-					}
-				}
+				moveTo( listing, next );
 				if ( counted ) {
 					applyCounts( listing, next, counted );
 				}
@@ -352,6 +402,10 @@ const { state, actions } = store( NAMESPACE, {
 						) || [] )[ 1 ] || 1
 					);
 					const next = parse( listing.template, query, page );
+					if ( listing.transport === 'client' ) {
+						actions.update( id, next, 'none' );
+						return;
+					}
 					countFacets( listing, next ).then(
 						( counted ) => {
 							Object.assign( listing, {
@@ -444,16 +498,15 @@ function current( listing ) {
 }
 
 /**
- * The facets' counts in a state, from Meilisearch with the listing's token;
- * a new token once when it expired or was refused.
+ * Searches Meilisearch with the listing's token; a new token once when it
+ * expired or was refused.
  *
  * @param {Object}      listing
- * @param {Object}      next
+ * @param {Object[]}    searches
  * @param {AbortSignal} signal
- * @return {Promise<Object>} The counts (plan.js read()).
+ * @return {Promise<Object[]>} Meilisearch's answers.
  */
-async function countFacets( listing, next, signal ) {
-	const searches = counts( listing.template, next );
+async function multiSearch( listing, searches, signal ) {
 	const ask = () =>
 		fetch( `${ listing.host }/multi-search`, {
 			method: 'POST',
@@ -478,7 +531,52 @@ async function countFacets( listing, next, signal ) {
 		throw new Error( `Meilisearch answered ${ response.status }` );
 	}
 
-	return read( searches, ( await response.json() ).results );
+	return ( await response.json() ).results;
+}
+
+/**
+ * The facets' counts in a state.
+ *
+ * @param {Object}      listing
+ * @param {Object}      next
+ * @param {AbortSignal} signal
+ * @return {Promise<Object>} The counts (plan.js read()).
+ */
+async function countFacets( listing, next, signal ) {
+	const searches = counts( listing.template, next );
+	return read( searches, await multiSearch( listing, searches, signal ) );
+}
+
+/**
+ * The client transport: a page of cards, and the counts when they change,
+ * in one multi-search.
+ *
+ * @param {Object}      listing
+ * @param {Object}      next
+ * @param {boolean}     recount
+ * @param {AbortSignal} signal
+ * @return {Promise<{hits: Object[], total: number, counted: Object|null}>} The answer.
+ */
+async function clientResults( listing, next, recount, signal ) {
+	const searches = recount ? counts( listing.template, next ) : [];
+	const answers = await multiSearch(
+		listing,
+		[ ...searches, results( listing.template, next ) ],
+		signal
+	);
+	const page = answers[ answers.length - 1 ] || {};
+
+	return {
+		hits: ( page.hits || [] ).map( ( document ) =>
+			hitFromDocument(
+				document,
+				listing.template.publicMetas,
+				state.i18n.date
+			)
+		),
+		total: page.estimatedTotalHits ?? page.totalHits ?? 0,
+		counted: recount ? read( searches, answers ) : null,
+	};
 }
 
 async function refreshToken( listing, signal ) {
@@ -528,6 +626,32 @@ function withStyles( html ) {
 		.map( ( el ) => el.outerHTML )
 		.join( '' );
 	return html.replace( '</head>', `${ styles }</head>` );
+}
+
+/**
+ * Moves a listing's state to the choices of another: values, ranges (and
+ * their fields), sort, search, page.
+ *
+ * @param {Object} listing
+ * @param {Object} next
+ */
+function moveTo( listing, next ) {
+	Object.assign( listing, {
+		values: next.values,
+		ranges: next.ranges,
+		sort: next.sort || listing.template.defaultSort,
+		search: next.search,
+		page: next.page,
+	} );
+	for ( const facet of listing.template.facets ) {
+		if ( facet.type === 'range' ) {
+			const range = next.ranges[ facet.key ] || {};
+			listing.facets[ facet.key ].min =
+				range.min !== undefined ? String( range.min ) : '';
+			listing.facets[ facet.key ].max =
+				range.max !== undefined ? String( range.max ) : '';
+		}
+	}
 }
 
 /**

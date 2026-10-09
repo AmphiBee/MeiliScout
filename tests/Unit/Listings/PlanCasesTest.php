@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Listings;
 
 use Pollora\MeiliScout\Listings\Query\FacetClauses;
 use Pollora\MeiliScout\Listings\Query\FacetPlan;
+use Pollora\MeiliScout\Listings\Render\Hits;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Services\IndexNames;
 
@@ -44,6 +45,13 @@ function planCases(): array
 
 test('the template\'s meta clauses and bounds are the builders\'', function () {
     $definition = casesDefinition();
+    $template = listingCases('plan-cases.json')['template'];
+
+    expect($template['perPage'])->toBe($definition->perPage)
+        ->and($template['defaultSort'])->toBe($definition->defaultSort)
+        ->and($template['sorts'])->toBe(FacetPlan::sorts($definition))
+        ->and($template['fields'])->toBe(Hits::fields($definition))
+        ->and($template['excerptLength'])->toBe(Hits::excerptLength());
 
     foreach (listingCases('plan-cases.json')['template']['facets'] as $entry) {
         $facet = $definition->facet($entry['key']);
@@ -64,7 +72,7 @@ test('the template\'s meta clauses and bounds are the builders\'', function () {
     }
 });
 
-test('a state is counted by the same searches', function (array $case) {
+test('a state is counted, and its results searched, the same way', function (array $case) {
     $definition = casesDefinition();
     $fixture = listingCases('plan-cases.json');
     $state = new ListingState(
@@ -82,5 +90,9 @@ test('a state is counted by the same searches', function (array $case) {
         $searches[$i]['indexUid'] = $fixture['template']['index'];
     }
 
-    expect($searches)->toBe($case['searches']);
+    $results = FacetPlan::results($definition, $state, null, knownClauses($fixture['template']));
+    $results['indexUid'] = $fixture['template']['index'];
+
+    expect($searches)->toBe($case['searches'])
+        ->and($results)->toBe($case['results']);
 })->with(planCases());

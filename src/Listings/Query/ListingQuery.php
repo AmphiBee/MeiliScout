@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Listings\Query;
 use Meilisearch\Contracts\SearchQuery;
 use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
+use Pollora\MeiliScout\Listings\Render\Hits;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\ClientFactory;
@@ -20,14 +21,27 @@ use Pollora\MeiliScout\Services\IndexNames;
  * pagination as WordPress sets them. Its facets are counted by one
  * multi-search (FacetPlan), with the search every value comes from: what the
  * client needs to count them again without the server.
+ *
+ * A listing in the client transport (C) takes its cards from the same
+ * multi-search, as its client will (Hits): no WP_Query. When its facets
+ * cannot be counted, it is served as the others.
  */
 final class ListingQuery
 {
     public static function run(ListingDefinition $definition, ListingState $state): ListingResult
     {
-        $query = new \WP_Query(self::wpQueryArgs($definition, $state));
+        $client = $definition->transport === 'client';
 
-        [$facets, $template, $error] = self::facets($definition, $state);
+        [$facets, $template, $error, $results] = self::facets($definition, $state, $client);
+
+        if ($client && $template !== null && $results !== null) {
+            $date = Hits::dateNames();
+            $hits = array_map(fn (array $hit) => Hits::fromDocument($hit, $definition->publicMetas, $date), (array) ($results['hits'] ?? []));
+
+            return new ListingResult($definition, $state, null, $facets, $template, null, $hits, (int) ($results['estimatedTotalHits'] ?? $results['totalHits'] ?? 0));
+        }
+
+        $query = new \WP_Query(self::wpQueryArgs($definition, $state));
 
         return new ListingResult($definition, $state, $query, $facets, $template, $error);
     }
@@ -74,38 +88,49 @@ final class ListingQuery
     }
 
     /**
-     * The facets' values with their counts, and the client's template.
+     * The facets' values with their counts, the client's template, and a page
+     * of results when asked (the client transport).
      *
-     * @return array{0: array<string, array{options: list<array{value: string, label: string, count: int, selected: bool, depth: int}>, stats: array{min: float, max: float}|null}>, 1: array<string, mixed>|null, 2: string|null}
+     * @return array{0: array<string, array{options: list<array{value: string, label: string, count: int, selected: bool, depth: int}>, stats: array{min: float, max: float}|null}>, 1: array<string, mixed>|null, 2: string|null, 3: array<string, mixed>|null}
      */
-    private static function facets(ListingDefinition $definition, ListingState $state): array
+    private static function facets(ListingDefinition $definition, ListingState $state, bool $withResults = false): array
     {
         $empty = array_fill_keys(array_map(fn (FacetDefinition $facet) => $facet->key, $definition->facets), ['options' => [], 'stats' => null]);
         $client = ClientFactory::getReadClient();
 
         if ($client === null) {
-            return [$empty, null, 'unreachable'];
+            return [$empty, null, 'unreachable', null];
         }
 
         // Counts per term with its descendants need the tree (posts schema 5)
         if (IndexNames::activeSchema() < 5) {
-            return [$empty, null, 'schema_too_old'];
+            return [$empty, null, 'schema_too_old', null];
         }
 
         try {
             $base = FacetPlan::baseFilter($definition);
-            $searches = [...FacetPlan::counts($definition, $state, $base), FacetPlan::universe($definition, $base)];
+            $searches = [
+                ...FacetPlan::counts($definition, $state, $base),
+                ...($withResults ? [FacetPlan::results($definition, $state, $base)] : []),
+                FacetPlan::universe($definition, $base),
+            ];
             $results = $client->multiSearch(array_map([self::class, 'searchQuery'], $searches))['results'] ?? [];
         } catch (UnsupportedQuery $e) {
-            return [$empty, null, $e->reason];
+            return [$empty, null, $e->reason, null];
         } catch (\Throwable $e) {
             error_log('MeiliScout: could not count the facets of a listing: '.$e->getMessage());
 
-            return [$empty, null, 'engine_error'];
+            return [$empty, null, 'engine_error', null];
         }
 
         $universe = array_pop($results) ?? [];
         array_pop($searches);
+        $page = null;
+
+        if ($withResults) {
+            $page = array_pop($results) ?? [];
+            array_pop($searches);
+        }
 
         // Each field's counts, from the search that carries it
         $distributions = [];
@@ -139,7 +164,7 @@ final class ListingQuery
             $template[$facet->key] = $values;
         }
 
-        return [$facets, $definition->transport === 'page' ? null : PlanTemplate::build($definition, $template, $universe), null];
+        return [$facets, $definition->transport === 'page' ? null : PlanTemplate::build($definition, $template, $universe), null, $page];
     }
 
     /**
@@ -258,6 +283,12 @@ final class ListingQuery
         }
         if (isset($search['attributesToRetrieve'])) {
             $query->setAttributesToRetrieve($search['attributesToRetrieve']);
+        }
+        if (isset($search['attributesToCrop'])) {
+            $query->setAttributesToCrop($search['attributesToCrop']);
+        }
+        if (isset($search['cropLength'])) {
+            $query->setCropLength((int) $search['cropLength']);
         }
 
         return $query;

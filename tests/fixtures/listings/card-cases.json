@@ -1,0 +1,551 @@
+{
+    "about": "Hits and Renderer::pageItems() (PHP), resources/listings/hits.js (JS): the client transport's cards from documents (public meta keys: color, price), a post's date in the site's format with its names (the integration suite compares them with mysql2date() on a French site), and the pagination's items.",
+    "names": {
+        "format": "j F Y",
+        "months": [
+            "janvier",
+            "février",
+            "mars",
+            "avril",
+            "mai",
+            "juin",
+            "juillet",
+            "août",
+            "septembre",
+            "octobre",
+            "novembre",
+            "décembre"
+        ],
+        "monthsShort": [
+            "Jan",
+            "Fév",
+            "Mar",
+            "Avr",
+            "Mai",
+            "Juin",
+            "Juil",
+            "Août",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Déc"
+        ],
+        "weekdays": [
+            "dimanche",
+            "lundi",
+            "mardi",
+            "mercredi",
+            "jeudi",
+            "vendredi",
+            "samedi"
+        ],
+        "weekdaysShort": [
+            "dim",
+            "lun",
+            "mar",
+            "mer",
+            "jeu",
+            "ven",
+            "sam"
+        ],
+        "meridiem": {
+            "am": "am",
+            "pm": "pm",
+            "AM": "AM",
+            "PM": "PM"
+        }
+    },
+    "dates": [
+        {
+            "format": "j F Y",
+            "date": "2025-03-08 16:39:10",
+            "label": "8 mars 2025"
+        },
+        {
+            "format": "d/m/Y",
+            "date": "2025-03-08 16:39:10",
+            "label": "08/03/2025"
+        },
+        {
+            "format": "l j F Y \\à G\\hi",
+            "date": "2026-01-01 09:05:00",
+            "label": "jeudi 1 janvier 2026 à 9h05"
+        },
+        {
+            "format": "D j M y, g:i a",
+            "date": "2024-12-31 00:30:59",
+            "label": "mar 31 Déc 24, 12:30 am"
+        },
+        {
+            "format": "jS F, h:i A",
+            "date": "2025-08-22 12:00:00",
+            "label": "22nd août, 12:00 PM"
+        },
+        {
+            "format": "jS",
+            "date": "2025-08-11 23:59:59",
+            "label": "11th"
+        },
+        {
+            "format": "N w Y-m-d H:i:s",
+            "date": "2023-10-01 07:08:09",
+            "label": "7 0 2023-10-01 07:08:09"
+        },
+        {
+            "format": "Y \\Y",
+            "date": "2025-02-03",
+            "label": "2025 Y"
+        }
+    ],
+    "cards": [
+        {
+            "document": {
+                "ID": 585,
+                "url": "https://example.test/realisations/boutique/",
+                "post_title": "Maison de th&eacute; L&#039;Hirondelle &amp; Cie",
+                "post_excerpt": "",
+                "post_date": "2025-07-08 22:48:38",
+                "post_type": "realisation",
+                "taxonomies": {
+                    "project_type": [
+                        {
+                            "term_id": 75,
+                            "name": "Boutique &amp; WooCommerce",
+                            "slug": "boutique-woocommerce",
+                            "parent": 74,
+                            "tree": [
+                                75,
+                                74
+                            ]
+                        }
+                    ]
+                },
+                "metas": {
+                    "color": [
+                        "red",
+                        "blue"
+                    ],
+                    "price": 1500
+                },
+                "_formatted": {
+                    "ID": "585",
+                    "content_text": "La boutique en ligne doit rester rapide, même avec plusieurs milliers de produits. Les Core Web Vitals sont devenus un…"
+                }
+            },
+            "hit": {
+                "id": 585,
+                "url": "https://example.test/realisations/boutique/",
+                "title": "Maison de thé L'Hirondelle & Cie",
+                "excerpt": "La boutique en ligne doit rester rapide, même avec plusieurs milliers de produits. Les Core Web Vitals sont devenus un…",
+                "date": "2025-07-08 22:48:38",
+                "dateLabel": "8 juillet 2025",
+                "type": "realisation",
+                "terms": {
+                    "project_type": [
+                        {
+                            "name": "Boutique & WooCommerce",
+                            "slug": "boutique-woocommerce"
+                        }
+                    ]
+                },
+                "metas": {
+                    "color": [
+                        "red",
+                        "blue"
+                    ],
+                    "price": "1500"
+                }
+            }
+        },
+        {
+            "document": {
+                "ID": 12,
+                "url": "https://example.test/12/",
+                "post_title": "Prix «&nbsp;spécial&nbsp;»",
+                "post_excerpt": "  Un extrait écrit à la main.\n",
+                "post_date": "2024-02-29 08:00:00",
+                "post_type": "post",
+                "taxonomies": {
+                    "category": [
+                        {
+                            "term_id": 3,
+                            "name": "News",
+                            "slug": "news"
+                        },
+                        {
+                            "term_id": 8,
+                            "name": "Europe",
+                            "slug": "europe"
+                        }
+                    ],
+                    "post_tag": []
+                },
+                "metas": {
+                    "price": 12.5,
+                    "featured": true
+                },
+                "_formatted": {
+                    "content_text": "Ignoré : il y a un extrait."
+                }
+            },
+            "hit": {
+                "id": 12,
+                "url": "https://example.test/12/",
+                "title": "Prix « spécial »",
+                "excerpt": "Un extrait écrit à la main.",
+                "date": "2024-02-29 08:00:00",
+                "dateLabel": "29 février 2024",
+                "type": "post",
+                "terms": {
+                    "category": [
+                        {
+                            "name": "News",
+                            "slug": "news"
+                        },
+                        {
+                            "name": "Europe",
+                            "slug": "europe"
+                        }
+                    ],
+                    "post_tag": []
+                },
+                "metas": {
+                    "color": "",
+                    "price": "12.5"
+                }
+            }
+        },
+        {
+            "document": {
+                "ID": 7,
+                "url": "https://example.test/7/",
+                "post_title": "Sans rien",
+                "post_type": "post"
+            },
+            "hit": {
+                "id": 7,
+                "url": "https://example.test/7/",
+                "title": "Sans rien",
+                "excerpt": "",
+                "date": "",
+                "dateLabel": "",
+                "type": "post",
+                "terms": {},
+                "metas": {
+                    "color": "",
+                    "price": ""
+                }
+            }
+        }
+    ],
+    "pagination": [
+        {
+            "page": 1,
+            "pages": 1,
+            "items": []
+        },
+        {
+            "page": 1,
+            "pages": 2,
+            "items": [
+                {
+                    "kind": "number",
+                    "page": 1,
+                    "current": true
+                },
+                {
+                    "kind": "number",
+                    "page": 2,
+                    "current": false
+                },
+                {
+                    "kind": "next",
+                    "page": 2,
+                    "current": false
+                }
+            ]
+        },
+        {
+            "page": 2,
+            "pages": 2,
+            "items": [
+                {
+                    "kind": "previous",
+                    "page": 1,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 1,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 2,
+                    "current": true
+                }
+            ]
+        },
+        {
+            "page": 1,
+            "pages": 10,
+            "items": [
+                {
+                    "kind": "number",
+                    "page": 1,
+                    "current": true
+                },
+                {
+                    "kind": "number",
+                    "page": 2,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 3,
+                    "current": false
+                },
+                {
+                    "kind": "dots",
+                    "page": 0,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 10,
+                    "current": false
+                },
+                {
+                    "kind": "next",
+                    "page": 2,
+                    "current": false
+                }
+            ]
+        },
+        {
+            "page": 5,
+            "pages": 10,
+            "items": [
+                {
+                    "kind": "previous",
+                    "page": 4,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 1,
+                    "current": false
+                },
+                {
+                    "kind": "dots",
+                    "page": 0,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 3,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 4,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 5,
+                    "current": true
+                },
+                {
+                    "kind": "number",
+                    "page": 6,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 7,
+                    "current": false
+                },
+                {
+                    "kind": "dots",
+                    "page": 0,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 10,
+                    "current": false
+                },
+                {
+                    "kind": "next",
+                    "page": 6,
+                    "current": false
+                }
+            ]
+        },
+        {
+            "page": 10,
+            "pages": 10,
+            "items": [
+                {
+                    "kind": "previous",
+                    "page": 9,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 1,
+                    "current": false
+                },
+                {
+                    "kind": "dots",
+                    "page": 0,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 8,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 9,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 10,
+                    "current": true
+                }
+            ]
+        },
+        {
+            "page": 4,
+            "pages": 7,
+            "items": [
+                {
+                    "kind": "previous",
+                    "page": 3,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 1,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 2,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 3,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 4,
+                    "current": true
+                },
+                {
+                    "kind": "number",
+                    "page": 5,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 6,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 7,
+                    "current": false
+                },
+                {
+                    "kind": "next",
+                    "page": 5,
+                    "current": false
+                }
+            ]
+        },
+        {
+            "page": 3,
+            "pages": 6,
+            "items": [
+                {
+                    "kind": "previous",
+                    "page": 2,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 1,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 2,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 3,
+                    "current": true
+                },
+                {
+                    "kind": "number",
+                    "page": 4,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 5,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 6,
+                    "current": false
+                },
+                {
+                    "kind": "next",
+                    "page": 4,
+                    "current": false
+                }
+            ]
+        },
+        {
+            "page": 12,
+            "pages": 4,
+            "items": [
+                {
+                    "kind": "previous",
+                    "page": 3,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 1,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 2,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 3,
+                    "current": false
+                },
+                {
+                    "kind": "number",
+                    "page": 4,
+                    "current": true
+                }
+            ]
+        }
+    ]
+}

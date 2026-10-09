@@ -141,3 +141,21 @@ export const read = ( searches, results ) => {
 		total: results[ 0 ]?.estimatedTotalHits ?? results[ 0 ]?.totalHits ?? 0,
 	};
 };
+
+/**
+ * The search of a page of results, for the client transport:
+ * FacetPlan::results().
+ *
+ * @param {Object} template
+ * @param {Object} state
+ * @return {Object} The search.
+ */
+export const results = ( template, state ) => ( {
+	...search( template, clauses( template, state ), null, state ),
+	sort: template.sorts[ state.sort || template.defaultSort ] || [],
+	limit: template.perPage,
+	offset: ( state.page - 1 ) * template.perPage,
+	attributesToRetrieve: template.fields,
+	attributesToCrop: [ 'content_text' ],
+	cropLength: template.excerptLength,
+} );

@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Listings\Query;
 
 use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
+use Pollora\MeiliScout\Listings\Render\Hits;
 use Pollora\MeiliScout\Query\UnsupportedQuery;
 use Pollora\MeiliScout\Services\IndexNames;
 
@@ -20,7 +21,7 @@ use Pollora\MeiliScout\Services\IndexNames;
  */
 final class PlanTemplate
 {
-    public const VERSION = 1;
+    public const VERSION = 2;
 
     /**
      * @param  array<string, list<array{value: string, id: string, label: string, depth: int, parent: string}>>  $values  Each facet's values
@@ -80,6 +81,10 @@ final class PlanTemplate
             'sortParam' => $definition->sortParam,
             'searchParam' => $definition->searchParam,
             'sorts' => FacetPlan::sorts($definition),
+            // The client transport's results (FacetPlan::results())
+            'fields' => Hits::fields($definition),
+            'excerptLength' => Hits::excerptLength(),
+            'publicMetas' => $definition->publicMetas,
             'facets' => $facets,
         ];
     }

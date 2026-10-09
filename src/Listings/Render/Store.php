@@ -54,6 +54,9 @@ final class Store
                     'transport' => $result->template === null ? 'page' : $definition->transport,
                     'host' => $token === null ? null : TenantTokens::publicHost(),
                     'token' => $token,
+                    // The client transport's cards (Hits), null in the others
+                    'hits' => $result->hits,
+                    'pageLinks' => self::pageLinks(Renderer::pageItems($state->page, $result->pages()), fn (int $page) => UrlCodec::url($definition, $state->onPage($page), $base)),
                     'endpoints' => [
                         'fragment' => rest_url('meiliscout/v1/listings/'.$definition->id.'/fragment'),
                         'token' => rest_url('meiliscout/v1/listings/'.$definition->id.'/token'),
@@ -71,6 +74,9 @@ final class Store
                 'remove' => __('Remove filter: %s', 'meiliscout'),
                 /* translators: 1: a facet's label, 2: its value */
                 'facetValue' => __('%1$s: %2$s', 'meiliscout'),
+                'previous' => __('Previous', 'meiliscout'),
+                'next' => __('Next', 'meiliscout'),
+                'date' => Hits::dateNames(),
             ],
         ]);
 
@@ -157,12 +163,40 @@ final class Store
 
                 return sprintf($total === 0 ? $labels['zero'] : ($total === 1 ? $labels['one'] : $labels['many']), $total);
             },
+            'hits' => function () use ($listing): array {
+                return (array) ($listing()['hits'] ?? []);
+            },
+            'hasHits' => function () use ($listing): bool {
+                return ($listing()['hits'] ?? []) !== [];
+            },
+            'pageLinks' => function () use ($listing): array {
+                return (array) ($listing()['pageLinks'] ?? []);
+            },
             'hasFilters' => function () use ($listing): bool {
                 $current = $listing();
 
                 return array_filter((array) ($current['values'] ?? [])) !== [] || array_filter((array) ($current['ranges'] ?? [])) !== [] || ($current['search'] ?? '') !== '';
             },
         ]);
+    }
+
+    /**
+     * The pagination's links as the client transport binds them.
+     *
+     * @param  list<array{kind: string, page: int, current: bool}>  $items
+     * @param  callable(int): string  $url
+     * @return list<array{key: string, label: string, url: string|null, current: string|null, hidden: string|null, className: string}>
+     */
+    public static function pageLinks(array $items, callable $url): array
+    {
+        return array_map(fn (array $item, int $i) => [
+            'key' => $item['kind'].'-'.($item['kind'] === 'dots' ? $i : $item['page']),
+            'label' => Renderer::pageLabel($item),
+            'url' => $item['kind'] === 'dots' || $item['current'] ? null : $url($item['page']),
+            'current' => $item['current'] ? 'page' : null,
+            'hidden' => $item['kind'] === 'dots' ? 'true' : null,
+            'className' => 'meiliscout-pagination__link meiliscout-pagination__'.$item['kind'],
+        ], $items, array_keys($items));
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
 use Pollora\MeiliScout\Listings\Query\FacetClauses;
+use Pollora\MeiliScout\Listings\Render\Hits;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
 
@@ -73,5 +74,19 @@ test('a term\'s clause has the form the plan cases give it', function () {
 
         expect(FacetClauses::value($facet, $term->slug))->toBe($expected)
             ->and(FacetClauses::clause($facet, new ListingState([$key => [$term->slug]])))->toBe($expected);
+    }
+});
+
+test('a card\'s date is the one mysql2date() writes, with the site\'s names', function () {
+    $fixture = integrationCases('card-cases.json');
+    $names = Hits::dateNames();
+
+    if (array_diff_key($fixture['names'], ['format' => true]) !== array_diff_key($names, ['format' => true])) {
+        $this->markTestSkipped('The cases are written with the French names: switch the site to fr_FR.');
+    }
+
+    foreach ($fixture['dates'] as $case) {
+        expect(mysql2date($case['format'], $case['date']))->toBe($case['label'], $case['format'])
+            ->and(Hits::formatDate(['format' => $case['format']] + $names, $case['date']))->toBe($case['label'], $case['format']);
     }
 });

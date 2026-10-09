@@ -1,7 +1,29 @@
 {
-    "about": "FacetPlan::counts() (PHP) and resources/listings/plan.js counts() (JS) on the listing of definition.json, from the template the client gets (terms' clauses as TaxQueryBuilder writes them for these ids; meta clauses and bounds checked against the builders). No base filter: the tenant token adds it. indexUid stands for the posts index.",
+    "about": "FacetPlan::counts() and results() (PHP) and resources/listings/plan.js counts() and results() (JS) on the listing of definition.json, from the template the client gets (terms' clauses as TaxQueryBuilder writes them for these ids; meta clauses and bounds checked against the builders). No base filter: the tenant token adds it. indexUid stands for the posts index.",
     "template": {
         "index": "posts",
+        "perPage": 6,
+        "defaultSort": "date",
+        "sorts": {
+            "date": [
+                "post_date:desc"
+            ],
+            "title": [
+                "post_title_sort:asc"
+            ]
+        },
+        "fields": [
+            "ID",
+            "url",
+            "post_title",
+            "post_excerpt",
+            "post_date",
+            "post_type",
+            "taxonomies",
+            "metas.color",
+            "metas.price"
+        ],
+        "excerptLength": 55,
         "facets": [
             {
                 "key": "category",
@@ -115,7 +137,30 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "one value of an OR facet: its counts ignore it",
@@ -149,7 +194,31 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "(taxonomies.category.tree IN [3])",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "two values of an OR facet: joined by OR",
@@ -184,7 +253,31 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "((taxonomies.category.tree IN [3]) OR (taxonomies.category.tree IN [7]))",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "two values of an AND facet: joined by AND, counted with the rest",
@@ -213,7 +306,31 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "((taxonomies.post_tag.slug IN ['a']) AND (taxonomies.post_tag.slug IN ['b']))",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "a quote in a meta value, as the builders escape it",
@@ -248,7 +365,31 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "((metas.color = 'it\\'s') OR (metas.color = 'red,blue'))",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "a range open on one side",
@@ -282,7 +423,31 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "(metas.price >= 10)",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "a range: its bounds ignore it",
@@ -295,7 +460,7 @@
                     }
                 },
                 "sort": "",
-                "page": 1,
+                "page": 3,
                 "search": ""
             },
             "searches": [
@@ -317,7 +482,31 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "((metas.price >= 10) AND (metas.price <= 20.5))",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 12,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "a boolean, counted with the rest",
@@ -345,7 +534,31 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "filter": "(metas.featured = 1)",
+                "sort": [
+                    "post_date:desc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "a search goes in every search",
@@ -356,7 +569,7 @@
                     ]
                 },
                 "ranges": {},
-                "sort": "",
+                "sort": "title",
                 "page": 1,
                 "search": "road trip"
             },
@@ -381,7 +594,32 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "q": "road trip",
+                "filter": "(metas.color = 'red')",
+                "sort": [
+                    "post_title_sort:asc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         },
         {
             "name": "everything at once",
@@ -407,7 +645,7 @@
                         "max": 99.99
                     }
                 },
-                "sort": "",
+                "sort": "title",
                 "page": 1,
                 "search": "x"
             },
@@ -449,7 +687,32 @@
                     ],
                     "limit": 0
                 }
-            ]
+            ],
+            "results": {
+                "indexUid": "posts",
+                "q": "x",
+                "filter": "((taxonomies.category.tree IN [8]) OR (taxonomies.category.tree IN [3])) AND (taxonomies.post_tag.slug IN ['a']) AND ((metas.color = 'green') OR (metas.color = 'red')) AND (metas.price <= 99.99) AND (metas.featured = 1)",
+                "sort": [
+                    "post_title_sort:asc"
+                ],
+                "limit": 6,
+                "offset": 0,
+                "attributesToRetrieve": [
+                    "ID",
+                    "url",
+                    "post_title",
+                    "post_excerpt",
+                    "post_date",
+                    "post_type",
+                    "taxonomies",
+                    "metas.color",
+                    "metas.price"
+                ],
+                "attributesToCrop": [
+                    "content_text"
+                ],
+                "cropLength": 55
+            }
         }
     ]
 }

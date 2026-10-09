@@ -2,7 +2,7 @@
  * The cases tests/Unit/Listings/PlanCasesTest.php runs too: the client counts
  * the facets with the searches the server sends.
  */
-import { counts, read } from '../plan';
+import { counts, read, results } from '../plan';
 import fixture from '../../../tests/fixtures/listings/plan-cases.json';
 
 const { template, cases } = fixture;
@@ -10,6 +10,7 @@ const { template, cases } = fixture;
 describe( 'plan cases', () => {
 	test.each( cases.map( ( c ) => [ c.name, c ] ) )( '%s', ( name, c ) => {
 		expect( counts( template, c.state ) ).toEqual( c.searches );
+		expect( results( template, c.state ) ).toEqual( c.results );
 	} );
 } );
 
@@ -18,7 +19,7 @@ describe( 'read', () => {
 		const searches = cases.find(
 			( c ) => c.searches.length === 2
 		).searches;
-		const results = [
+		const answers = [
 			{
 				estimatedTotalHits: 12,
 				facetDistribution: { [ searches[ 0 ].facets[ 0 ] ]: { 3: 4 } },
@@ -30,7 +31,7 @@ describe( 'read', () => {
 				},
 			},
 		];
-		const counted = read( searches, results );
+		const counted = read( searches, answers );
 
 		expect( counted.total ).toBe( 12 );
 		expect( counted.distributions[ searches[ 0 ].facets[ 0 ] ] ).toEqual( {

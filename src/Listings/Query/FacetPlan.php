@@ -6,6 +6,7 @@ namespace Pollora\MeiliScout\Listings\Query;
 
 use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
+use Pollora\MeiliScout\Listings\Render\Hits;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Query\Builders\OrderBuilder;
 use Pollora\MeiliScout\Query\MeiliQueryBuilder;
@@ -101,12 +102,14 @@ final class FacetPlan
     }
 
     /**
-     * The search of a page of results, for a client that renders them (transport C).
+     * The search of a page of results, for the client transport (C): the
+     * fields of its cards, the excerpt cropped as WordPress would cut it.
      *
-     * @param  list<string>  $attributes
+     * @param  string|null  $base  The base filter, null when a tenant token adds it
+     * @param  array<string, array<string, string>>  $known  Clauses already written, by facet and value
      * @return array<string, mixed>
      */
-    public static function results(ListingDefinition $definition, ListingState $state, ?string $base, array $attributes, array $known = []): array
+    public static function results(ListingDefinition $definition, ListingState $state, ?string $base, array $known = []): array
     {
         $sort = $state->sort !== '' ? $state->sort : $definition->defaultSort;
 
@@ -114,7 +117,9 @@ final class FacetPlan
             'sort' => self::sorts($definition)[$sort] ?? [],
             'limit' => $definition->perPage,
             'offset' => ($state->page - 1) * $definition->perPage,
-            'attributesToRetrieve' => $attributes,
+            'attributesToRetrieve' => Hits::fields($definition),
+            'attributesToCrop' => ['content_text'],
+            'cropLength' => Hits::excerptLength(),
         ];
     }
 
