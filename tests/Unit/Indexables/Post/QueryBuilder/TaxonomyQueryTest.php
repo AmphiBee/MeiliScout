@@ -74,15 +74,48 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post\QueryBuilder {
         ]))->toBe("(taxonomies.category.slug IN ['news'] OR (taxonomies.post_tag.slug IN ['Editor\\'s pick'] AND taxonomies.genre.term_id IN [4]))");
     });
 
-    test('a term of a hierarchical taxonomy brings its children, as in WordPress', function () {
+    test('a term of a hierarchical taxonomy brings its children, as in WordPress: one value of the tree', function () {
+        $GLOBALS['hierarchical'] = ['category'];
+        $GLOBALS['tax_terms'] = [term(3, 'news', 'category'), term(4, 'events', 'category')];
+        $GLOBALS['term_children'] = [3 => [8, 9]];
+
+        expect(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news']]]))
+            ->toBe('(taxonomies.category.tree IN [3])')
+            ->and(taxFilter([['taxonomy' => 'category', 'terms' => [3, 4], 'operator' => 'NOT IN']]))
+            ->toBe('(taxonomies.category.tree NOT IN [3, 4])')
+            ->and(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news'], 'include_children' => false]]))
+            ->toBe("(taxonomies.category.slug IN ['news'])");
+    });
+
+    test('terms no term has are left out of the tree: none left is no post for IN, no restriction for NOT IN', function () {
+        $GLOBALS['hierarchical'] = ['category'];
+        $GLOBALS['tax_terms'] = [term(3, 'news', 'category')];
+
+        expect(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news', 'missing']]]))
+            ->toBe('(taxonomies.category.tree IN [3])')
+            ->and(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['missing']]]))
+            ->toBe('(post_type IN [])')
+            ->and((new MeiliQueryBuilder)->build(new MockWPQuery(['tax_query' => [['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['missing'], 'operator' => 'NOT IN']]]))['filter'])
+            ->toBe("post_type = 'post' AND post_status = 'publish'");
+    });
+
+    test('AND keeps every term and every child, as WordPress lists them', function () {
+        $GLOBALS['hierarchical'] = ['category'];
+        $GLOBALS['tax_terms'] = [term(3, 'news', 'category'), term(4, 'events', 'category')];
+        $GLOBALS['term_children'] = [3 => [8]];
+
+        expect(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news', 'events'], 'operator' => 'AND']]))
+            ->toBe('((taxonomies.category.term_id = 3 AND taxonomies.category.term_id = 8 AND taxonomies.category.term_id = 4))');
+    });
+
+    test('an index built in schema 4 has no tree: the children are listed', function () {
+        update_option('meiliscout/schema_version', ['posts' => 4, 'taxonomies' => 4]);
         $GLOBALS['hierarchical'] = ['category'];
         $GLOBALS['tax_terms'] = [term(3, 'news', 'category')];
         $GLOBALS['term_children'] = [3 => [8, 9]];
 
         expect(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news']]]))
-            ->toBe('(taxonomies.category.term_id IN [3, 8, 9])')
-            ->and(taxFilter([['taxonomy' => 'category', 'field' => 'slug', 'terms' => ['news'], 'include_children' => false]]))
-            ->toBe("(taxonomies.category.slug IN ['news'])");
+            ->toBe('(taxonomies.category.term_id IN [3, 8, 9])');
     });
 
     test('a taxonomy name that could not be an attribute name sends the query to MySQL', function () {

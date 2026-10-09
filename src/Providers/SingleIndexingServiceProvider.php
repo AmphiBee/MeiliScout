@@ -520,7 +520,8 @@ class SingleIndexingServiceProvider extends ServiceProvider
     }
 
     /**
-     * Re-indexes the children a deleted term left to its parent: their parent changed.
+     * Re-indexes the children a deleted term left to its parent: their parent
+     * changed, and so did the ancestors their posts carry.
      *
      * @param  array<int>  $ttIds  Term taxonomy IDs
      */
@@ -533,9 +534,16 @@ class SingleIndexingServiceProvider extends ServiceProvider
         foreach ($ttIds as $ttId) {
             $term = get_term_by('term_taxonomy_id', (int) $ttId);
 
-            if ($term instanceof \WP_Term && in_array($term->taxonomy, (array) Settings::get('indexed_taxonomies', []), true)) {
+            if (! $term instanceof \WP_Term) {
+                continue;
+            }
+
+            if (in_array($term->taxonomy, (array) Settings::get('indexed_taxonomies', []), true)) {
                 $this->queue('term', 'index', (int) $term->term_id);
             }
+
+            // Its posts and those of its descendants carry its ancestors (tree)
+            $this->queue('posts_for_term', 'reindex', (int) $term->term_id, ['taxonomy' => $term->taxonomy]);
         }
     }
 

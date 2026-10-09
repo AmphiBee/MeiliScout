@@ -101,6 +101,19 @@ class TaxQueryBuilder extends AbstractFilterBuilder
 
         // As in WordPress, a term of a hierarchical taxonomy brings its children along
         if ($values !== [] && ($query['include_children'] ?? true)) {
+            // From posts schema 5 each term carries its ancestors: a term with its
+            // descendants is one value of the tree. AND keeps the list WordPress
+            // builds (every term and every child), which the tree cannot express.
+            if ($operator !== 'AND' && IndexNames::activeSchema() >= 5 && $this->isHierarchical($taxonomy)) {
+                $ids = $this->termIds($taxonomy, $field, $values);
+
+                if ($ids === []) {
+                    return $operator === 'IN' ? self::MATCH_NOTHING : '';
+                }
+
+                return "taxonomies.{$taxonomy}.tree {$operator} [{$this->formatArrayValues($ids)}]";
+            }
+
             $missing = 0;
             $withChildren = $this->withChildren($taxonomy, $field, $values, $missing);
 
@@ -162,6 +175,36 @@ class TaxQueryBuilder extends AbstractFilterBuilder
         return array_values(array_unique($ids));
     }
 
+    private function isHierarchical(string $taxonomy): bool
+    {
+        return function_exists('is_taxonomy_hierarchical') && is_taxonomy_hierarchical($taxonomy);
+    }
+
+    /**
+     * The ids of the given terms, those no term has left out.
+     *
+     * @param  list<int|string>  $values  Term ids, slugs, names or term_taxonomy_ids
+     * @return list<int>
+     */
+    private function termIds(string $taxonomy, string $field, array $values): array
+    {
+        if ($field === 'term_id') {
+            return array_map('intval', $values);
+        }
+
+        $ids = [];
+
+        foreach ($values as $value) {
+            $term = get_term_by($field, $value, $taxonomy);
+
+            if ($term instanceof \WP_Term) {
+                $ids[] = (int) $term->term_id;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
     /**
      * The ids of the given terms and of all their descendants, or null when the
      * taxonomy is flat or WordPress is not there to tell.
@@ -174,7 +217,7 @@ class TaxQueryBuilder extends AbstractFilterBuilder
     {
         $missing = 0;
 
-        if (! function_exists('is_taxonomy_hierarchical') || ! is_taxonomy_hierarchical($taxonomy)) {
+        if (! $this->isHierarchical($taxonomy)) {
             return null;
         }
 
