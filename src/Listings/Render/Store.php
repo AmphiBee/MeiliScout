@@ -61,6 +61,9 @@ final class Store
                         'fragment' => rest_url('meiliscout/v1/listings/'.$definition->id.'/fragment'),
                         'token' => rest_url('meiliscout/v1/listings/'.$definition->id.'/token'),
                     ],
+                    // Cards that depend on the visitor (decision E): the fragment is asked for with the visitor's session
+                    'personalised' => $definition->personalised,
+                    'nonce' => $definition->personalised && is_user_logged_in() ? wp_create_nonce('wp_rest') : null,
                     'busy' => false,
                 ],
             ],

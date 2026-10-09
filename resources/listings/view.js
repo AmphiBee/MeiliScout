@@ -605,6 +605,8 @@ async function fragment( listing, target, signal ) {
 	const response = await fetch( endpoint, {
 		signal,
 		credentials: listing.personalised ? 'same-origin' : 'omit',
+		// The REST API reads the session only with its nonce
+		headers: listing.nonce ? { 'X-WP-Nonce': listing.nonce } : {},
 	} );
 	if ( ! response.ok ) {
 		throw new Error( `The fragment answered ${ response.status }` );
