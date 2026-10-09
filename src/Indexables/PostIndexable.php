@@ -14,6 +14,7 @@ use WP_Post;
 use WP_Term;
 
 use function apply_filters;
+use function get_ancestors;
 use function get_object_taxonomies;
 use function get_option;
 use function get_permalink;
@@ -21,6 +22,7 @@ use function get_post_meta;
 use function get_post_status;
 use function get_posts;
 use function get_term;
+use function is_taxonomy_hierarchical;
 use function is_wp_error;
 use function maybe_unserialize;
 use function strip_shortcodes;
@@ -334,14 +336,7 @@ class PostIndexable implements Indexable
             }
 
             foreach ($rawTerms as $term) {
-                $terms[] = [
-                    'term_id' => (int) $term->term_id,
-                    'name' => $term->name,
-                    'slug' => $term->slug,
-                    'taxonomy' => $term->taxonomy,
-                    'term_taxonomy_id' => (int) $term->term_taxonomy_id,
-                    'parent' => (int) $term->parent,
-                ];
+                $terms[] = $this->termEntry($term);
             }
         }
 
@@ -592,6 +587,35 @@ class PostIndexable implements Indexable
         return new WP_Post((object) $hit);
     }
 
+    /**
+     * A term as the documents carry it. From posts schema 5, a term of a
+     * hierarchical taxonomy also carries the ids of its ancestors (tree, the
+     * term first): a filter on taxonomies.{taxonomy}.tree takes a term with its
+     * descendants, and a facet on it counts a parent with its children.
+     *
+     * @return array<string, mixed>
+     */
+    private function termEntry(WP_Term $term): array
+    {
+        $entry = [
+            'term_id' => (int) $term->term_id,
+            'name' => $term->name,
+            'slug' => $term->slug,
+            'taxonomy' => $term->taxonomy,
+            'term_taxonomy_id' => (int) $term->term_taxonomy_id,
+            'parent' => (int) $term->parent,
+        ];
+
+        if (is_taxonomy_hierarchical($term->taxonomy)) {
+            $entry['tree'] = [
+                (int) $term->term_id,
+                ...array_map('intval', get_ancestors((int) $term->term_id, $term->taxonomy, 'taxonomy')),
+            ];
+        }
+
+        return $entry;
+    }
+
     private function getFlattenedTerms(WP_Post $post): array
     {
         // Use preloaded data if available (batch mode)
@@ -611,14 +635,7 @@ class PostIndexable implements Indexable
             }
 
             foreach ($rawTerms as $term) {
-                $terms[] = [
-                    'term_id' => (int) $term->term_id,
-                    'name' => $term->name,
-                    'slug' => $term->slug,
-                    'taxonomy' => $term->taxonomy,
-                    'term_taxonomy_id' => (int) $term->term_taxonomy_id,
-                    'parent' => (int) $term->parent,
-                ];
+                $terms[] = $this->termEntry($term);
             }
         }
 

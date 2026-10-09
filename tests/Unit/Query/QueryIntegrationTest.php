@@ -436,6 +436,45 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
             ->and($query->meiliscout['reason'])->toBe('unindexed_status:private');
     });
 
+    test('the same search in the same request asks Meilisearch once', function () {
+        publishedPosts(1, 2);
+        $integration = integrationWith(clientReturning([searchResult([1, 2], 2), searchResult([2], 1)], $this, $searches));
+
+        // A Query Loop and its pagination blocks run the same query
+        $loop = new \WP_Query(['use_meilisearch' => true, 'posts_per_page' => 2]);
+        $pagination = new \WP_Query(['use_meilisearch' => true, 'posts_per_page' => 2]);
+        $other = new \WP_Query(['use_meilisearch' => true, 'posts_per_page' => 1]);
+
+        $loopPosts = $integration->interceptQuery(null, $loop);
+        $paginationPosts = $integration->interceptQuery(null, $pagination);
+        $integration->interceptQuery(null, $other);
+
+        expect($searches)->toHaveCount(2)
+            ->and($paginationPosts)->toBe($loopPosts)
+            ->and($pagination->found_posts)->toBe(2)
+            ->and($pagination->max_num_pages)->toBe(1)
+            ->and($loop->meiliscout)->not->toHaveKey('memo')
+            ->and($pagination->meiliscout['memo'])->toBe(1)
+            ->and($other->meiliscout)->not->toHaveKey('memo');
+    });
+
+    test('a post changed during the request, or the memo turned off, asks Meilisearch again', function () {
+        publishedPosts(1);
+        $integration = integrationWith(clientReturning([searchResult([1], 1), searchResult([1], 1), searchResult([1], 1)], $this, $searches));
+
+        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true]));
+        \Pollora\MeiliScout\Query\SearchMemo::flush(); // clean_post_cache
+        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true]));
+        $GLOBALS['filters']['meiliscout/search_memo'] = false;
+        $integration->interceptQuery(null, new \WP_Query(['use_meilisearch' => true]));
+
+        $flushes = fn (string $hook) => array_column($GLOBALS['actions'][$hook] ?? [], 'callback');
+
+        expect($searches)->toHaveCount(3)
+            ->and($flushes('clean_post_cache'))->toContain([\Pollora\MeiliScout\Query\SearchMemo::class, 'flush'])
+            ->and($flushes('clean_object_term_cache'))->toContain([\Pollora\MeiliScout\Query\SearchMemo::class, 'flush']);
+    });
+
     test('another plugin\'s answer is left alone', function () {
         $client = $this->createMock(Client::class);
         $client->expects($this->never())->method('index');

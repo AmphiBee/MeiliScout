@@ -68,7 +68,7 @@ Attachments are indexed when Content › Post types has Media on, with their sta
 
 | Argument | State | Notes |
 |---|---|---|
-| `tax_query`, every field and operator, nested relations, `include_children` | ✅ | Operators in any case |
+| `tax_query`, every field and operator, nested relations, `include_children` | ✅ | Operators in any case. From schema 5, a term with its descendants is one value of `taxonomies.<taxonomy>.tree` (`IN`, `NOT IN`); `AND` lists every term and child, as WordPress does |
 | `cat`, `category_name`, `category__in/__not_in/__and`, `tag`, `tag_id`, `tag__in/__not_in/__and`, `tag_slug__in/__and`, `taxonomy`/`term`, a taxonomy's query var | ✅ | Read from the clauses WordPress parsed |
 | A clause without `taxonomy` (term_taxonomy_id across taxonomies) | ❌ | MySQL |
 
