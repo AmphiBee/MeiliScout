@@ -203,7 +203,11 @@ const { state, actions } = store( NAMESPACE, {
 		input( event ) {
 			const { listing: id } = getContext();
 			const listing = state.listings[ id ];
-			if ( ! ready( listing ) ) {
+			// A checkbox or a select sends input too: change applies them
+			if (
+				! ready( listing ) ||
+				! [ 'search', 'number', 'text' ].includes( event.target.type )
+			) {
 				return;
 			}
 			const form = event.target.form;
