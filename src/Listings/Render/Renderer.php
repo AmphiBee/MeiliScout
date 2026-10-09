@@ -8,116 +8,195 @@ use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
 use Pollora\MeiliScout\Listings\Query\ListingResult;
 use Pollora\MeiliScout\Listings\Query\PlanTemplate;
-use Pollora\MeiliScout\Listings\State\UrlCodec;
 
 /**
  * A listing's HTML: a form that works without JavaScript (GET), the
  * Interactivity API directives the client hydrates, and one router region
- * holding the results and the pagination, which a fragment replaces.
+ * holding the results, which a fragment replaces.
  *
- * Plain markup with stable, prefixed classes (meiliscout-*) and no styles of
- * its own beyond layout: themes style it (design §6.6).
+ * Made of parts a template may also place one by one (meiliscout_listing_part()):
+ * search, facet, facets, sort, total, active, apply, reset, results,
+ * pagination. Every field belongs to the listing's one form through the form
+ * attribute, wherever it is printed, so that a page without JavaScript sends
+ * them all. Stable hooks: data-meiliscout on the listing's elements (listing,
+ * form, results, pagination, reset), data-meiliscout-part on a part's wrapper.
+ *
+ * Plain markup with stable, prefixed classes (meiliscout-*) and no styles:
+ * themes style it (design §6.6).
  */
 final class Renderer
 {
+    public const PARTS = ['search', 'facet', 'facets', 'sort', 'total', 'active', 'apply', 'reset', 'results', 'pagination'];
+
     /**
-     * @param  array<string, mixed>  $args  card: callable(WP_Post): string, or a template part name; search: bool
+     * Listings whose form was printed on this page, by id.
+     *
+     * @var array<string, true>
+     */
+    private static array $forms = [];
+
+    /**
+     * The whole listing: its form (search, facets, then total, active filters,
+     * sort, apply and reset), its results and its pagination.
+     *
+     * @param  array<string, mixed>  $args  search: false leaves the search field out
      */
     public static function listing(ListingResult $result, string $base, array $args = []): string
     {
         $definition = $result->definition;
         $id = self::domId($definition);
-        $context = wp_json_encode(['listing' => $definition->id]);
+        self::$forms[$definition->id] = true;
 
-        $html = sprintf(
-            '<div id="%1$s" class="meiliscout-listing" data-wp-interactive="%2$s" data-wp-context="%3$s" data-meiliscout-contract="%4$d" data-wp-init="callbacks.init">',
-            esc_attr($id),
-            esc_attr(Store::NAMESPACE),
-            esc_attr((string) $context),
-            PlanTemplate::VERSION
-        );
-
-        $html .= self::form($result, $base, $args);
-        $html .= self::region($result, $base, $args);
-
-        return $html.'</div>';
-    }
-
-    /**
-     * The router region alone: the results and the pagination (a fragment's body).
-     *
-     * @param  array<string, mixed>  $args
-     */
-    public static function region(ListingResult $result, string $base, array $args = []): string
-    {
-        $definition = $result->definition;
-        $id = self::domId($definition);
-
-        if ($result->hits !== null) {
-            return self::clientRegion($result, $args);
+        $fields = ($args['search'] ?? true) ? self::search($result) : '';
+        foreach ($definition->facets as $facet) {
+            $fields .= self::facet($facet, $result);
         }
 
         return sprintf(
-            '<div id="%1$s-results" class="meiliscout-listing__results" data-wp-interactive="%2$s" data-wp-router-region="%1$s" data-wp-context="%3$s" data-wp-bind--aria-busy="state.busy">%4$s%5$s</div>',
+            '<div id="%1$s" class="meiliscout-listing" data-meiliscout="listing" data-wp-interactive="%2$s" data-wp-context="%3$s">%4$s%5$s%6$s</div>',
             esc_attr($id),
             esc_attr(Store::NAMESPACE),
-            esc_attr((string) wp_json_encode(['listing' => $definition->id])),
-            self::results($result, $args),
-            self::pagination($result, $base)
+            esc_attr(self::context($definition)),
+            self::form($result, $base, $fields.'<div class="meiliscout-listing__toolbar">'.self::total().self::active().self::sort($result).self::apply($result).self::resetLink($base).'</div>'),
+            self::region($result),
+            self::pagination($result)
         );
     }
 
     /**
-     * @param  array<string, mixed>  $args
+     * One part of a listing, for a template that places them itself.
+     *
+     * @param  array<string, mixed>  $args  facet: the facet's key (part facet)
+     *
+     * @throws \InvalidArgumentException An unknown part, or facet
      */
-    private static function form(ListingResult $result, string $base, array $args): string
+    public static function part(ListingResult $result, string $base, string $part, array $args = []): string
+    {
+        $definition = $result->definition;
+
+        $html = match ($part) {
+            'search' => self::search($result),
+            'facet' => self::facet($definition->facet((string) ($args['facet'] ?? '')) ?? throw new \InvalidArgumentException(sprintf('The listing "%s" has no facet "%s".', $definition->id, (string) ($args['facet'] ?? ''))), $result),
+            'facets' => implode('', array_map(fn (FacetDefinition $facet) => self::facet($facet, $result), $definition->facets)),
+            'sort' => self::sort($result),
+            'total' => self::total(),
+            'active' => self::active(),
+            'apply' => self::apply($result),
+            'reset' => self::resetLink($base),
+            'results' => self::region($result),
+            'pagination' => self::pagination($result),
+            default => throw new \InvalidArgumentException(sprintf('Unknown listing part "%s": %s.', $part, implode(', ', self::PARTS))),
+        };
+
+        // The form the fields belong to, once per listing and page, empty: its fields are the parts'
+        $form = '';
+        if (! isset(self::$forms[$definition->id])) {
+            self::$forms[$definition->id] = true;
+            $form = self::form($result, $base, '');
+        }
+
+        return $form.sprintf(
+            '<div class="meiliscout-part meiliscout-part--%1$s" data-meiliscout-part="%1$s" data-wp-interactive="%2$s" data-wp-context="%3$s" data-wp-on--change="actions.change" data-wp-on--input="actions.input">%4$s</div>',
+            esc_attr($part),
+            esc_attr(Store::NAMESPACE),
+            esc_attr(self::context($definition)),
+            $html
+        );
+    }
+
+    /**
+     * The router region alone: the results (a fragment's body).
+     */
+    public static function region(ListingResult $result): string
     {
         $definition = $result->definition;
         $id = self::domId($definition);
-        $html = sprintf(
-            '<form class="meiliscout-listing__filters" method="get" action="%s" aria-controls="%s-results" data-wp-on--submit="actions.submit" data-wp-on--change="actions.change" data-wp-on--input="actions.input">',
-            esc_url($base),
-            esc_attr($id)
+        $results = $result->hits !== null ? self::clientResults($result) : self::results($result);
+
+        return sprintf(
+            '<div id="%1$s-results" class="meiliscout-listing__results" data-meiliscout="results" data-wp-interactive="%2$s" data-wp-router-region="%1$s" data-wp-context="%3$s" data-wp-bind--aria-busy="state.busy">%4$s</div>',
+            esc_attr($id),
+            esc_attr(Store::NAMESPACE),
+            esc_attr(self::context($definition)),
+            $results
         );
+    }
 
-        if ($args['search'] ?? true) {
-            $html .= sprintf(
-                '<div class="meiliscout-search"><label class="meiliscout-search__label" for="%1$s-search">%2$s</label><input id="%1$s-search" class="meiliscout-search__input" type="search" name="%3$s" value="%4$s" data-wp-bind--value="state.search"></div>',
-                esc_attr($id),
-                esc_html__('Search', 'meiliscout'),
-                esc_attr($definition->searchParam),
-                esc_attr($result->state->search)
-            );
-        }
+    /**
+     * Forgets the forms printed (a new page: tests, the fragment endpoint).
+     */
+    public static function forgetForms(): void
+    {
+        self::$forms = [];
+    }
 
-        foreach ($definition->facets as $facet) {
-            $html .= $facet->type === FacetDefinition::RANGE ? self::range($facet, $result) : self::list($facet);
-        }
-
-        $html .= '<div class="meiliscout-listing__toolbar">';
-        $html .= '<p class="meiliscout-listing__total" aria-live="polite" data-wp-text="state.totalLabel"></p>';
-        $html .= self::active();
-        $html .= self::sort($definition, $result);
-        $html .= sprintf(
-            '<button type="submit" class="meiliscout-listing__apply" data-wp-init="callbacks.applyButton" data-wp-text="state.applyLabel">%s</button>',
-            esc_html__('Apply', 'meiliscout')
-        );
-        $html .= sprintf(
-            '<a class="meiliscout-listing__reset" href="%s" data-wp-bind--hidden="!state.hasFilters" data-wp-on--click="actions.reset">%s</a>',
+    private static function resetLink(string $base): string
+    {
+        return sprintf(
+            '<a class="meiliscout-listing__reset" data-meiliscout="reset" href="%s" data-wp-bind--hidden="!state.hasFilters" data-wp-on--click="actions.reset">%s</a>',
             esc_url($base),
             esc_html__('Reset', 'meiliscout')
         );
-
-        return $html.'</div></form>';
     }
 
-    private static function list(FacetDefinition $facet): string
+    public static function domId(ListingDefinition $definition): string
+    {
+        return 'meiliscout-listing-'.$definition->id;
+    }
+
+    /**
+     * The id of the listing's form, which every field names (form="…").
+     */
+    public static function formId(ListingDefinition $definition): string
+    {
+        return self::domId($definition).'-form';
+    }
+
+    /**
+     * The form, where the client starts (callbacks.init) and the fields go.
+     */
+    private static function form(ListingResult $result, string $base, string $fields): string
+    {
+        $definition = $result->definition;
+
+        return sprintf(
+            '<form id="%1$s" class="meiliscout-listing__filters" data-meiliscout="form" method="get" action="%2$s" aria-controls="%3$s-results" data-meiliscout-contract="%4$d" data-wp-interactive="%5$s" data-wp-context="%6$s" data-wp-init="callbacks.init" data-wp-on--submit="actions.submit" data-wp-on--change="actions.change" data-wp-on--input="actions.input">%7$s</form>',
+            esc_attr(self::formId($definition)),
+            esc_url($base),
+            esc_attr(self::domId($definition)),
+            PlanTemplate::VERSION,
+            esc_attr(Store::NAMESPACE),
+            esc_attr(self::context($definition)),
+            $fields
+        );
+    }
+
+    private static function search(ListingResult $result): string
+    {
+        $definition = $result->definition;
+
+        return sprintf(
+            '<div class="meiliscout-search"><label class="meiliscout-search__label" for="%1$s-search">%2$s</label><input id="%1$s-search" class="meiliscout-search__input" type="search" name="%3$s" value="%4$s" form="%5$s" data-wp-bind--value="state.search"></div>',
+            esc_attr(self::domId($definition)),
+            esc_html__('Search', 'meiliscout'),
+            esc_attr($definition->searchParam),
+            esc_attr($result->state->search),
+            esc_attr(self::formId($definition))
+        );
+    }
+
+    private static function facet(FacetDefinition $facet, ListingResult $result): string
+    {
+        return $facet->type === FacetDefinition::RANGE ? self::range($facet, $result) : self::list($facet, $result);
+    }
+
+    private static function list(FacetDefinition $facet, ListingResult $result): string
     {
         return sprintf(
             '<fieldset class="meiliscout-facet meiliscout-facet--%1$s" data-facet="%2$s" data-wp-context="%3$s"><legend class="meiliscout-facet__title">%4$s</legend>'
             .'<ul class="meiliscout-facet__options" role="list"><template data-wp-each--option="state.options" data-wp-each-key="context.option.value">'
             .'<li class="meiliscout-facet__option" data-wp-bind--hidden="state.optionHidden" data-wp-bind--data-depth="context.option.depth">'
-            .'<label class="meiliscout-facet__label"><input class="meiliscout-facet__input" type="checkbox" name="%5$s" data-wp-bind--value="context.option.value" data-wp-bind--checked="context.option.selected"> '
+            .'<label class="meiliscout-facet__label"><input class="meiliscout-facet__input" type="checkbox" name="%5$s" form="%6$s" data-wp-bind--value="context.option.value" data-wp-bind--checked="context.option.selected"> '
             .'<span class="meiliscout-facet__text" data-wp-text="context.option.label"></span> '
             .'<span class="meiliscout-facet__count" data-wp-text="context.option.count"></span></label></li>'
             .'</template></ul>'
@@ -127,7 +206,8 @@ final class Renderer
             esc_attr($facet->key),
             esc_attr((string) wp_json_encode(['facet' => $facet->key])),
             esc_html($facet->label),
-            esc_attr($facet->param)
+            esc_attr($facet->param),
+            esc_attr(self::formId($result->definition))
         );
     }
 
@@ -135,12 +215,13 @@ final class Renderer
     {
         $step = $facet->decimals > 0 ? '0.'.str_repeat('0', $facet->decimals - 1).'1' : '1';
         $input = fn (string $bound, string $label) => sprintf(
-            '<label class="meiliscout-range__bound"><span class="meiliscout-range__label">%1$s</span><input class="meiliscout-range__input" type="number" inputmode="decimal" step="%2$s" name="%3$s_%4$s" data-wp-bind--value="state.range%5$s" data-wp-bind--placeholder="state.range%5$sLimit"></label>',
+            '<label class="meiliscout-range__bound"><span class="meiliscout-range__label">%1$s</span><input class="meiliscout-range__input" type="number" inputmode="decimal" step="%2$s" name="%3$s_%4$s" form="%6$s" data-wp-bind--value="state.range%5$s" data-wp-bind--placeholder="state.range%5$sLimit"></label>',
             esc_html($label),
             esc_attr($step),
             esc_attr($facet->param),
             esc_attr($bound),
-            ucfirst($bound)
+            ucfirst($bound),
+            esc_attr(self::formId($result->definition))
         );
 
         return sprintf(
@@ -153,6 +234,11 @@ final class Renderer
         );
     }
 
+    private static function total(): string
+    {
+        return '<p class="meiliscout-listing__total" aria-live="polite" data-wp-text="state.totalLabel"></p>';
+    }
+
     private static function active(): string
     {
         return '<ul class="meiliscout-active" role="list" data-wp-bind--hidden="!state.hasFilters"><template data-wp-each--filter="state.activeFilters" data-wp-each-key="context.filter.id">'
@@ -161,8 +247,10 @@ final class Renderer
             .'</template></ul>';
     }
 
-    private static function sort(ListingDefinition $definition, ListingResult $result): string
+    private static function sort(ListingResult $result): string
     {
+        $definition = $result->definition;
+
         if (count($definition->sorts) < 2) {
             return '';
         }
@@ -175,21 +263,32 @@ final class Renderer
         }
 
         return sprintf(
-            '<label class="meiliscout-sort"><span class="meiliscout-sort__label">%s</span><select class="meiliscout-sort__select" name="%s">%s</select></label>',
+            '<label class="meiliscout-sort"><span class="meiliscout-sort__label">%s</span><select class="meiliscout-sort__select" name="%s" form="%s">%s</select></label>',
             esc_html__('Sort by', 'meiliscout'),
             esc_attr($definition->sortParam),
+            esc_attr(self::formId($definition)),
             $options
         );
     }
 
     /**
-     * @param  array<string, mixed>  $args
+     * Hidden by the client while changes apply at once; the button of a page
+     * without JavaScript, and of the button mode.
      */
-    private static function results(ListingResult $result, array $args): string
+    private static function apply(ListingResult $result): string
+    {
+        return sprintf(
+            '<button type="submit" form="%s" class="meiliscout-listing__apply" data-wp-init="callbacks.applyButton" data-wp-text="state.applyLabel">%s</button>',
+            esc_attr(self::formId($result->definition)),
+            esc_html__('Apply', 'meiliscout')
+        );
+    }
+
+    private static function results(ListingResult $result): string
     {
         $query = $result->query;
 
-        if (! $query->have_posts()) {
+        if ($query === null || ! $query->have_posts()) {
             return sprintf('<p class="meiliscout-results__empty">%s</p>', esc_html__('No results match these filters.', 'meiliscout'));
         }
 
@@ -197,7 +296,7 @@ final class Renderer
 
         while ($query->have_posts()) {
             $query->the_post();
-            $html .= '<li class="meiliscout-result">'.self::card(get_post(), $args['card'] ?? null).'</li>';
+            $html .= '<li class="meiliscout-result">'.Cards::render(get_post(), $result->definition).'</li>';
         }
         wp_reset_postdata();
 
@@ -205,60 +304,31 @@ final class Renderer
     }
 
     /**
-     * A card: the site's callable, its template part (meiliscout/card.php in
-     * the theme, or the name given), or a title, a date and an excerpt.
+     * The client transport's cards, from the store: rendered here for the
+     * first page, then by the client.
      */
-    private static function card(\WP_Post $post, mixed $card): string
+    private static function clientResults(ListingResult $result): string
     {
-        if (is_callable($card)) {
-            return (string) $card($post);
-        }
-
-        $template = locate_template(is_string($card) && $card !== '' ? $card.'.php' : 'meiliscout/card.php');
-
-        if ($template !== '') {
-            ob_start();
-            load_template($template, false, ['post' => $post]);
-
-            return (string) ob_get_clean();
-        }
-
         return sprintf(
-            '<article class="meiliscout-card"><h3 class="meiliscout-card__title"><a href="%s">%s</a></h3><p class="meiliscout-card__meta"><time datetime="%s">%s</time></p><div class="meiliscout-card__excerpt">%s</div></article>',
-            esc_url((string) get_permalink($post)),
-            esc_html(get_the_title($post)),
-            esc_attr((string) get_the_date('c', $post)),
-            esc_html((string) get_the_date('', $post)),
-            wp_kses_post(wpautop(get_the_excerpt($post)))
+            '<p class="meiliscout-results__empty" data-wp-bind--hidden="state.hasHits">%s</p>'
+            .'<ul class="meiliscout-results" role="list" data-wp-bind--hidden="!state.hasHits"><template data-wp-each--hit="state.hits" data-wp-each-key="context.hit.id"><li class="meiliscout-result">%s</li></template></ul>',
+            esc_html__('No results match these filters.', 'meiliscout'),
+            self::clientCard($result->definition)
         );
     }
 
     /**
-     * Previous, numbers (first, last, two around the current one), next: real
-     * links to each page's canonical URL, which the client loads in place.
+     * The pagination, from the store (Store::pageLinks()): real links to each
+     * page's canonical URL, which the client loads in place.
      */
-    private static function pagination(ListingResult $result, string $base): string
+    private static function pagination(ListingResult $result): string
     {
-        $items = self::pageItems($result->state->page, $result->pages());
-
-        if ($items === []) {
-            return '';
-        }
-
-        $html = sprintf('<nav class="meiliscout-pagination" aria-label="%s">', esc_attr__('Pages', 'meiliscout'));
-
-        foreach ($items as $item) {
-            $label = self::pageLabel($item);
-            $class = 'meiliscout-pagination__link meiliscout-pagination__'.$item['kind'];
-
-            $html .= match (true) {
-                $item['kind'] === 'dots' => '<span class="meiliscout-pagination__dots" aria-hidden="true">…</span>',
-                $item['current'] => sprintf('<span class="%s" aria-current="page">%s</span>', esc_attr($class), esc_html($label)),
-                default => sprintf('<a class="%s" href="%s" data-wp-on--click="actions.navigate">%s</a>', esc_attr($class), esc_url(UrlCodec::url($result->definition, $result->state->onPage($item['page']), $base)), esc_html($label)),
-            };
-        }
-
-        return $html.'</nav>';
+        return sprintf(
+            '<nav class="meiliscout-pagination" data-meiliscout="pagination" aria-label="%s" data-wp-bind--hidden="!state.pageLinks.length"><template data-wp-each--link="state.pageLinks" data-wp-each-key="context.link.key">'
+            .'<a data-wp-bind--class="context.link.className" data-wp-bind--href="context.link.url" data-wp-bind--aria-current="context.link.current" data-wp-bind--aria-hidden="context.link.hidden" data-wp-on--click="actions.navigate" data-wp-text="context.link.label"></a>'
+            .'</template></nav>',
+            esc_attr__('Pages', 'meiliscout')
+        );
     }
 
     /**
@@ -314,43 +384,14 @@ final class Renderer
     }
 
     /**
-     * The client transport's region: cards and pagination from the store,
-     * rendered here for the first page, then by the client.
-     *
-     * @param  array<string, mixed>  $args  client_card: the card's markup, bound to context.hit
-     */
-    private static function clientRegion(ListingResult $result, array $args): string
-    {
-        $definition = $result->definition;
-        $id = self::domId($definition);
-
-        return sprintf(
-            '<div id="%1$s-results" class="meiliscout-listing__results" data-wp-interactive="%2$s" data-wp-router-region="%1$s" data-wp-context="%3$s" data-wp-bind--aria-busy="state.busy">'
-            .'<p class="meiliscout-results__empty" data-wp-bind--hidden="state.hasHits">%4$s</p>'
-            .'<ul class="meiliscout-results" role="list" data-wp-bind--hidden="!state.hasHits"><template data-wp-each--hit="state.hits" data-wp-each-key="context.hit.id"><li class="meiliscout-result">%5$s</li></template></ul>'
-            .'<nav class="meiliscout-pagination" aria-label="%6$s" data-wp-bind--hidden="!state.pageLinks.length"><template data-wp-each--link="state.pageLinks" data-wp-each-key="context.link.key">'
-            .'<a data-wp-bind--class="context.link.className" data-wp-bind--href="context.link.url" data-wp-bind--aria-current="context.link.current" data-wp-bind--aria-hidden="context.link.hidden" data-wp-on--click="actions.navigate" data-wp-text="context.link.label"></a>'
-            .'</template></nav></div>',
-            esc_attr($id),
-            esc_attr(Store::NAMESPACE),
-            esc_attr((string) wp_json_encode(['listing' => $definition->id])),
-            esc_html__('No results match these filters.', 'meiliscout'),
-            self::clientCard($args),
-            esc_attr__('Pages', 'meiliscout')
-        );
-    }
-
-    /**
-     * The card of the client transport: the site's markup (client_card, or the
-     * theme's meiliscout/client-card.php), bound to context.hit with the
+     * The card of the client transport: the definition's client_card, else
+     * the theme's meiliscout/client-card.php, bound to context.hit with the
      * Interactivity API's directives; else a title, a date and an excerpt.
-     *
-     * @param  array<string, mixed>  $args
      */
-    private static function clientCard(array $args): string
+    private static function clientCard(ListingDefinition $definition): string
     {
-        if (is_string($args['client_card'] ?? null) && $args['client_card'] !== '') {
-            return $args['client_card'];
+        if ($definition->clientCard !== null) {
+            return $definition->clientCard;
         }
 
         $template = locate_template('meiliscout/client-card.php');
@@ -367,8 +408,8 @@ final class Renderer
             .'<div class="meiliscout-card__excerpt"><p data-wp-text="context.hit.excerpt"></p></div></article>';
     }
 
-    public static function domId(ListingDefinition $definition): string
+    private static function context(ListingDefinition $definition): string
     {
-        return 'meiliscout-listing-'.$definition->id;
+        return (string) wp_json_encode(['listing' => $definition->id]);
     }
 }

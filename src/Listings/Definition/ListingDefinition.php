@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Listings\Definition;
 
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Listings\Render\Cards;
 use Pollora\MeiliScout\Listings\State\ReservedParameters;
 
 /**
@@ -46,6 +47,8 @@ final class ListingDefinition
         public readonly array $route,
         public readonly string $sortParam,
         public readonly string $searchParam,
+        public readonly mixed $card = null,
+        public readonly ?string $clientCard = null,
     ) {}
 
     /**
@@ -131,6 +134,16 @@ final class ListingDefinition
             $errors[] = sprintf('The public meta key "%s" is not indexed.', $key);
         }
 
+        $card = $args['card'] ?? null;
+        if (! Cards::isValid($card)) {
+            $errors[] = 'card must be a callable, a template part name, blade:<view>, twig:<template> or a CardRenderer.';
+        }
+
+        $clientCard = $args['client_card'] ?? null;
+        if ($clientCard !== null && (! is_string($clientCard) || $clientCard === '')) {
+            $errors[] = 'client_card must be the markup of a card, bound to context.hit.';
+        }
+
         $route = [];
         if (isset($args['route']['page'])) {
             $route['page'] = (int) $args['route']['page'];
@@ -157,6 +170,8 @@ final class ListingDefinition
             $route,
             $sortParam,
             $searchParam,
+            $card,
+            $clientCard,
         );
     }
 

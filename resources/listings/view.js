@@ -203,7 +203,11 @@ const { state, actions } = store( NAMESPACE, {
 		input( event ) {
 			const { listing: id } = getContext();
 			const listing = state.listings[ id ];
-			if ( ! ready( listing ) ) {
+			// A checkbox or a select sends input too: change applies them
+			if (
+				! ready( listing ) ||
+				! [ 'search', 'number', 'text' ].includes( event.target.type )
+			) {
 				return;
 			}
 			const form = event.target.form;
@@ -371,6 +375,7 @@ const { state, actions } = store( NAMESPACE, {
 			const controller = new AbortController();
 			controllers.set( id, controller );
 			listing.busy = true;
+			emit( id, 'meiliscout:change', { url: target, state: next } );
 
 			if ( listing.transport === 'client' ) {
 				try {
@@ -398,6 +403,10 @@ const { state, actions } = store( NAMESPACE, {
 							answer.total / listing.template.perPage
 						);
 					}
+					emit( id, 'meiliscout:results', {
+						url: target,
+						total: listing.total,
+					} );
 				} catch ( error ) {
 					if ( error?.name !== 'AbortError' ) {
 						// The page the server renders for this state
@@ -435,6 +444,10 @@ const { state, actions } = store( NAMESPACE, {
 				if ( counted ) {
 					applyCounts( listing, next, counted );
 				}
+				emit( id, 'meiliscout:results', {
+					url: target,
+					total: listing.total,
+				} );
 			} catch ( error ) {
 				if ( error?.name !== 'AbortError' ) {
 					// Anything wrong: the page the server renders for this state
@@ -697,6 +710,25 @@ function withStyles( html ) {
 		.map( ( el ) => el.outerHTML )
 		.join( '' );
 	return html.replace( '</head>', `${ styles }</head>` );
+}
+
+/**
+ * A DOM event from the listing's form, which bubbles to the document:
+ * meiliscout:change when a state is asked for, meiliscout:results once its
+ * results are in place. detail.listing is the listing's id.
+ *
+ * @param {string} id
+ * @param {string} name
+ * @param {Object} detail
+ */
+function emit( id, name, detail ) {
+	const form = document.getElementById( `meiliscout-listing-${ id }-form` );
+	( form || document ).dispatchEvent(
+		new window.CustomEvent( name, {
+			bubbles: true,
+			detail: { listing: id, ...detail },
+		} )
+	);
 }
 
 /**

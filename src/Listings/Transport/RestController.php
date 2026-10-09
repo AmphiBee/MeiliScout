@@ -85,7 +85,7 @@ final class RestController
         $result = ListingQuery::run($definition, $state);
 
         Store::add($result, $base);
-        $region = wp_interactivity_process_directives(Renderer::region($result, $base));
+        $region = wp_interactivity_process_directives(Renderer::region($result));
 
         // The router reads its URL from this state after setting the one it navigated to (prototype P1)
         $data = ['state' => ['core/router' => ['url' => UrlCodec::url($definition, $state, $base)]]];
