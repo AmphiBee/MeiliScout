@@ -189,6 +189,17 @@ attributes are there.
 add_filter('meiliscout/hydrate_from_documents', '__return_true');
 ```
 
+### meiliscout/search_memo
+Keeps Meilisearch's answers for the rest of the request (default: true): the
+same search asked twice, such as a Query Loop's query run again by each of its
+pagination blocks, reaches Meilisearch once. Forgotten when a post or its terms
+change during the request (`clean_post_cache`, `clean_object_term_cache`).
+`$query->meiliscout['memo']` counts the answers a query took from it.
+
+```php
+add_filter('meiliscout/search_memo', '__return_false');
+```
+
 ### meiliscout/max_total_hits
 Results a search can reach (default: Settings › Advanced › Maximum results per
 query, 10,000). Sent with the index settings: changed by the next indexation.
