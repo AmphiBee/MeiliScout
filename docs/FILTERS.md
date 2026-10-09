@@ -381,3 +381,18 @@ same hour carry the same one. See [LISTINGS.md](LISTINGS.md#tokens-and-the-listi
 ```php
 add_filter('meiliscout/listings/token_lifetime', fn (int $lifetime, $listing) => 6 * HOUR_IN_SECONDS, 10, 2);
 ```
+
+### meiliscout/listings/card
+A front listing's card, in the `fragment` and `page` transports, after its
+definition's `card` rendered it.
+
+```php
+add_filter('meiliscout/listings/card', fn (string $html, WP_Post $post, $listing) => $html, 10, 3);
+```
+
+### meiliscout/listings/blade, meiliscout/listings/twig
+The engines of the `blade:` and `twig:` cards of front listings, when the site
+has no Blade application (Pollora, Acorn) or no Timber: a
+`Illuminate\Contracts\View\Factory`, a `Twig\Environment`. See
+[LISTINGS.md](LISTINGS.md#cards).
+

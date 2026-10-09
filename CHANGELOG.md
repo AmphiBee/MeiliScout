@@ -11,6 +11,7 @@
 
 - **A new module, off by default** (Settings › Listings, WordPress 6.9): filterable listings of posts declared with `meiliscout_register_listing()` and printed with `meiliscout_listing()`. Facets on taxonomies (OR, AND, a term counted with its descendants) and meta keys (lists, ranges, booleans), sorts, a search, active filters, pagination; a `GET` form and real links without JavaScript, one canonical URL per state (301 to it). See [docs/LISTINGS.md](docs/LISTINGS.md).
 - The browser counts the facets straight on Meilisearch, with a tenant token per listing signed by a key of their own (search only, posts index only), replaced from Settings › Listings. Results as an HTML fragment (default), as cards made in the browser from public fields (`transport => 'client'`), or by loading the page.
+- **Developer mode:** the parts of a listing printed one by one, anywhere on the page (`meiliscout_listing_part()`, `meiliscout_facet()`, `meiliscout_active_filters()`, `meiliscout_listing_results()`, `meiliscout_pagination()`), Blade components (`<x-meiliscout::facet>`…) and Twig functions (Timber). Cards are part of the definition: a callable, a template part, a Blade view, a Twig template or a `CardRenderer`. DOM events `meiliscout:change` and `meiliscout:results`.
 - While the module is on, the posts index returns public fields only: the ones a card shows, and the meta keys listings declare public (`meiliscout/post/displayed_attributes` keeps the last word). `meiliscout/hydrate_from_documents` is ignored while the index returns only some fields.
 
 ### Upgrading
