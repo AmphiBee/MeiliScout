@@ -186,6 +186,11 @@ class Indexer
                     $this->finishRebuild($indexable, $finalName, $rebuildName, $startedAt);
                 }
 
+                // A rebuilt index only has what this run sent; one updated in place keeps the rest
+                if (! $clearIndices) {
+                    $this->deleteOrphans($indexable, $indexName);
+                }
+
                 $totalIndexed += $indexed;
                 $this->updateProgress($finalName, 'done', $processed);
                 $this->log('success', sprintf('Total of %d items indexed for %s', $indexed, $finalName));
@@ -455,6 +460,35 @@ class Indexer
             $this->log('info', 'Documents with a non-indexable status scheduled for deletion');
         } catch (\Exception $e) {
             $this->log('error', 'Failed to delete documents with a non-indexable status: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Deletes the documents of the posts and terms the database no longer has (OrphanDocuments).
+     */
+    private function deleteOrphans(Indexable $indexable, string $indexName): void
+    {
+        try {
+            $deleted = (new OrphanDocuments($this->client))->delete($indexable, $indexName);
+
+            if ($deleted !== null) {
+                $this->log('info', sprintf('%d documents of deleted content removed from %s', $deleted, $indexName));
+            }
+        } catch (\Exception $e) {
+            $this->log('error', 'Failed to remove the documents of deleted content: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Deletes the orphan documents of every index, once a chunked run is over:
+     * a chunk only sees its own share of the content.
+     */
+    public function deleteAllOrphans(): void
+    {
+        $this->ensureClient();
+
+        foreach ($this->indexables as $indexable) {
+            $this->deleteOrphans($indexable, $indexable->getIndexName());
         }
     }
 
