@@ -64,7 +64,7 @@ A definition is checked once, on first use. One that cannot be served (an uninde
 | `default_sort` | the first sort | Left out of the URL |
 | `facets` | `[]` | `key => facet` (below), in the order they show and appear in the URL |
 | `transport` | `fragment` | How the results change: `fragment`, `client` or `page` ([Transports](#transports)) |
-| `apply` | `instant` | `instant`: a change applies at once (typing waits for a pause); `button`: on the Apply button |
+| `apply` | `instant` | `instant`: a change applies at once (typing waits for a pause). `button`: a change only counts, the button says *See N results*, and the results, the URL and the history change when it is pressed |
 | `public_metas` | `[]` | Meta keys browsers may read: the client transport's cards show them ([Public fields](#public-fields)) |
 | `personalised` | `false` | Cards that depend on the visitor: the fragment is asked for with the visitor's session, and never cached |
 | `route` | the current URL | `['page' => $id]` or `['archive' => $postType]`: the listing's first page. Required for the [canonical redirect](#urls) |
@@ -81,6 +81,7 @@ A **facet**:
 | `label` | the taxonomy's name, else the key | The facet's title |
 | `labels` | `[]` | A meta facet's labels, by value (`['fr' => 'France']`) |
 | `param` | the key | Its name in the URL |
+| `limit` | `0` | Past that many values shown, the others fold behind a *Show more* button (a selected value never folds; without JavaScript, all show). `0`: no limit |
 | `decimals` | `0` | A range's precision |
 | `value` | `'1'` | The meta value a boolean facet counts as yes |
 
@@ -172,12 +173,13 @@ The module prints plain markup with stable classes and **no styles**: the theme 
       legend.meiliscout-facet__title
       ul.meiliscout-facet__options > li.meiliscout-facet__option[data-depth]
         label.meiliscout-facet__label > input.meiliscout-facet__input, .meiliscout-facet__text, .meiliscout-facet__count
+      button.meiliscout-facet__more          (past the facet's limit; aria-expanded)
       .meiliscout-range > label.meiliscout-range__bound (__label, __input)
     .meiliscout-listing__toolbar
       p.meiliscout-listing__total            (aria-live)
       ul.meiliscout-active > li.meiliscout-active__item > button.meiliscout-active__remove
       label.meiliscout-sort (__label, __select)
-      button.meiliscout-listing__apply       (hidden when apply is instant)
+      button.meiliscout-listing__apply       (hidden when apply is instant; See N results in button mode)
       a.meiliscout-listing__reset
   .meiliscout-listing__results              (the router region; aria-busy while loading)
     ul.meiliscout-results > li.meiliscout-result > article.meiliscout-card (__title, __meta, __excerpt)
