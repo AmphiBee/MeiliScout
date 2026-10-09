@@ -6,6 +6,8 @@ namespace Pollora\MeiliScout\Listings;
 
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
+use Pollora\MeiliScout\Listings\Template\Blade;
+use Pollora\MeiliScout\Listings\Template\TwigExtension;
 
 /**
  * The front listings module: filterable listings of posts, counted by
@@ -30,6 +32,12 @@ final class ListingsServiceProvider extends ServiceProvider
 
         // Also when off: the index returns every field again
         PublicFields::boot($available);
+
+        // Also when off: the templates calling them print nothing rather than break
+        Blade::boot();
+        if (class_exists(\Twig\Extension\AbstractExtension::class)) {
+            TwigExtension::boot();
+        }
 
         if ($available) {
             Listings::boot();
