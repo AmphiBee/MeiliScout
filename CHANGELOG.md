@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.1.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.1.0) - 2026-10-09
+## [2.1.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.1.0) - 2026-10-12
 
 ### Front listings
 
