@@ -3,7 +3,7 @@
 /**
  * Plugin Name: MeiliScout
  * Description: Meilisearch integration for WordPress with a modular approach
- * Version: 2.0.0
+ * Version: 2.1.0
  * Requires at least: 6.6
  * Requires PHP: 8.2
  * Author: AmphiBee
@@ -18,7 +18,7 @@ if (! defined('ABSPATH')) {
 // Define plugin constants
 define('MEILISCOUT_DIR_PATH', plugin_dir_path(__FILE__));
 define('MEILISCOUT_DIR_URL', plugin_dir_url(__FILE__));
-define('MEILISCOUT_VERSION', '2.0.0');
+define('MEILISCOUT_VERSION', '2.1.0');
 
 // Load the plugin's own dependencies when it ships them (release zip). Installed
 // with Composer as a dependency of the site, the site's autoloader has them.
