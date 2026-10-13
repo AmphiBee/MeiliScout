@@ -48,9 +48,31 @@
 	color: var(--meiliscout-accent-contrast);
 }
 
+/* Hidden is hidden: the kit's display rules, and a theme's button style
+   (wp-element-button), do not bring back what the client hides */
+.meiliscout-button[hidden],
+.meiliscout-listing__apply[hidden],
+.meiliscout-active[hidden],
+.meiliscout-pagination[hidden],
+.meiliscout-facet__option[hidden] {
+	display: none;
+}
+
+/* A chip's checkbox out of sight, whatever the theme does to checkboxes
+   (Twenty Twenty-One sizes and positions them) */
+.meiliscout-facet--chips .meiliscout-facet__input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
 /* A list with no value to show (none has a post now, none is selected): no
    title alone (themes display fieldsets). A search field keeps its facet. */
-.meiliscout-facet:is(.meiliscout-facet--list, .meiliscout-facet--boolean):not(:has(.meiliscout-facet__option:not([hidden]))):not(:has(.meiliscout-facet__search:not([hidden]))) {
+.meiliscout-facet[data-facet]:is(.meiliscout-facet--list, .meiliscout-facet--boolean):not(:has(.meiliscout-facet__option:not([hidden]))):not(:has(.meiliscout-facet__search:not([hidden]))) {
 	display: none;
 }
 

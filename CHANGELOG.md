@@ -6,6 +6,7 @@
 
 - The current page's number was unreadable on themes that color links with some specificity (Twenty Twenty-Five): it was written in the color of its background.
 - **UI kit:** the default look as documented tokens (the theme's presets, a site's `--meiliscout-color-*`, the admin's palette) resolved on the listing's elements, so a dark section of a theme gets a dark listing; chips (`'display' => 'chips'`), a panel (`<dialog>`) for the filters, buttons that take the theme's button style; a facet with no value to show is hidden; a specimen of every component at `/?meiliscout-ui-kit` (administrators, `WP_DEBUG`). Checked on Twenty Twenty-Five (light, a dark section), Twenty Twenty-One and at 375 px.
+- Upgrading: the colors found in the theme's palette, or chosen in Settings › Listings, are no longer `--meiliscout-color-*` on `:root` but `--meiliscout-palette-*` on the listing's elements; a theme reading those variables outside a listing sets its own.
 - A yes/no facet showed its title twice. Themes styling every button strongly (Twenty Twenty-One) turned *Show more* and the active filters into dark blocks.
 - The search field lost the listing's search (`?q=…`): it was bound to a value the store did not have, with or without JavaScript.
 
