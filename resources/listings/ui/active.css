@@ -1,0 +1,28 @@
+/* Active filters: each a pill removing it */
+
+:where(.meiliscout-active) {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--meiliscout-gap-small);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+:where(.meiliscout-active__remove) {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	padding: 0.2em 0.7em;
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-pill);
+	background: var(--meiliscout-tint);
+	color: inherit;
+	font: inherit;
+	font-size: var(--meiliscout-small);
+	cursor: pointer;
+}
+
+:where(.meiliscout-active__remove:hover) {
+	border-color: var(--meiliscout-accent);
+}

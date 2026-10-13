@@ -330,6 +330,19 @@ final class ListingDefinition
             return null;
         }
 
+        $display = (string) ($args['display'] ?? 'list');
+        if (! in_array($display, ['list', 'chips'], true)) {
+            $errors[] = sprintf('The facet "%s": display must be list or chips.', $key);
+
+            return null;
+        }
+
+        if ($display === 'chips' && $type === FacetDefinition::RANGE) {
+            $errors[] = sprintf('The facet "%s": a range has no values to show as chips.', $key);
+
+            return null;
+        }
+
         if (! empty($args['search']) && $type !== FacetDefinition::LIST) {
             $errors[] = sprintf('The facet "%s": only a list has values to search.', $key);
 
@@ -380,6 +393,7 @@ final class ListingDefinition
             },
             paths: is_array($args['path'] ?? null) ? array_map('strval', $args['path']) : [],
             search: (bool) ($args['search'] ?? false),
+            display: $display,
         );
     }
 }

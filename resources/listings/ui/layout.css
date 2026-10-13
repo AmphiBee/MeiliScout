@@ -1,0 +1,61 @@
+/* Layout: the whole listing, filters beside the results when there is room */
+
+:where(.meiliscout-listing) {
+	display: grid;
+	gap: calc(var(--meiliscout-gap) * 1.5);
+	color: var(--meiliscout-text);
+}
+
+@media (min-width: 782px) {
+
+	:where(.meiliscout-listing:has(> .meiliscout-listing__filters fieldset)) {
+		grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+		align-items: start;
+	}
+
+	:where(.meiliscout-listing > .meiliscout-pagination) {
+		grid-column: 2;
+	}
+}
+
+:where(.meiliscout-listing__filters, .meiliscout-part--facets) {
+	display: grid;
+	gap: var(--meiliscout-gap);
+	align-content: start;
+}
+
+:where(.meiliscout-listing__filters:empty) {
+	display: none;
+}
+
+/* Filter parts printed one by one, one after the other: the distance the form keeps between them */
+:where(.meiliscout-part:is(.meiliscout-part--search, .meiliscout-part--facet, .meiliscout-part--facets) + .meiliscout-part:is(.meiliscout-part--facet, .meiliscout-part--facets, .meiliscout-part--apply)) {
+	margin-block-start: var(--meiliscout-gap);
+}
+
+/* The toolbar: total, active filters, sort, buttons */
+
+:where(.meiliscout-listing__toolbar) {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--meiliscout-gap-small) var(--meiliscout-gap);
+}
+
+:where(.meiliscout-listing__total) {
+	margin: 0;
+	font-weight: 600;
+}
+
+/* Text for screen readers only */
+.meiliscout-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}

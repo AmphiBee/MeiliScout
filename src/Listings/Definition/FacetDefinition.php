@@ -26,6 +26,7 @@ final class FacetDefinition
      * @param  string|null  $path  Its prefix in the URL's path ({prefix}-{a},{b}), null when it is a parameter
      * @param  array<string, string>  $paths  Its prefix by language, when they differ (fr => type, en => kind)
      * @param  bool  $search  A field narrowing its values by their label (a list)
+     * @param  'list'|'chips'  $display  Its values as boxes in a list, or as pills
      */
     public function __construct(
         public readonly string $key,
@@ -43,6 +44,7 @@ final class FacetDefinition
         public readonly ?string $path = null,
         public readonly array $paths = [],
         public readonly bool $search = false,
+        public readonly string $display = 'list',
     ) {}
 
     /**

@@ -1,0 +1,36 @@
+/* Focus, visible on every control; forced colors; reduced motion */
+
+:where(.meiliscout-listing, .meiliscout-part, .meiliscout-listing__filters, .meiliscout-panel, .meiliscout-kit) :where(a, button, input, select, summary):focus-visible {
+	outline: 2px solid var(--meiliscout-focus);
+	outline-offset: 2px;
+}
+
+/* The results get the focus after a page link: shown to keyboard users only */
+:where(.meiliscout-listing__results):focus {
+	outline: none;
+}
+
+:where(.meiliscout-listing__results):focus-visible {
+	outline: 2px solid var(--meiliscout-focus);
+	outline-offset: 4px;
+}
+
+/* Forced colors (Windows' high contrast): what color alone said */
+@media (forced-colors: active) {
+
+	:where(.meiliscout-pagination__link[aria-current="page"], .meiliscout-facet--chips .meiliscout-facet__label:has(:checked)) {
+		border-width: 2px;
+		border-color: Highlight;
+	}
+
+	:where(.meiliscout-panel) {
+		border-inline-start: 1px solid CanvasText;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	:where(.meiliscout-listing__results[aria-busy="true"]) {
+		transition: none;
+	}
+}

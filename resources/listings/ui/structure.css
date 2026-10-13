@@ -1,0 +1,100 @@
+/* Structure: one class (two for buttons), above a theme's rules on bare
+   elements (ul, fieldset, button), below its rules on these classes */
+
+.meiliscout-facet {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.meiliscout-facet__options,
+.meiliscout-active,
+.meiliscout-results {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.meiliscout-facet__option,
+.meiliscout-active__item,
+.meiliscout-result {
+	margin: 0;
+}
+
+.meiliscout-facet__option::marker,
+.meiliscout-active__item::marker,
+.meiliscout-result::marker {
+	content: none;
+}
+
+/* A value leading to an indexable view is a link (design §8.5): it reads as its label */
+.meiliscout-facet__text {
+	color: inherit;
+	text-decoration: none;
+}
+
+.meiliscout-facet__text[href]:hover {
+	text-decoration: underline;
+}
+
+/* Themes color links with some specificity (Twenty Twenty-Five: :root :where(a)):
+   the current page's number stays on its accent, readable */
+.meiliscout-pagination .meiliscout-pagination__link {
+	color: inherit;
+	text-decoration: none;
+}
+
+.meiliscout-pagination .meiliscout-pagination__link[aria-current="page"] {
+	color: var(--meiliscout-accent-contrast);
+}
+
+/* Themes style every button: two classes keep these ones as the kit draws them */
+.meiliscout-facet .meiliscout-facet__more {
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--meiliscout-accent);
+	font: inherit;
+	font-size: var(--meiliscout-small);
+	text-decoration: underline;
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+.meiliscout-active .meiliscout-active__remove,
+.meiliscout-panel .meiliscout-panel__close {
+	min-height: 0;
+	box-shadow: none;
+	color: inherit;
+	font: inherit;
+	text-decoration: none;
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+.meiliscout-active .meiliscout-active__remove {
+	padding: 0.2em 0.7em;
+	border: 1px solid var(--meiliscout-border);
+	background: var(--meiliscout-tint);
+	font-size: var(--meiliscout-small);
+}
+
+.meiliscout-panel .meiliscout-panel__close {
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: 1.25em;
+	line-height: 1;
+}
+
+.meiliscout-button.meiliscout-button--secondary:not(.wp-element-button) {
+	border: 1px solid var(--meiliscout-border);
+	background: var(--meiliscout-background);
+	box-shadow: none;
+	color: inherit;
+	text-transform: none;
+	letter-spacing: normal;
+}

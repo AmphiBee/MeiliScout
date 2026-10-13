@@ -69,6 +69,7 @@ final class BlockDefinitionReader
                 // Its prefix in the path; empty: a parameter
                 'path' => isset($facetAttributes['path']) && $facetAttributes['path'] !== '' ? (string) $facetAttributes['path'] : null,
                 'search' => ! empty($facetAttributes['search']) ? true : null,
+                'display' => ($facetAttributes['display'] ?? 'list') === 'chips' && ($facetAttributes['type'] ?? 'list') !== 'range' ? 'chips' : null,
             ], fn ($value) => $value !== null);
         }
 

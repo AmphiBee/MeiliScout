@@ -1,0 +1,30 @@
+/* Fields: labels, text and number inputs, selects */
+
+:where(.meiliscout-search, .meiliscout-sort, .meiliscout-range__bound) {
+	display: grid;
+	gap: 0.25em;
+}
+
+:where(.meiliscout-search__label, .meiliscout-sort__label, .meiliscout-range__label) {
+	font-size: var(--meiliscout-small);
+	color: var(--meiliscout-muted);
+}
+
+:where(.meiliscout-search__input, .meiliscout-range__input, .meiliscout-sort__select, .meiliscout-facet__search-input) {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: var(--meiliscout-control);
+	padding: 0.4em 0.6em;
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-radius);
+	background: var(--meiliscout-background);
+	color: inherit;
+	font: inherit;
+}
+
+/* A range: two bounds side by side (numbers, and dates) */
+:where(.meiliscout-range) {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--meiliscout-gap-small);
+}

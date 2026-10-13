@@ -1,0 +1,35 @@
+/* Pagination: real links, the current page and the dots without one */
+
+:where(.meiliscout-pagination) {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25em;
+	margin-top: var(--meiliscout-gap);
+}
+
+:where(.meiliscout-pagination__link) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.25em;
+	min-height: 2.25em;
+	padding: 0 0.6em;
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-radius);
+	color: inherit;
+	text-decoration: none;
+}
+
+:where(.meiliscout-pagination__link[href]:hover) {
+	border-color: var(--meiliscout-accent);
+}
+
+:where(.meiliscout-pagination__link[aria-current="page"]) {
+	border-color: var(--meiliscout-accent);
+	background: var(--meiliscout-accent);
+	color: var(--meiliscout-accent-contrast);
+}
+
+:where(.meiliscout-pagination__dots) {
+	border-color: transparent;
+}

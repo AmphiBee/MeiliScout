@@ -84,9 +84,13 @@ const Preview = ( { attributes, taxonomy, label } ) => {
 	}
 
 	return (
-		<ul className="meiliscout-facet__options">
+		<ul className="meiliscout-facet__options" role="list">
 			{ options.map( ( option ) => (
-				<li key={ option.id } className="meiliscout-facet__option">
+				<li
+					key={ option.id }
+					className="meiliscout-facet__option"
+					data-depth={ option.parent ? 1 : 0 }
+				>
 					<label className="meiliscout-facet__label">
 						<input
 							className="meiliscout-facet__input"
@@ -282,6 +286,26 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 							onChange={ ( limit ) => setAttributes( { limit } ) }
 						/>
 					) }
+					{ attributes.type !== 'range' && (
+						<SelectControl
+							__nextHasNoMarginBottom
+							label={ __( 'Values shown as', 'meiliscout' ) }
+							value={ attributes.display }
+							options={ [
+								{
+									value: 'list',
+									label: __( 'Boxes in a list', 'meiliscout' ),
+								},
+								{
+									value: 'chips',
+									label: __( 'Chips', 'meiliscout' ),
+								},
+							] }
+							onChange={ ( display ) =>
+								setAttributes( { display } )
+							}
+						/>
+					) }
 					{ attributes.type === 'list' && (
 						<ToggleControl
 							__nextHasNoMarginBottom
@@ -381,10 +405,24 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 			<fieldset
 				{ ...useBlockProps( {
 					className:
-						'meiliscout-facet meiliscout-facet--' + attributes.type,
+						'meiliscout-facet meiliscout-facet--' +
+						attributes.type +
+						( attributes.display === 'chips' &&
+						attributes.type !== 'range'
+							? ' meiliscout-facet--chips'
+							: '' ),
 				} ) }
 			>
-				<legend className="meiliscout-facet__title">{ label }</legend>
+				<legend
+					className={
+						'meiliscout-facet__title' +
+						( attributes.type === 'boolean'
+							? ' meiliscout-visually-hidden'
+							: '' )
+					}
+				>
+					{ label }
+				</legend>
 				<Preview
 					attributes={ attributes }
 					taxonomy={ taxonomy }

@@ -13,6 +13,7 @@ use Pollora\MeiliScout\Listings\Query\ListingQuery;
 use Pollora\MeiliScout\Listings\Query\ListingResult;
 use Pollora\MeiliScout\Listings\Render\Renderer;
 use Pollora\MeiliScout\Listings\Render\Store;
+use Pollora\MeiliScout\Listings\Render\UiKit;
 use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
 use Pollora\MeiliScout\Listings\Seo\SeoRules;
 use Pollora\MeiliScout\Listings\Seo\Sitemap\Sitemaps;
@@ -42,6 +43,7 @@ final class Listings
         add_action('admin_init', [SeoRules::class, 'install']);
         SeoPolicy::boot();
         Sitemaps::boot();
+        UiKit::boot();
     }
 
     /**

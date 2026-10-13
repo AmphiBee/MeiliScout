@@ -1,0 +1,48 @@
+/* Buttons: primary (apply, See N results), secondary (Filters), a link (reset),
+   an icon (close). On a theme with theme.json, the primary one carries
+   wp-element-button and takes the theme's own button style: these rules
+   leave it alone. */
+
+:where(.meiliscout-button) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4em;
+	cursor: pointer;
+}
+
+:where(.meiliscout-button:not(.wp-element-button), .meiliscout-listing__apply:not(.wp-element-button)) {
+	min-height: var(--meiliscout-control);
+	padding: 0.5em 1.1em;
+	border: 1px solid var(--meiliscout-accent);
+	border-radius: var(--meiliscout-radius);
+	background: var(--meiliscout-accent);
+	color: var(--meiliscout-accent-contrast);
+	font: inherit;
+	line-height: 1.2;
+}
+
+:where(.meiliscout-button--secondary:not(.wp-element-button)) {
+	border-color: var(--meiliscout-border);
+	background: var(--meiliscout-background);
+	color: inherit;
+}
+
+:where(.meiliscout-button--secondary:not(.wp-element-button):hover) {
+	border-color: var(--meiliscout-accent);
+}
+
+:where(.meiliscout-listing__reset, .meiliscout-button--link) {
+	color: var(--meiliscout-accent);
+	font-size: var(--meiliscout-small);
+}
+
+/* A count in a button: Filters (2) */
+:where(.meiliscout-button__count) {
+	font-variant-numeric: tabular-nums;
+}
+
+:where(.meiliscout-button[disabled], .meiliscout-button[aria-disabled="true"]) {
+	opacity: 0.55;
+	cursor: not-allowed;
+}

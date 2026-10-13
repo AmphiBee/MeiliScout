@@ -1,0 +1,111 @@
+/* A panel: a <dialog> opened by a button (Filters (2)), a sheet from the
+   side holding the filters, its footer (See N results) always in sight.
+   Opaque: the theme's base color, else the system's (dark mode included).
+   It stays in the listing's markup, so it inherits the listing's tokens. */
+
+:where(.meiliscout-panel) {
+	box-sizing: border-box;
+	width: min(26rem, 100vw);
+	max-width: 100vw;
+	height: 100dvh;
+	max-height: 100dvh;
+	margin: 0;
+	margin-inline-start: auto;
+	padding: 0;
+	border: 0;
+	background: var(--meiliscout-surface);
+	color: var(--meiliscout-surface-text);
+	box-shadow: var(--meiliscout-elevation);
+}
+
+:where(.meiliscout-panel[open]) {
+	display: flex;
+	flex-direction: column;
+}
+
+:where(.meiliscout-panel)::backdrop {
+	background: color-mix(in srgb, CanvasText 40%, transparent);
+}
+
+:where(.meiliscout-panel__header, .meiliscout-panel__footer) {
+	display: flex;
+	align-items: center;
+	gap: var(--meiliscout-gap-small);
+	padding: var(--meiliscout-gap-small) var(--meiliscout-gap);
+	flex: none;
+}
+
+:where(.meiliscout-panel__header) {
+	justify-content: space-between;
+	border-bottom: 1px solid var(--meiliscout-border);
+}
+
+:where(.meiliscout-panel__title) {
+	margin: 0;
+	font-size: inherit;
+	font-weight: 600;
+}
+
+:where(.meiliscout-panel__body) {
+	display: grid;
+	gap: var(--meiliscout-gap);
+	align-content: start;
+	padding: var(--meiliscout-gap);
+	overflow: auto;
+	flex: 1;
+	overscroll-behavior: contain;
+}
+
+:where(.meiliscout-panel__footer) {
+	justify-content: space-between;
+	border-top: 1px solid var(--meiliscout-border);
+}
+
+:where(.meiliscout-panel__footer .meiliscout-button:last-child) {
+	flex: 1;
+}
+
+:where(.meiliscout-panel__close) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--meiliscout-control);
+	height: var(--meiliscout-control);
+	padding: 0;
+	border: 0;
+	border-radius: var(--meiliscout-radius);
+	background: none;
+	color: inherit;
+	font: inherit;
+	font-size: 1.25em;
+	line-height: 1;
+	cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+
+	:where(.meiliscout-panel[open]) {
+		animation: meiliscout-panel-in 0.2s ease-out;
+	}
+}
+
+@keyframes meiliscout-panel-in {
+
+	from {
+		transform: translateX(1.5rem);
+		opacity: 0;
+	}
+}
+
+/* Right to left: the sheet comes from the other side */
+:where([dir="rtl"] .meiliscout-panel[open], .meiliscout-panel[open]:dir(rtl)) {
+	animation-name: meiliscout-panel-in-rtl;
+}
+
+@keyframes meiliscout-panel-in-rtl {
+
+	from {
+		transform: translateX(-1.5rem);
+		opacity: 0;
+	}
+}
