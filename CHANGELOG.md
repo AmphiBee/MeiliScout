@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Front listings
+
+- The current page's number was unreadable on themes that color links with some specificity (Twenty Twenty-Five): it was written in the color of its background.
+- The search field lost the listing's search (`?q=…`): it was bound to a value the store did not have, with or without JavaScript.
+
 ## [2.1.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.1.0) - 2026-10-12
 
 ### Front listings
