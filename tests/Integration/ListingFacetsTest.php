@@ -97,3 +97,28 @@ test('the search field keeps the listing\'s search, without JavaScript', functio
 
     expect($html)->toMatch('#<input[^>]+class="meiliscout-search__input"[^>]+value="chair"#');
 });
+
+test('a facet shown as chips, and a yes/no with its title for screen readers only', function () {
+    DefinitionRegistry::declare('facets-test', [
+        'post_types' => ['post'],
+        'facets' => [
+            'category' => ['source' => 'taxonomy:category', 'display' => 'chips'],
+            'sticky' => ['source' => 'meta:_edit_lock', 'type' => 'boolean', 'label' => 'Locked'],
+        ],
+    ]);
+    add_filter('pre_option_meiliscout/indexed_meta_keys', $metas = fn () => ['_edit_lock']);
+
+    try {
+        $html = Listings::render('facets-test');
+    } finally {
+        remove_filter('pre_option_meiliscout/indexed_meta_keys', $metas);
+    }
+
+    expect($html)->toMatch('#<fieldset class="meiliscout-facet meiliscout-facet--list meiliscout-facet--chips"#')
+        ->and($html)->toMatch('#<legend class="meiliscout-facet__title meiliscout-visually-hidden">Locked</legend>#');
+});
+
+test('chips are a list\'s or a yes/no\'s, not a range\'s', function () {
+    expect(fn () => ListingDefinition::fromArray('facets-invalid', ['post_types' => ['post'], 'facets' => ['category' => ['source' => 'taxonomy:category', 'display' => 'cards']]]))
+        ->toThrow(InvalidListing::class);
+});

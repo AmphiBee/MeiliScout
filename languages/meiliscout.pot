@@ -2,14 +2,14 @@
 # This file is distributed under the MIT.
 msgid ""
 msgstr ""
-"Project-Id-Version: MeiliScout 2.0.0\n"
+"Project-Id-Version: MeiliScout 2.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/meiliscout\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-09T18:06:17+02:00\n"
+"POT-Creation-Date: 2026-10-13T18:08:29+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: meiliscout\n"
@@ -158,18 +158,19 @@ msgid "The URL must be a page of this site."
 msgstr ""
 
 #: src/Listings/Blocks/BlockListings.php:353
-#: src/Listings/Render/Renderer.php:392
-#: src/Listings/Render/Renderer.php:415
+#: src/Listings/Render/Renderer.php:396
+#: src/Listings/Render/Renderer.php:419
 msgid "No results match these filters."
 msgstr ""
 
 #: src/Listings/Definition/ListingDefinition.php:247
+#: src/Listings/Render/UiKit.php:175
 #: build/listings/editor.js:1
 #: build/listings/editor.js:3
 msgid "Newest first"
 msgstr ""
 
-#: src/Listings/Definition/ListingDefinition.php:349
+#: src/Listings/Definition/ListingDefinition.php:362
 #: build/listings/editor.js:4
 msgid "Author"
 msgstr ""
@@ -271,6 +272,8 @@ msgid "No router region in the fragment."
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:220
+#: src/Listings/Render/UiKit.php:258
+#: src/Listings/Render/UiKit.php:268
 #: build/listings/editor.js:3
 msgid "Reset"
 msgstr ""
@@ -282,52 +285,57 @@ msgid "Search"
 msgstr ""
 
 #. translators: %s: a facet's title
-#: src/Listings/Render/Renderer.php:308
+#: src/Listings/Render/Renderer.php:311
 #, php-format
 msgid "Search in %s"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:309
+#: src/Listings/Render/Renderer.php:312
 msgid "Search…"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:310
+#: src/Listings/Render/Renderer.php:313
 msgid "No value matches."
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:332
+#: src/Listings/Render/Renderer.php:335
 #: build/listings/editor.js:1
 msgid "Min"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:333
+#: src/Listings/Render/Renderer.php:336
 #: build/listings/editor.js:1
 msgid "Max"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:367
+#: src/Listings/Render/Renderer.php:370
 #: build/listings/editor.js:3
 msgid "Sort by"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:383
+#: src/Listings/Render/Renderer.php:387
 #: src/Listings/Render/Store.php:101
+#: src/Listings/Render/UiKit.php:255
 #: build/listings/editor.js:3
 msgid "Apply"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:430
+#: src/Listings/Render/Renderer.php:434
 msgid "Pages"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:479
+#: src/Listings/Render/Renderer.php:483
 #: src/Listings/Render/Store.php:112
 msgid "Previous"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:480
+#: src/Listings/Render/Renderer.php:484
 #: src/Listings/Render/Store.php:113
 msgid "Next"
+msgstr ""
+
+#: src/Listings/Render/Renderer.php:549
+msgid "Close"
 msgstr ""
 
 #: src/Listings/Render/Store.php:94
@@ -353,6 +361,7 @@ msgstr ""
 #: src/Listings/Render/Store.php:103
 #: src/Listings/Render/Store.php:104
 #: src/Listings/Render/Store.php:105
+#: src/Listings/Render/UiKit.php:269
 #, php-format
 msgid "See %d result"
 msgid_plural "See %d results"
@@ -377,6 +386,119 @@ msgstr ""
 
 #: src/Listings/Render/Store.php:111
 msgid "Show less"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:49
+#: src/Listings/Render/UiKit.php:84
+msgid "MeiliScout UI kit"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:85
+msgid "Every component of the listings in the site’s theme, rendered by the plugin from listings made up for this page. Set a token on any ancestor of a listing to change it; turn Default styles off to see the bare markup."
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:86
+msgid "Light"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:86
+msgid "Dark"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:134
+msgid "Tokens"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:134
+msgid "As they resolve here: the theme’s presets, then what the site sets (--meiliscout-color-*, --meiliscout-border-radius…)."
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:135
+msgid "A whole listing"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:135
+msgid "meiliscout_listing(): a search, a tree, a list with a search field, an AND list, chips, a range, a yes/no; three filters active, page 2."
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:136
+msgid "What the client shows"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:136
+msgid "A search in a facet's values, values folded behind Show more, a search leaving none, results loading."
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:141
+msgid "Chips and yes/no"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:141
+msgid "display: chips on a list and on a yes/no; a selected chip reads as a tick."
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:142
+msgid "Toolbar"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:142
+msgid "The total, the active filters, the sort, the buttons."
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:143
+msgid "Panel"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:143
+msgid "A <dialog> with the filters and its footer: open it."
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:144
+msgid "Nothing found"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:145
+msgid "Right to left"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:167
+msgid "Category"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:168
+msgid "Color"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:169
+msgid "Material"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:170
+#: build/app.js:17
+msgid "Size"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:171
+msgid "Price"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:172
+#: src/Listings/Render/UiKit.php:189
+msgid "Featured only"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:176
+msgid "By title"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:256
+#: src/Listings/Render/UiKit.php:271
+#: build/app.js:39
+msgid "Filters"
+msgstr ""
+
+#: src/Listings/Render/UiKit.php:257
+msgid "Disabled"
 msgstr ""
 
 #. translators: %s: a part of a rule's key
@@ -705,10 +827,6 @@ msgstr ""
 
 #: build/app.js:17
 msgid "Documents"
-msgstr ""
-
-#: build/app.js:17
-msgid "Size"
 msgstr ""
 
 #: build/app.js:17
@@ -1197,10 +1315,6 @@ msgid "%1$s result in %2$s ms"
 msgid_plural "%1$s results in %2$s ms"
 msgstr[0] ""
 msgstr[1] ""
-
-#: build/app.js:39
-msgid "Filters"
-msgstr ""
 
 #: build/app.js:39
 msgid "Post type"
@@ -2580,6 +2694,18 @@ msgstr ""
 
 #: build/listings/editor.js:6
 msgid "Values shown before “Show more” (0: all)"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Values shown as"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Boxes in a list"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Chips"
 msgstr ""
 
 #: build/listings/editor.js:6

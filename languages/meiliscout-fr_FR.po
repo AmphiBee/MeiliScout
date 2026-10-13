@@ -282,6 +282,7 @@ msgstr "Pas encore créé"
 msgid "Documents"
 msgstr "Documents"
 
+#: src/Listings/Render/UiKit.php:170
 #: build/app.js:17
 msgid "Size"
 msgstr "Taille"
@@ -893,6 +894,8 @@ msgid_plural "%1$s results in %2$s ms"
 msgstr[0] "%1$s résultat en %2$s ms"
 msgstr[1] "%1$s résultats en %2$s ms"
 
+#: src/Listings/Render/UiKit.php:256
+#: src/Listings/Render/UiKit.php:271
 #: build/app.js:39
 msgid "Filters"
 msgstr "Filtres"
@@ -1436,53 +1439,57 @@ msgid "The public URL of Meilisearch is not a valid URL."
 msgstr "L’URL publique de Meilisearch n’est pas une URL valide."
 
 #: src/Listings/Definition/ListingDefinition.php:247
+#: src/Listings/Render/UiKit.php:175
 #: build/listings/editor.js:1
 #: build/listings/editor.js:3
 msgid "Newest first"
 msgstr "Les plus récents"
 
-#: src/Listings/Render/Renderer.php:383
+#: src/Listings/Render/Renderer.php:387
 #: src/Listings/Render/Store.php:101
+#: src/Listings/Render/UiKit.php:255
 #: build/listings/editor.js:3
 msgid "Apply"
 msgstr "Appliquer"
 
 #: src/Listings/Render/Renderer.php:220
+#: src/Listings/Render/UiKit.php:258
+#: src/Listings/Render/UiKit.php:268
 #: build/listings/editor.js:3
 msgid "Reset"
 msgstr "Réinitialiser"
 
-#: src/Listings/Render/Renderer.php:332
+#: src/Listings/Render/Renderer.php:335
 #: build/listings/editor.js:1
 msgid "Min"
 msgstr "Min"
 
-#: src/Listings/Render/Renderer.php:333
+#: src/Listings/Render/Renderer.php:336
 #: build/listings/editor.js:1
 msgid "Max"
 msgstr "Max"
 
-#: src/Listings/Render/Renderer.php:367
+#: src/Listings/Render/Renderer.php:370
 #: build/listings/editor.js:3
 msgid "Sort by"
 msgstr "Trier par"
 
 #: src/Listings/Blocks/BlockListings.php:353
-#: src/Listings/Render/Renderer.php:392
-#: src/Listings/Render/Renderer.php:415
+#: src/Listings/Render/Renderer.php:396
+#: src/Listings/Render/Renderer.php:419
 msgid "No results match these filters."
 msgstr "Aucun résultat ne correspond à ces filtres."
 
-#: src/Listings/Render/Renderer.php:430
+#: src/Listings/Render/Renderer.php:434
 msgid "Pages"
 msgstr "Pages"
 
-#: src/Listings/Render/Renderer.php:479
+#: src/Listings/Render/Renderer.php:483
 #: src/Listings/Render/Store.php:112
 msgid "Previous"
 msgstr "Précédent"
 
-#: src/Listings/Render/Renderer.php:480
+#: src/Listings/Render/Renderer.php:484
 #: src/Listings/Render/Store.php:113
 msgid "Next"
 msgstr "Suivant"
@@ -1584,6 +1591,7 @@ msgstr "Clé des listings remplacée."
 #: src/Listings/Render/Store.php:103
 #: src/Listings/Render/Store.php:104
 #: src/Listings/Render/Store.php:105
+#: src/Listings/Render/UiKit.php:269
 #, php-format
 msgid "See %d result"
 msgid_plural "See %d results"
@@ -2720,7 +2728,7 @@ msgstr[1] "%d listings ont des erreurs : ils ne sont pas servis, ou certaines de
 msgid "No listing is declared: add a Listing block to a page, or call meiliscout_register_listing()."
 msgstr "Aucun listing n’est déclaré : ajoutez un bloc de listing à une page, ou appelez meiliscout_register_listing()."
 
-#: src/Listings/Definition/ListingDefinition.php:349
+#: src/Listings/Definition/ListingDefinition.php:362
 #: build/listings/editor.js:4
 msgid "Author"
 msgstr "Auteur"
@@ -2732,16 +2740,16 @@ msgid "The facet “%1$s” reaches the number of values the index counts (%2$d)
 msgstr "La facette « %1$s » atteint le nombre de valeurs que compte l’index (%2$d) : les autres ne sont pas proposées (meiliscout/post/max_values_per_facet)."
 
 #. translators: %s: a facet's title
-#: src/Listings/Render/Renderer.php:308
+#: src/Listings/Render/Renderer.php:311
 #, php-format
 msgid "Search in %s"
 msgstr "Rechercher dans %s"
 
-#: src/Listings/Render/Renderer.php:309
+#: src/Listings/Render/Renderer.php:312
 msgid "Search…"
 msgstr "Rechercher…"
 
-#: src/Listings/Render/Renderer.php:310
+#: src/Listings/Render/Renderer.php:313
 msgid "No value matches."
 msgstr "Aucune valeur ne correspond."
 
@@ -2773,3 +2781,121 @@ msgstr "Un champ au-dessus des valeurs les filtre à la saisie : pour une longue
 msgctxt "block description"
 msgid "A filter of the listing: a taxonomy's terms, a field's values, the authors, a range of numbers, a yes/no."
 msgstr "Un filtre du listing : les termes d’une taxonomie, les valeurs d’un champ, les auteurs, une plage de nombres, un oui/non."
+
+#: src/Listings/Render/Renderer.php:549
+msgid "Close"
+msgstr "Fermer"
+
+#: src/Listings/Render/UiKit.php:49
+#: src/Listings/Render/UiKit.php:84
+msgid "MeiliScout UI kit"
+msgstr "Kit UI MeiliScout"
+
+#: src/Listings/Render/UiKit.php:85
+msgid "Every component of the listings in the site’s theme, rendered by the plugin from listings made up for this page. Set a token on any ancestor of a listing to change it; turn Default styles off to see the bare markup."
+msgstr "Chaque composant des listings dans le thème du site, rendu par l’extension à partir de listings inventés pour cette page. Posez un jeton sur un ancêtre d’un listing pour le modifier ; désactivez les styles par défaut pour voir le balisage nu."
+
+#: src/Listings/Render/UiKit.php:86
+msgid "Light"
+msgstr "Clair"
+
+#: src/Listings/Render/UiKit.php:86
+msgid "Dark"
+msgstr "Sombre"
+
+#: src/Listings/Render/UiKit.php:134
+msgid "Tokens"
+msgstr "Jetons"
+
+#: src/Listings/Render/UiKit.php:134
+msgid "As they resolve here: the theme’s presets, then what the site sets (--meiliscout-color-*, --meiliscout-border-radius…)."
+msgstr "Tels qu’ils se résolvent ici : les préréglages du thème, puis ce que le site définit (--meiliscout-color-*, --meiliscout-border-radius…)."
+
+#: src/Listings/Render/UiKit.php:135
+msgid "A whole listing"
+msgstr "Un listing complet"
+
+#: src/Listings/Render/UiKit.php:135
+msgid "meiliscout_listing(): a search, a tree, a list with a search field, an AND list, chips, a range, a yes/no; three filters active, page 2."
+msgstr "meiliscout_listing() : une recherche, un arbre, une liste avec recherche, une liste ET, des pastilles, une plage, un oui/non ; trois filtres actifs, page 2."
+
+#: src/Listings/Render/UiKit.php:136
+msgid "What the client shows"
+msgstr "Ce qu’affiche le client"
+
+#: src/Listings/Render/UiKit.php:136
+msgid "A search in a facet's values, values folded behind Show more, a search leaving none, results loading."
+msgstr "Une recherche dans les valeurs d’une facette, des valeurs repliées derrière « Afficher plus », une recherche qui n’en laisse aucune, des résultats en chargement."
+
+#: src/Listings/Render/UiKit.php:141
+msgid "Chips and yes/no"
+msgstr "Pastilles et oui/non"
+
+#: src/Listings/Render/UiKit.php:141
+msgid "display: chips on a list and on a yes/no; a selected chip reads as a tick."
+msgstr "display: chips sur une liste et sur un oui/non ; une pastille choisie porte une coche."
+
+#: src/Listings/Render/UiKit.php:142
+msgid "Toolbar"
+msgstr "Barre d’outils"
+
+#: src/Listings/Render/UiKit.php:142
+msgid "The total, the active filters, the sort, the buttons."
+msgstr "Le total, les filtres actifs, le tri, les boutons."
+
+#: src/Listings/Render/UiKit.php:143
+msgid "Panel"
+msgstr "Panneau"
+
+#: src/Listings/Render/UiKit.php:143
+msgid "A <dialog> with the filters and its footer: open it."
+msgstr "Un <dialog> avec les filtres et son pied : ouvrez-le."
+
+#: src/Listings/Render/UiKit.php:144
+msgid "Nothing found"
+msgstr "Aucun résultat"
+
+#: src/Listings/Render/UiKit.php:145
+msgid "Right to left"
+msgstr "De droite à gauche"
+
+#: src/Listings/Render/UiKit.php:167
+msgid "Category"
+msgstr "Catégorie"
+
+#: src/Listings/Render/UiKit.php:168
+msgid "Color"
+msgstr "Couleur"
+
+#: src/Listings/Render/UiKit.php:169
+msgid "Material"
+msgstr "Matière"
+
+#: src/Listings/Render/UiKit.php:171
+msgid "Price"
+msgstr "Prix"
+
+#: src/Listings/Render/UiKit.php:172
+#: src/Listings/Render/UiKit.php:189
+msgid "Featured only"
+msgstr "À la une seulement"
+
+#: src/Listings/Render/UiKit.php:176
+msgid "By title"
+msgstr "Par titre"
+
+#: src/Listings/Render/UiKit.php:257
+msgid "Disabled"
+msgstr "Désactivé"
+
+#: build/listings/editor.js:6
+msgid "Values shown as"
+msgstr "Valeurs affichées en"
+
+#: build/listings/editor.js:6
+msgid "Boxes in a list"
+msgstr "Cases dans une liste"
+
+#: build/listings/editor.js:6
+msgid "Chips"
+msgstr "Pastilles"

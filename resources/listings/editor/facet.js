@@ -84,7 +84,7 @@ const Preview = ( { attributes, taxonomy, label } ) => {
 	}
 
 	return (
-		<ul className="meiliscout-facet__options" role="list">
+		<ul className="meiliscout-facet__options">
 			{ options.map( ( option ) => (
 				<li
 					key={ option.id }
@@ -294,7 +294,10 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 							options={ [
 								{
 									value: 'list',
-									label: __( 'Boxes in a list', 'meiliscout' ),
+									label: __(
+										'Boxes in a list',
+										'meiliscout'
+									),
 								},
 								{
 									value: 'chips',

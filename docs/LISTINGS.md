@@ -13,7 +13,7 @@ Settings › Listings:
 - **Front listings**: the switch. Disabled, with the reason, on an older WordPress.
 - **Public URL of Meilisearch**: where browsers reach Meilisearch, when the instance URL (Settings › Connection) is one only the server can reach (`http://meilisearch:7700` in Docker). Empty: the instance URL.
 - **Listings key**: the key the tokens are signed with, and a button to replace it (see [Tokens](#tokens-and-the-listings-key)).
-- **Default styles** and their colors (see [Styles](#styles)).
+- **Default styles** and their colors (see [UI kit](#ui-kit)).
 
 The screen also lists the declared listings with the errors of those that cannot be served, and the fields browsers can read. MeiliScout › Listings says more of each one ([below](#checking-a-listing)).
 
@@ -88,6 +88,7 @@ A **facet**:
 | `labels` | `[]` | A meta facet's labels, by value (`['fr' => 'France']`) |
 | `param` | the key | Its name in the URL. An `author` facet keyed `author` (a name WordPress reads) is named after its title (`?auteur=…`) |
 | `path` | none | A taxonomy list's values in the path rather than a parameter: its prefix, `'path' => 'type'` gives `/projects/type-refonte/` (`true`: its `param`). Needs a `route` ([URLs](#urls)) |
+| `display` | `list` | `chips`: a list's (or a yes/no's) values as pills, the same checkboxes underneath ([UI kit](#ui-kit)) |
 | `limit` | `0` | Past that many values shown, the others fold behind a *Show more* button (a selected value never folds; without JavaScript, all show). `0`: no limit |
 | `search` | `false` | A list's search field: typing narrows its values to the ones whose label holds the text, case and accents aside, in the browser (every value is in the page). Hidden without JavaScript, never sent with the form. For long lists: clients, brands, tags |
 | `decimals` | `0` | A range's precision |
@@ -290,15 +291,24 @@ document.addEventListener( 'meiliscout:results', ( event ) => {
 
 ## Markup and styles
 
-### Styles
+### UI kit
 
-The module ships a light default look (`build/listings/style.css`), loaded with the listings, that follows the theme:
+The module ships a small UI kit, its default look (`build/listings/style.css`, sources in `resources/listings/ui/`), loaded with the listings. It follows the theme:
 
-- it inherits the theme's fonts and sizes, uses its `theme.json` presets when there are some (`--wp--preset--color--*`, `--wp--preset--spacing--*`) and `currentColor` otherwise;
-- the look is under `:where()`, no specificity: any rule of the theme wins; the structure (lists without bullets, a link-like *Show more*) has one class, enough against a theme's rules on bare `ul`, `button` or `fieldset`, not against its rules on these classes;
-- native controls (checkboxes, number fields, select), with `accent-color` and a visible focus; no font, no reset.
+- it inherits the theme's fonts, sizes and colors; it reads its `theme.json` presets when there are some (`--wp--preset--color--*`, `--wp--preset--spacing--*`), `currentColor` and the system colors otherwise;
+- the look is under `:where()`, no specificity: any rule of the theme wins. The structure (lists without bullets, the link-like *Show more*, the pills) has one class, or a repeated one for buttons, enough against a theme's rules on bare `ul`, `fieldset` or `button`, not against its rules on these classes. No global reset, no `!important`;
+- native controls (checkboxes, number fields, select, `<dialog>`), with `accent-color` and a visible focus; logical properties, right to left included; forced colors and reduced motion respected;
+- the primary button (*Apply*, *See N results*) carries `wp-element-button` on a theme with `theme.json`: it is the theme's own button.
 
-Its colors are tokens a theme sets in a line, or Settings › Listings: **accent**, **text on the accent**, **text**, **background of the fields**. Automatic by default: the theme palette's `primary`, `accent` or `brand` for the accent, else its text color (`contrast`, `foreground`…), `base`/`background` for the background. Each can be a color of the palette or one of its own.
+**Tokens**, in three layers:
+
+| Layer | Tokens |
+|---|---|
+| The theme's | `--wp--preset--color--primary`, `base`, `contrast`…, `--wp--preset--spacing--30` |
+| A site's (any ancestor of a listing) | `--meiliscout-color-accent`, `-accent-contrast`, `-text`, `-muted`, `-background`, `-border`, `-surface`, `-focus`; `--meiliscout-border-radius`, `--meiliscout-spacing`, `--meiliscout-font-size-small`, `--meiliscout-control-height`, `--meiliscout-shadow` |
+| Settings › Listings, else the theme's palette | `--meiliscout-palette-*`: the colors chosen in the admin, else the palette's `primary`, `accent` or `brand` for the accent (else its text color), `contrast`/`foreground` for the text, `base`/`background` for the background (`meiliscout/listings/theme_colors`) |
+
+A site's tokens win over the admin's choice, which wins over the palette. They are resolved on the listing's elements, not on `:root`: a theme that redefines its presets in a dark section, or in a dark mode on `body`, gets a dark listing.
 
 ```css
 .my-theme {
@@ -308,6 +318,10 @@ Its colors are tokens a theme sets in a line, or Settings › Listings: **accent
 	--meiliscout-spacing: 1.25rem;
 }
 ```
+
+**Components**: a facet's values as boxes (a list, a tree) or as **chips** (`'display' => 'chips'` on a list or a yes/no, *Values shown as* in the editor: pills, a ticked one reads as a tick, the same checkboxes and form underneath); counts and what a value adds (`+3`); a facet's search field; *Show more*; a range (numbers, and dates later); a yes/no (its title for screen readers only, the box labelled); active filters as pills; the toolbar (total, sort); buttons (`meiliscout-button`, `--primary`, `--secondary`, a link for *Reset*); the pagination; results, loading and nothing found; a **panel** (`Renderer::panel()`: a `<dialog>` and its *Filters (2)* button, the filters in a scrolling body, its footer always in sight). A facet with no value to show (none has posts now, none is selected) is hidden whole.
+
+**Specimen**: `/?meiliscout-ui-kit` shows every component in every state in the site's theme, from listings made up for the page and rendered by the plugin (`&scheme=dark` for a dark section). For administrators while `WP_DEBUG` is on; `meiliscout/listings/ui_kit` opens it to others (a designer on a staging site).
 
 Turn the default look off (Settings › Listings › Default styles, or `meiliscout/listings/load_styles`) and the markup below is the theme's to style. A listing printed from PHP loads the stylesheet in the footer; enqueue `meiliscout-listings` on `wp_enqueue_scripts` to have it in the `<head>`. Blocks load it in the `<head>` themselves.
 
@@ -319,8 +333,8 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
     h1.meiliscout-listing__heading, .meiliscout-listing__text
   form.meiliscout-listing__filters
     .meiliscout-search  (__label, __input)
-    fieldset.meiliscout-facet.meiliscout-facet--list|range|boolean  [data-facet]
-      legend.meiliscout-facet__title
+    fieldset.meiliscout-facet.meiliscout-facet--list|range|boolean[.meiliscout-facet--chips]  [data-facet]
+      legend.meiliscout-facet__title         (.meiliscout-visually-hidden on a yes/no)
       ul.meiliscout-facet__options > li.meiliscout-facet__option[data-depth]
         label.meiliscout-facet__label > input.meiliscout-facet__input, .meiliscout-facet__text, .meiliscout-facet__count
       .meiliscout-facet__search > input.meiliscout-facet__search-input  (search: true; hidden without JavaScript)
@@ -331,7 +345,7 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
       p.meiliscout-listing__total            (aria-live)
       ul.meiliscout-active > li.meiliscout-active__item > button.meiliscout-active__remove
       label.meiliscout-sort (__label, __select)
-      button.meiliscout-listing__apply       (hidden when apply is instant; See N results in button mode)
+      button.meiliscout-listing__apply.meiliscout-button.meiliscout-button--primary[.wp-element-button]  (hidden when apply is instant; See N results in button mode)
       a.meiliscout-listing__reset
   .meiliscout-listing__results              (the router region: role=region, named after its page, tabindex=-1; aria-busy while loading)
     ul.meiliscout-results > li.meiliscout-result > article.meiliscout-card (__title, __meta, __excerpt)
@@ -342,6 +356,16 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
 ```
 
 A value no post of the current selection has (count 0) is hidden, unless it is selected.
+
+The panel (`Renderer::panel()`), for the filters on a small screen:
+
+```
+button.meiliscout-button.meiliscout-button--secondary.meiliscout-panel__open[aria-controls]  > .meiliscout-button__count
+dialog.meiliscout-panel
+  .meiliscout-panel__header > h2.meiliscout-panel__title, button.meiliscout-panel__close
+  .meiliscout-panel__body
+  .meiliscout-panel__footer
+```
 
 ## Accessibility
 
@@ -531,6 +555,7 @@ wp meiliscout check-listings --skip-http --format=json
 | `meiliscout/listings/structured_data` | The structured data of an indexable view (`ItemList`, `FAQPage`, `BreadcrumbList`), `[]` for none |
 | `meiliscout/listings/seo_locale` | The language SEO rules are looked up in (default: the language's locale) |
 | `meiliscout/listings/language_adapter` | The multilingual plugin's `LanguageAdapter` (Polylang's, WPML's, or none) |
+| `meiliscout/listings/ui_kit` | Whether `/?meiliscout-ui-kit` answers (default: `WP_DEBUG` and an administrator) |
 | `meiliscout/listings/sitemap_entries` | The views the sitemaps list: `[{loc, listing, language}]` |
 | `meiliscout/post/max_values_per_facet` | How many values of a field the posts index counts (default 100, 1,000 while the module runs) |
 

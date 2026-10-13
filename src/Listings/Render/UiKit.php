@@ -56,7 +56,7 @@ final class UiKit
         $sections = self::sections();
 
         ?><!doctype html>
-<html <?php language_attributes(); ?><?php echo $scheme === 'dark' ? ' style="color-scheme: dark"' : ''; ?>>
+<html <?php language_attributes(); ?>>
 <head>
 <meta charset="<?php bloginfo('charset'); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -72,7 +72,9 @@ final class UiKit
 .meiliscout-kit__token { display: grid; gap: 0.25rem; font-size: 0.8125rem; }
 .meiliscout-kit__swatch { height: 2.5rem; border: 1px solid var(--meiliscout-border); border-radius: var(--meiliscout-radius); }
 .meiliscout-kit__token code { overflow-wrap: anywhere; }
-<?php echo $scheme === 'dark' ? 'body { background: #111; color: #eee; }' : ''; ?>
+<?php
+// A dark section as a theme makes one: its presets redefined below :root
+echo $scheme === 'dark' ? 'body.meiliscout-kit-body { color-scheme: dark; --wp--preset--color--base: #141414; --wp--preset--color--contrast: #f2f2f2; background: var(--wp--preset--color--base); color: var(--wp--preset--color--contrast); }' : ''; ?>
 </style>
 </head>
 <body <?php body_class('meiliscout-kit-body'); ?>>
@@ -122,6 +124,7 @@ document.addEventListener( 'click', ( event ) => {
 
         $full = self::result('kit', new ListingState(['color' => ['blue'], 'size' => ['m']], ['price' => ['min' => 100.0]], '', 2, 'chair'));
         $states = self::result('kit-states', new ListingState(['color' => ['blue', 'green']]));
+        $noMatch = self::result('kit-no-match', new ListingState);
         $chips = self::result('kit-chips', new ListingState(['size' => ['m'], 'featured' => ['1']]), ['display' => 'chips']);
         $empty = self::result('kit-empty', new ListingState(['color' => ['red'], 'material' => ['oak', 'steel']]), [], 0);
         $rtl = self::result('kit-rtl', new ListingState(['color' => ['blue']]));
@@ -133,7 +136,7 @@ document.addEventListener( 'click', ( event ) => {
             [__('What the client shows', 'meiliscout'), __('A search in a facet\'s values, values folded behind Show more, a search leaving none, results loading.', 'meiliscout'), '<div class="meiliscout-kit__grid">'
                 .self::searching($part($states, 'facet', ['facet' => 'color']))
                 .self::folded($part($states, 'facet', ['facet' => 'category']))
-                .self::noMatch($part($states, 'facet', ['facet' => 'material']))
+                .self::noMatch($part($noMatch, 'facet', ['facet' => 'color']))
                 .'</div>'.self::busy($part($states, 'results'))],
             [__('Chips and yes/no', 'meiliscout'), __('display: chips on a list and on a yes/no; a selected chip reads as a tick.', 'meiliscout'), '<div class="meiliscout-kit__grid">'.$part($chips, 'facet', ['facet' => 'size']).$part($chips, 'facet', ['facet' => 'material']).$part($chips, 'facet', ['facet' => 'featured']).'</div>'],
             [__('Toolbar', 'meiliscout'), __('The total, the active filters, the sort, the buttons.', 'meiliscout'), '<div class="meiliscout-kit__row">'.$part($full, 'total').$part($full, 'sort').'</div>'.$part($full, 'active').self::buttons()],
@@ -284,7 +287,7 @@ document.addEventListener( 'click', ( event ) => {
         }
 
         // The values whose label holds "gr", as the client keeps them
-        return (string) preg_replace_callback('#<li class="meiliscout-facet__option"[^>]*>.*?</li>#s', fn (array $m) => preg_match('#>(Green|Grey)<#', $m[0]) ? $m[0] : '', $tags->get_updated_html());
+        return (string) preg_replace_callback('#<li\b[^>]*\bmeiliscout-facet__option\b[^>]*>.*?</li>#s', fn (array $m) => preg_match('#>(Green|Grey)<#', $m[0]) ? $m[0] : '', $tags->get_updated_html());
     }
 
     /**

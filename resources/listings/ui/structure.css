@@ -48,8 +48,18 @@
 	color: var(--meiliscout-accent-contrast);
 }
 
-/* Themes style every button: two classes keep these ones as the kit draws them */
-.meiliscout-facet .meiliscout-facet__more {
+/* A list with no value to show (none has a post now, none is selected): no
+   title alone (themes display fieldsets). A search field keeps its facet. */
+.meiliscout-facet:is(.meiliscout-facet--list, .meiliscout-facet--boolean):not(:has(.meiliscout-facet__option:not([hidden]))):not(:has(.meiliscout-facet__search:not([hidden]))) {
+	display: none;
+}
+
+/* Themes style every button, some strongly (Twenty Twenty-One:
+   button:not(:hover):not(:active):not(.has-background), 0,3,1). The class
+   repeated (0,4,0) keeps these ones as the kit draws them; a theme's rule
+   on these classes with more weight still wins. The primary button is left
+   to the theme. */
+.meiliscout-facet .meiliscout-facet__more.meiliscout-facet__more.meiliscout-facet__more {
 	min-height: 0;
 	padding: 0;
 	border: 0;
@@ -64,8 +74,8 @@
 	letter-spacing: normal;
 }
 
-.meiliscout-active .meiliscout-active__remove,
-.meiliscout-panel .meiliscout-panel__close {
+.meiliscout-active .meiliscout-active__remove.meiliscout-active__remove.meiliscout-active__remove,
+.meiliscout-panel .meiliscout-panel__close.meiliscout-panel__close.meiliscout-panel__close {
 	min-height: 0;
 	box-shadow: none;
 	color: inherit;
@@ -75,14 +85,14 @@
 	letter-spacing: normal;
 }
 
-.meiliscout-active .meiliscout-active__remove {
+.meiliscout-active .meiliscout-active__remove.meiliscout-active__remove.meiliscout-active__remove {
 	padding: 0.2em 0.7em;
 	border: 1px solid var(--meiliscout-border);
 	background: var(--meiliscout-tint);
 	font-size: var(--meiliscout-small);
 }
 
-.meiliscout-panel .meiliscout-panel__close {
+.meiliscout-panel .meiliscout-panel__close.meiliscout-panel__close.meiliscout-panel__close {
 	padding: 0;
 	border: 0;
 	background: none;
@@ -90,7 +100,7 @@
 	line-height: 1;
 }
 
-.meiliscout-button.meiliscout-button--secondary:not(.wp-element-button) {
+.meiliscout-button.meiliscout-button--secondary.meiliscout-button--secondary:not(.wp-element-button) {
 	border: 1px solid var(--meiliscout-border);
 	background: var(--meiliscout-background);
 	box-shadow: none;
