@@ -405,6 +405,17 @@
 	text-decoration: underline;
 }
 
+/* Themes color links with some specificity (Twenty Twenty-Five: :root :where(a)):
+   the current page's number stays on its accent, readable */
+.meiliscout-pagination .meiliscout-pagination__link {
+	color: inherit;
+	text-decoration: none;
+}
+
+.meiliscout-pagination .meiliscout-pagination__link[aria-current="page"] {
+	color: var(--meiliscout-accent-contrast);
+}
+
 /* Themes style every button: two classes keep this one a link */
 .meiliscout-facet .meiliscout-facet__more {
 	min-height: 0;
