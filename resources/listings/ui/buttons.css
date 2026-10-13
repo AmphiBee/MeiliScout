@@ -35,6 +35,12 @@
 :where(.meiliscout-listing__reset, .meiliscout-button--link) {
 	color: var(--meiliscout-accent);
 	font-size: var(--meiliscout-small);
+	text-decoration: none;
+}
+
+:where(.meiliscout-listing__reset:hover, .meiliscout-button--link:hover) {
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
 }
 
 /* A count in a button: Filters (2) */

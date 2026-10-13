@@ -27,7 +27,7 @@
 	--meiliscout-muted: var(--meiliscout-color-muted, var(--meiliscout-palette-muted, color-mix(in srgb, currentColor 62%, transparent)));
 	--meiliscout-background: var(--meiliscout-color-background, var(--meiliscout-palette-background, transparent));
 	--meiliscout-border: var(--meiliscout-color-border, var(--meiliscout-palette-border, color-mix(in srgb, currentColor 18%, transparent)));
-	--meiliscout-tint: color-mix(in srgb, var(--meiliscout-accent) 10%, transparent);
+	--meiliscout-tint: color-mix(in srgb, var(--meiliscout-accent) 7%, transparent);
 
 	/* An opaque surface: a panel over the page */
 	--meiliscout-surface: var(--meiliscout-color-surface, var(--meiliscout-color-background, var(--meiliscout-palette-background, var(--wp--preset--color--base, Canvas))));
@@ -39,7 +39,8 @@
 	--meiliscout-gap: var(--meiliscout-spacing, var(--wp--preset--spacing--30, 1rem));
 	--meiliscout-gap-small: calc(var(--meiliscout-gap) / 2);
 	--meiliscout-small: var(--meiliscout-font-size-small, 0.875em);
-	--meiliscout-control: var(--meiliscout-control-height, 2.5em);
+	--meiliscout-control: var(--meiliscout-control-height, 2.5rem);
+	--meiliscout-control-font: var(--meiliscout-control-font-size, 1rem);
 	--meiliscout-focus: var(--meiliscout-color-focus, var(--meiliscout-accent));
 	--meiliscout-elevation: var(--meiliscout-shadow, 0 0.5em 2em color-mix(in srgb, currentColor 18%, transparent));
 }

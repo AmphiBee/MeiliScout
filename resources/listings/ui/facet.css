@@ -12,11 +12,12 @@
 	padding: 0;
 	margin-bottom: var(--meiliscout-gap-small);
 	font-weight: 600;
+	letter-spacing: 0.01em;
 }
 
 :where(.meiliscout-facet__options) {
 	display: grid;
-	gap: 0.25em;
+	gap: 0.3em;
 	margin: 0;
 	padding: 0;
 	list-style: none;
@@ -43,8 +44,17 @@
 
 :where(.meiliscout-facet__input) {
 	accent-color: var(--meiliscout-accent);
+	width: 1.05em;
+	height: 1.05em;
 	margin: 0;
 	flex: none;
+	transform: translateY(0.12em);
+}
+
+:where(.meiliscout-facet__label:hover .meiliscout-facet__text) {
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+	text-underline-offset: 0.2em;
 }
 
 :where(.meiliscout-facet__text) {

@@ -13,7 +13,7 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 0.4em;
-	padding: 0.2em 0.7em;
+	padding: 0.15em 0.65em;
 	border: 1px solid var(--meiliscout-border);
 	border-radius: var(--meiliscout-pill);
 	background: var(--meiliscout-tint);
@@ -23,6 +23,24 @@
 	cursor: pointer;
 }
 
+:where(.meiliscout-active__remove > [aria-hidden="true"]) {
+	color: var(--meiliscout-muted);
+	line-height: 1;
+}
+
 :where(.meiliscout-active__remove:hover) {
 	border-color: var(--meiliscout-accent);
+}
+
+:where(.meiliscout-active__remove:hover > [aria-hidden="true"]) {
+	color: inherit;
+}
+
+/* Filter parts printed one by one: the chips and the reset link share a line */
+:where(.meiliscout-part--active, .meiliscout-part--reset) {
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+	margin-inline-end: var(--meiliscout-gap-small);
+	margin-block-end: var(--meiliscout-gap-small);
 }
