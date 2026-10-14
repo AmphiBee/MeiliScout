@@ -2729,7 +2729,7 @@ msgstr[1] "%d listings ont des erreurs : ils ne sont pas servis, ou certaines de
 msgid "No listing is declared: add a Listing block to a page, or call meiliscout_register_listing()."
 msgstr "Aucun listing n’est déclaré : ajoutez un bloc de listing à une page, ou appelez meiliscout_register_listing()."
 
-#: src/Listings/Definition/ListingDefinition.php:362
+#: src/Listings/Definition/ListingDefinition.php:375
 #: build/listings/editor.js:4
 msgid "Author"
 msgstr "Auteur"
@@ -2904,3 +2904,21 @@ msgstr "Pastilles"
 #: src/Listings/Render/Renderer.php:61
 msgid "See the results"
 msgstr "Voir les résultats"
+
+#: src/Listings/Definition/ListingDefinition.php:376
+#: build/listings/editor.js:4
+msgid "Year modified"
+msgstr "Année de modification"
+
+#: src/Listings/Definition/ListingDefinition.php:376
+#: build/listings/editor.js:4
+msgid "Year"
+msgstr "Année"
+
+#: build/listings/editor.js:4
+msgid "Year of publication"
+msgstr "Année de publication"
+
+#: build/listings/editor.js:4
+msgid "Year of last modification"
+msgstr "Année de dernière modification"

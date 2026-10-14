@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Listings\Query;
 use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
+use Pollora\MeiliScout\Query\Builders\DateQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\MetaQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\PostFieldsBuilder;
 use Pollora\MeiliScout\Query\Builders\TaxQueryBuilder;
@@ -58,6 +59,10 @@ final class FacetClauses
             return ['author__in' => array_map([self::class, 'authorId'], $values)];
         }
 
+        if ($facet->isDate()) {
+            return ['date_query' => [['relation' => 'OR', ...array_map(fn (string $year) => self::yearClause($facet, $year), $values)]]];
+        }
+
         if ($facet->type === FacetDefinition::BOOLEAN) {
             return ['meta_query' => [['key' => $facet->name, 'value' => $facet->booleanValue, 'compare' => '=']]];
         }
@@ -90,6 +95,10 @@ final class FacetClauses
 
         if ($facet->isAuthor()) {
             return self::build(new PostFieldsBuilder, ['author__in' => [self::authorId($value)]]);
+        }
+
+        if ($facet->isDate()) {
+            return self::build(new DateQueryBuilder, ['date_query' => [self::yearClause($facet, $value)]]);
         }
 
         $value = $facet->type === FacetDefinition::BOOLEAN ? $facet->booleanValue : $value;
@@ -164,6 +173,16 @@ final class FacetClauses
     }
 
     /**
+     * A year of a date facet, as a date_query clause.
+     *
+     * @return array{year: int, column: string}
+     */
+    private static function yearClause(FacetDefinition $facet, string $year): array
+    {
+        return ['year' => (int) $year, 'column' => $facet->name];
+    }
+
+    /**
      * A user's id from their slug (user_nicename, as author archives write it), 0 for none.
      */
     public static function authorId(string $slug): int
@@ -176,7 +195,7 @@ final class FacetClauses
     /**
      * @param  array<string, mixed>  $vars
      */
-    private static function build(TaxQueryBuilder|MetaQueryBuilder|PostFieldsBuilder $builder, array $vars): string
+    private static function build(TaxQueryBuilder|MetaQueryBuilder|PostFieldsBuilder|DateQueryBuilder $builder, array $vars): string
     {
         $params = [];
         $builder->build(new ArrayQuery($vars), $params);

@@ -143,6 +143,8 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 	);
 	const isMeta = attributes.source.startsWith( 'meta:' );
 	const isAuthor = attributes.source === 'author';
+	// The years of the post date: one date per post, like one author
+	const isDate = attributes.source.startsWith( 'date' );
 	let label = attributes.label || taxonomy?.label;
 	if ( ! label ) {
 		label = isMeta
@@ -150,6 +152,12 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 			: __( 'Facet', 'meiliscout' );
 		if ( isAuthor ) {
 			label = __( 'Author', 'meiliscout' );
+		}
+		if ( isDate ) {
+			label =
+				attributes.source === 'date:modified'
+					? __( 'Year modified', 'meiliscout' )
+					: __( 'Year', 'meiliscout' );
 		}
 	}
 
@@ -160,6 +168,11 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 			label: t.label,
 		} ) ),
 		{ value: 'author', label: __( 'Author', 'meiliscout' ) },
+		{ value: 'date', label: __( 'Year of publication', 'meiliscout' ) },
+		{
+			value: 'date:modified',
+			label: __( 'Year of last modification', 'meiliscout' ),
+		},
 		...( config?.metaKeys || [] ).map( ( key ) => ( {
 			value: 'meta:' + key,
 			/* translators: %s: a meta key */
@@ -181,12 +194,14 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 								source,
 								type:
 									source.startsWith( 'taxonomy:' ) ||
+									source.startsWith( 'date' ) ||
 									source === 'author'
 										? 'list'
 										: attributes.type,
-								// A post has one author
+								// A post has one author, one date
 								logic:
-									source === 'author'
+									source === 'author' ||
+									source.startsWith( 'date' )
 										? 'or'
 										: attributes.logic,
 							} )
@@ -217,7 +232,7 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 							onChange={ ( type ) => setAttributes( { type } ) }
 						/>
 					) }
-					{ attributes.type === 'list' && ! isAuthor && (
+					{ attributes.type === 'list' && ! isAuthor && ! isDate && (
 						<SelectControl
 							__nextHasNoMarginBottom
 							label={ __( 'Several values match', 'meiliscout' ) }

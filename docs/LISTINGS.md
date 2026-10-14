@@ -80,7 +80,7 @@ A **facet**:
 
 | Option | Default | |
 |---|---|---|
-| `source` | required | `taxonomy:<name>`; `meta:<key>` for an indexed meta key (Content › Meta keys); `author`: the posts' authors, by their slug in the URL (`?lead=lea-martin`, as author archives write it), by their name on the page |
+| `source` | required | `taxonomy:<name>`; `meta:<key>` for an indexed meta key (Content › Meta keys); `author`: the posts' authors, by their slug in the URL (`?lead=lea-martin`, as author archives write it), by their name on the page; `date` (or `date:modified`): the **years** of the posts' date (published, or last modified), newest first, as `?year=2025,2024` |
 | `type` | `list` | `list`, `range` (numbers between two bounds) or `boolean` (one checkbox); ranges and booleans read a meta key |
 | `logic` | `or` | How the values of a list combine: `or` (any of them: each value widens the results) or `and` (all of them: each value narrows them). In an `or` list with a selection, a value not selected shows what it adds (`+3`); in an `and` list, the results it would leave. In the editor: the Facet block's *Several values match* |
 | `hierarchy` | `tree` | A hierarchical taxonomy's terms are counted with their descendants and shown as a tree; `flat`: each term alone |
@@ -99,6 +99,8 @@ Facets need the posts index in schema 5 (`wp meiliscout status`), which counts a
 A facet offers the values Meilisearch counts in a facet distribution: while the module runs, the posts index counts up to 1,000 values per field (`meiliscout/post/max_values_per_facet`; Meilisearch's default is 100). MeiliScout › Listings warns of a facet that reaches it.
 
 An `author` facet combines its values with `or` (a post has one author). Authors are not translated: every language shows the same names.
+
+A `date` facet is a list of years (`'label' => 'Year'` by default, `display` as boxes or chips) that combines with `or` (a post has one date); its clauses are the `date_query` builder's (`date_parts.post_date.year = 2025`), counted on the index like any list.
 
 ### Cards
 

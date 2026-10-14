@@ -290,12 +290,18 @@ final class ListingDefinition
         }
 
         $rawSource = (string) ($args['source'] ?? '');
-        [$source, $name] = $rawSource === 'author' ? ['author', 'author'] : array_pad(explode(':', $rawSource, 2), 2, '');
+        [$source, $name] = match (true) {
+            $rawSource === 'author' => ['author', 'author'],
+            // date: the post's date, date:modified: its last modification
+            $rawSource === 'date' || $rawSource === 'date:published' => ['date', 'post_date'],
+            $rawSource === 'date:modified' => ['date', 'post_modified'],
+            default => array_pad(explode(':', $rawSource, 2), 2, ''),
+        };
         $type = (string) ($args['type'] ?? FacetDefinition::LIST);
         $logic = (string) ($args['logic'] ?? 'or');
 
-        if (! in_array($source, ['taxonomy', 'meta', 'author'], true) || $name === '') {
-            $errors[] = sprintf('The facet "%s" needs a source: taxonomy:<name>, meta:<key> or author.', $key);
+        if (! in_array($source, ['taxonomy', 'meta', 'author', 'date'], true) || $name === '') {
+            $errors[] = sprintf('The facet "%s" needs a source: taxonomy:<name>, meta:<key>, author or date.', $key);
 
             return null;
         }
@@ -356,10 +362,18 @@ final class ListingDefinition
             return null;
         }
 
+        // ... and one year
+        if ($source === 'date' && $logic === 'and') {
+            $errors[] = sprintf('The facet "%s": a post has one date, its years combine with or.', $key);
+
+            return null;
+        }
+
         $taxonomy = $source === 'taxonomy' ? get_taxonomy($name) : null;
         $label = (string) ($args['label'] ?? match (true) {
             (bool) $taxonomy => $taxonomy->labels->singular_name,
             $source === 'author' => __('Author', 'meiliscout'),
+            $source === 'date' => $name === 'post_modified' ? __('Year modified', 'meiliscout') : __('Year', 'meiliscout'),
             default => $key,
         });
 

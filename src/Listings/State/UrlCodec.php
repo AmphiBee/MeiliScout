@@ -71,7 +71,7 @@ final class UrlCodec
             $list = [];
             foreach ($parts as $value) {
                 $value = $facet->isTaxonomy() ? sanitize_title($value) : $value;
-                if ($value !== '') {
+                if ($value !== '' && (! $facet->isDate() || preg_match('/^\d{4}$/', $value) === 1)) {
                     $list[] = $value;
                 }
             }

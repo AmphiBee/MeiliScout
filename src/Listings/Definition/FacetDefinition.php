@@ -19,7 +19,7 @@ final class FacetDefinition
     public const BOOLEAN = 'boolean';
 
     /**
-     * @param  'taxonomy'|'meta'|'author'  $source
+     * @param  'taxonomy'|'meta'|'author'|'date'  $source  A date facet reads post_date or post_modified ($name)
      * @param  'list'|'range'|'boolean'  $type
      * @param  'or'|'and'  $logic  How the values of a list combine
      * @param  array<string, string>  $labels  Meta values' labels, by value
@@ -87,6 +87,14 @@ final class FacetDefinition
     }
 
     /**
+     * Its values are the years of the posts' date (post_date, or post_modified).
+     */
+    public function isDate(): bool
+    {
+        return $this->source === 'date';
+    }
+
+    /**
      * Its values combine as a disjunction: their counts ignore its own selection.
      */
     public function isDisjunctive(): bool
@@ -108,6 +116,10 @@ final class FacetDefinition
 
         if ($this->isAuthor()) {
             return 'post_author';
+        }
+
+        if ($this->isDate()) {
+            return "date_parts.{$this->name}.year";
         }
 
         return "metas.{$this->name}";
