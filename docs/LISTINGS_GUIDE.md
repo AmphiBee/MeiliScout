@@ -58,6 +58,10 @@ In a page, a post or a template (site editor), insert **Filterable listing**. It
 
 These are the core's own blocks, so the cards, the pagination and the layout are styled and arranged as anywhere else in the editor: change the Post Template's layout (grid, list), put an image, a date or a custom field in each card, as in any Query Loop.
 
+![The block editor: Filterable listing inserted, its list view, and the block's settings (content types, items per page, how filters apply, how results change, sorts)](images/listings/editor-listing-settings.jpg)
+
+*Screenshots of the editor are from a site whose admin language is French.*
+
 ### 2.2 Set up the listing (the block's settings)
 
 Select the **Filterable listing** block and open its settings:
@@ -87,11 +91,19 @@ Insert **Facet** blocks anywhere inside the listing, for example one per column 
 
 The facets' order in the document is their order in the URL. Block supports (colors, typography, spacing, border) apply to each facet.
 
+![A Facet block's settings: Filters on, Several values match, Terms, Title, Values shown before “Show more”, Values shown as, Search in its values, URL](images/listings/editor-facet-settings.jpg)
+
+The list view (left) shows the structure the block creates: the listing, its columns, then the search, the facets and the apply button on one side, the results on the other.
+
 ### 2.4 Rearrange with the "Listing part" blocks
 
 Each element of the listing is also available on its own as a **Listing part** block, so you can move it anywhere inside the listing: *Listing search*, *Listing sort*, *Listing total*, *Active filters*, *Apply filters*, *Reset filters*, and, when you use SEO rules, *Listing introduction* and *Listing questions*.
 
 For example, to put the sort next to the total at the top of the results, drag the *Listing sort* block beside the *Listing total*.
+
+Searching the inserter for “listing” lists every block of the module: **Filterable listing**, **Facet**, and the **Listing part** blocks.
+
+![The block inserter filtered on “listing”: Filterable listing, Facet, Listing search, Listing sort, Listing total, Active filters, Apply filters, Reset filters, Listing introduction, Listing questions](images/listings/editor-inserter.jpg)
 
 ![A listing built with blocks: filters on the left, the total and the sort, then the cards from a Post Template](images/listings/block-listing.jpg)
 
