@@ -4,7 +4,7 @@ Filterable listings of posts on the front end: facets with their counts, sorts, 
 
 The module is **off by default** and needs **WordPress 6.9** (the Interactivity API's router). It loads no script or style on a page without a listing.
 
-Listings are declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO is written with or without an SEO plugin, with rules per view; facets may go in the path; Polylang and WPML are supported. The design behind it: `docs/plans/2026-10-front-listings-design.md`.
+Listings are declared in PHP and printed whole or part by part from PHP, Blade or Twig, or built in the block editor; their SEO is written with or without an SEO plugin, with rules per view; facets may go in the path; Polylang and WPML are supported. The design behind it: `docs/plans/2026-10-front-listings-design.md`. **New here? Start with the step-by-step [guide](LISTINGS_GUIDE.md)** (editor mode, PHP, Blade, Twig, with screenshots).
 
 ## Turning it on
 

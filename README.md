@@ -63,7 +63,7 @@ add_action('init', function () {
 meiliscout_listing('projects');
 ```
 
-Turn the module on in MeiliScout › Settings › Listings. Everything else, from the cards to the SEO rules: [docs/LISTINGS.md](docs/LISTINGS.md).
+Turn the module on in MeiliScout › Settings › Listings. Build your first listing with the [step-by-step guide](docs/LISTINGS_GUIDE.md); everything else, from the cards to the SEO rules: [docs/LISTINGS.md](docs/LISTINGS.md).
 
 ## WP-CLI
 
