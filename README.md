@@ -18,6 +18,8 @@ The release zip, which ships its dependencies, in `wp-content/plugins`; or the p
 
 ## Configuration
 
+A complete walkthrough, with screenshots of each screen: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
 MeiliScout › Settings › Connection holds the instance's URL and keys. Each setting can come from the environment or a constant instead, and is then read-only in the admin:
 
 | Variable or constant | |
@@ -63,7 +65,7 @@ add_action('init', function () {
 meiliscout_listing('projects');
 ```
 
-Turn the module on in MeiliScout › Settings › Listings. Everything else, from the cards to the SEO rules: [docs/LISTINGS.md](docs/LISTINGS.md).
+Turn the module on in MeiliScout › Settings › Listings. Build your first listing with the [step-by-step guide](docs/LISTINGS_GUIDE.md); everything else, from the cards to the SEO rules: [docs/LISTINGS.md](docs/LISTINGS.md).
 
 ## WP-CLI
 
