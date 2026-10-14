@@ -154,6 +154,27 @@ final class Store
             'expanded' => fn (): bool => false,
             'moreLabel' => fn (): string => wp_interactivity_state(self::NAMESPACE)['i18n']['more'],
             'applyLabel' => fn (): string => wp_interactivity_state(self::NAMESPACE)['i18n']['apply'],
+            'filterCount' => function () use ($listing): int {
+                $current = $listing();
+
+                return array_sum(array_map(fn ($v): int => count((array) $v), (array) ($current['values'] ?? [])))
+                    + count((array) ($current['ranges'] ?? []))
+                    + (($current['search'] ?? '') !== '' ? 1 : 0);
+            },
+            'filterCountLabel' => function () use ($listing): string {
+                $current = $listing();
+                $count = array_sum(array_map(fn ($v): int => count((array) $v), (array) ($current['values'] ?? [])))
+                    + count((array) ($current['ranges'] ?? []))
+                    + (($current['search'] ?? '') !== '' ? 1 : 0);
+
+                return '('.$count.')';
+            },
+            'seeLabel' => function () use ($listing): string {
+                $total = (int) ($listing()['total'] ?? 0);
+                $labels = wp_interactivity_state(self::NAMESPACE)['i18n']['see'];
+
+                return sprintf($total === 0 ? $labels['zero'] : ($total === 1 ? $labels['one'] : $labels['many']), $total);
+            },
             'rangeMin' => function () use ($listing): string {
                 return (string) ($listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['min'] ?? '');
             },

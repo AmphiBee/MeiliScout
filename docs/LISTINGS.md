@@ -367,6 +367,8 @@ dialog.meiliscout-panel
   .meiliscout-panel__footer
 ```
 
+**On a listing** (`meiliscout_listing()`, the editor's default and `Renderer::listing()`), the panel is `Renderer::panel(..., inline: true)`: the search and the facets sit in a `<dialog>` that is open and plain content beside the results on a wide screen (782 px and more; no header, no button), and that the client closes behind a *Filters (n)* button on a smaller one (`callbacks.panel`, `matchMedia`). The button opens it as a sheet (`showModal()`), its count follows the state, and its footer holds *Apply* / *See N results* (the live count of `apply: button`) or, with `apply: instant`, a *See N results* button that closes it. Without JavaScript the dialog stays open, inline. The parts printed one by one (developer mode) and the editor's blocks have no panel: the site places the parts, and can use `Renderer::panel()` itself.
+
 ## Accessibility
 
 What a listing does for keyboard and screen reader users, without anything from the theme:

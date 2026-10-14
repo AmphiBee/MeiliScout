@@ -165,6 +165,28 @@ const { state, actions } = store( NAMESPACE, {
 			const listing = state.listings[ getContext().listing ];
 			return listing.shownUrl !== listing.renderedUrl;
 		},
+		get filterCount() {
+			const listing = state.listings[ getContext().listing ];
+			return (
+				Object.values( listing.values ).reduce(
+					( sum, v ) => sum + v.length,
+					0
+				) +
+				Object.keys( listing.ranges ).length +
+				( listing.search !== '' ? 1 : 0 )
+			);
+		},
+		get filterCountLabel() {
+			return `(${ state.filterCount })`;
+		},
+		get seeLabel() {
+			const listing = state.listings[ getContext().listing ];
+			const total = listing.pending ?? listing.total;
+			return pluralLabel( state.i18n.see, total ).replace(
+				'%d',
+				String( total )
+			);
+		},
 		get hasFilters() {
 			const listing = state.listings[ getContext().listing ];
 			return (
@@ -347,6 +369,9 @@ const { state, actions } = store( NAMESPACE, {
 				return; // The form's own GET
 			}
 			event.preventDefault();
+			event.target
+				.querySelector( 'dialog.meiliscout-panel:modal' )
+				?.close();
 			actions.apply( event.target );
 		},
 
@@ -592,7 +617,60 @@ const { state, actions } = store( NAMESPACE, {
 				getElement().ref.hidden = true;
 			}
 		},
+
+		/**
+		 * The panel's "See N results" closes it: shown where nothing else applies (apply: instant).
+		 */
+		seeButton() {
+			const listing = state.listings[ getContext().listing ];
+			if ( ready( listing ) && listing.template.apply === 'instant' ) {
+				getElement().ref.hidden = false;
+			}
+		},
+
+		/**
+		 * The filters panel: inline beside the results on a wide screen, closed
+		 * behind its button on a small one (open without JavaScript: the
+		 * filters stay on the page).
+		 */
+		panel() {
+			const dialog = getElement().ref;
+			const button = document.querySelector(
+				`[data-meiliscout-panel="${ dialog.id }"]`
+			);
+			const small = window.matchMedia( PANEL_QUERY );
+			const sync = () => {
+				button.hidden = ! small.matches;
+				if (
+					dialog.open &&
+					( ! small.matches || ! dialog.matches( ':modal' ) )
+				) {
+					dialog.close();
+				}
+			};
+			sync();
+			small.addEventListener( 'change', sync );
+			return () => small.removeEventListener( 'change', sync );
+		},
 	},
+} );
+
+const PANEL_QUERY = '(max-width: 781.98px)';
+
+document.addEventListener( 'click', ( event ) => {
+	const open = event.target.closest?.( '[data-meiliscout-panel]' );
+	if ( open ) {
+		document.getElementById( open.dataset.meiliscoutPanel )?.showModal();
+		return;
+	}
+	const dialog = event.target.closest?.( 'dialog.meiliscout-panel:modal' );
+	if (
+		dialog &&
+		( event.target.closest( '[data-meiliscout-panel-close]' ) ||
+			event.target === dialog )
+	) {
+		dialog.close();
+	}
 } );
 
 /**

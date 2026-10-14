@@ -6,6 +6,6 @@
 			'import' => 'dynamic'
 		)
 	),
-	'version' => '881d1ee55eabb2b2aac3',
+	'version' => '6fc5f98732527890b652',
 	'type' => 'module'
 );

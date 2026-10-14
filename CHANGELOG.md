@@ -9,6 +9,7 @@
 - Upgrading: the colors found in the theme's palette, or chosen in Settings › Listings, are no longer `--meiliscout-color-*` on `:root` but `--meiliscout-palette-*` on the listing's elements; a theme reading those variables outside a listing sets its own.
 - A yes/no facet showed its title twice. Themes styling every button strongly (Twenty Twenty-One) turned *Show more* and the active filters into dark blocks.
 - The search field lost the listing's search (`?q=…`): it was bound to a value the store did not have, with or without JavaScript.
+- **Filters panel on small screens:** below 782 px a listing's search and facets go behind a *Filters (n)* button and open as a sheet, with *See N results* at its foot (the live count of `apply: button`, or closing the sheet when instant). Wider, nothing changes; without JavaScript the filters stay on the page. Listings placed part by part and the editor's blocks keep their filters in the page.
 - **UI kit, finishing touches:** fields sized in `rem` (they followed a large theme font), a sort as wide as its longest choice, a magnifier in the search field, lighter active-filter chips on one line with the reset link, framed cards, the block's core pagination dressed like the kit's. A listing takes the theme's wide size instead of the reading column (`--meiliscout-max-width` to change it). The block's template groups the total and the sort on one line; listings already placed keep their blocks.
 
 ## [2.1.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.1.0) - 2026-10-12

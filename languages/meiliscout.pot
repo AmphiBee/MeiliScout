@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-13T18:08:29+02:00\n"
+"POT-Creation-Date: 2026-10-14T08:46:02+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: meiliscout\n"
@@ -158,8 +158,8 @@ msgid "The URL must be a page of this site."
 msgstr ""
 
 #: src/Listings/Blocks/BlockListings.php:353
-#: src/Listings/Render/Renderer.php:396
-#: src/Listings/Render/Renderer.php:419
+#: src/Listings/Render/Renderer.php:402
+#: src/Listings/Render/Renderer.php:425
 msgid "No results match these filters."
 msgstr ""
 
@@ -271,70 +271,81 @@ msgstr ""
 msgid "No router region in the fragment."
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:220
+#: src/Listings/Render/Renderer.php:61
+msgid "See the results"
+msgstr ""
+
+#: src/Listings/Render/Renderer.php:69
+#: src/Listings/Render/UiKit.php:256
+#: src/Listings/Render/UiKit.php:271
+#: build/app.js:39
+msgid "Filters"
+msgstr ""
+
+#: src/Listings/Render/Renderer.php:226
 #: src/Listings/Render/UiKit.php:258
 #: src/Listings/Render/UiKit.php:268
 #: build/listings/editor.js:3
 msgid "Reset"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:263
+#: src/Listings/Render/Renderer.php:269
 #: build/app.js:38
 #: build/listings/editor.js:3
 msgid "Search"
 msgstr ""
 
 #. translators: %s: a facet's title
-#: src/Listings/Render/Renderer.php:311
+#: src/Listings/Render/Renderer.php:317
 #, php-format
 msgid "Search in %s"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:312
+#: src/Listings/Render/Renderer.php:318
 msgid "Search…"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:313
+#: src/Listings/Render/Renderer.php:319
 msgid "No value matches."
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:335
+#: src/Listings/Render/Renderer.php:341
 #: build/listings/editor.js:1
 msgid "Min"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:336
+#: src/Listings/Render/Renderer.php:342
 #: build/listings/editor.js:1
 msgid "Max"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:370
+#: src/Listings/Render/Renderer.php:376
 #: build/listings/editor.js:3
 msgid "Sort by"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:387
+#: src/Listings/Render/Renderer.php:393
 #: src/Listings/Render/Store.php:101
 #: src/Listings/Render/UiKit.php:255
 #: build/listings/editor.js:3
 msgid "Apply"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:434
+#: src/Listings/Render/Renderer.php:440
 msgid "Pages"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:483
+#: src/Listings/Render/Renderer.php:489
 #: src/Listings/Render/Store.php:112
 msgid "Previous"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:484
+#: src/Listings/Render/Renderer.php:490
 #: src/Listings/Render/Store.php:113
 msgid "Next"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:549
+#: src/Listings/Render/Renderer.php:560
 msgid "Close"
 msgstr ""
 
@@ -489,12 +500,6 @@ msgstr ""
 
 #: src/Listings/Render/UiKit.php:176
 msgid "By title"
-msgstr ""
-
-#: src/Listings/Render/UiKit.php:256
-#: src/Listings/Render/UiKit.php:271
-#: build/app.js:39
-msgid "Filters"
 msgstr ""
 
 #: src/Listings/Render/UiKit.php:257

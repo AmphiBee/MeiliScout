@@ -55,12 +55,18 @@ final class Renderer
             $fields .= self::facet($facet, $result);
         }
 
+        $footer = self::apply($result).sprintf(
+            '<button type="button" class="%s meiliscout-panel__see" hidden data-meiliscout-panel-close data-wp-init="callbacks.seeButton" data-wp-text="state.seeLabel">%s</button>',
+            esc_attr(self::buttonClass('primary')),
+            esc_html__('See the results', 'meiliscout')
+        );
+
         return sprintf(
             '<div id="%1$s" class="meiliscout-listing" data-meiliscout="listing" data-wp-interactive="%2$s" data-wp-context="%3$s">%7$s%4$s%5$s%6$s%8$s</div>',
             esc_attr($id),
             esc_attr(Store::NAMESPACE),
             esc_attr(self::context($definition)),
-            self::form($result, $base, $fields.'<div class="meiliscout-listing__toolbar">'.self::total().self::active().self::sort($result).self::apply($result).self::resetLink($base).'</div>'),
+            self::form($result, $base, self::panel($id.'-panel', __('Filters', 'meiliscout'), $fields, $footer, 0, true).'<div class="meiliscout-listing__toolbar">'.self::total().self::active().self::sort($result).self::resetLink($base).'</div>'),
             self::region($result),
             self::pagination($result),
             self::intro($result, $base),
@@ -532,12 +538,15 @@ final class Renderer
      * @param  string  $body  Its content
      * @param  string  $footer  Its footer's buttons
      * @param  int  $count  Shown in the button: Filters (2), none at 0
+     * @param  bool  $inline  A listing's panel: the filters stay on the page, open and
+     *                        beside the results on a wide screen; behind the button, which
+     *                        the client shows, on a small one. The count follows the state.
      */
-    public static function panel(string $id, string $title, string $body, string $footer = '', int $count = 0): string
+    public static function panel(string $id, string $title, string $body, string $footer = '', int $count = 0, bool $inline = false): string
     {
         return sprintf(
-            '<button type="button" class="%1$s meiliscout-panel__open" aria-haspopup="dialog" aria-controls="%2$s" data-meiliscout-panel="%2$s">%3$s%4$s</button>'
-            .'<dialog id="%2$s" class="meiliscout-panel" aria-labelledby="%2$s-title">'
+            '<button type="button" class="%1$s meiliscout-panel__open%8$s" aria-haspopup="dialog" aria-controls="%2$s" data-meiliscout-panel="%2$s"%9$s>%3$s%4$s</button>'
+            .'<dialog id="%2$s" class="meiliscout-panel%10$s" aria-labelledby="%2$s-title"%11$s>'
             .'<div class="meiliscout-panel__header"><h2 id="%2$s-title" class="meiliscout-panel__title">%3$s</h2>'
             .'<button type="button" class="meiliscout-panel__close" aria-label="%5$s" data-meiliscout-panel-close><span aria-hidden="true">×</span></button></div>'
             .'<div class="meiliscout-panel__body">%6$s</div>'
@@ -545,10 +554,16 @@ final class Renderer
             esc_attr(self::buttonClass('secondary')),
             esc_attr($id),
             esc_html($title),
-            $count > 0 ? ' <span class="meiliscout-button__count">('.(int) $count.')</span>' : '',
+            $inline
+                ? ' <span class="meiliscout-button__count" data-wp-text="state.filterCountLabel" data-wp-bind--hidden="!state.hasFilters"></span>'
+                : ($count > 0 ? ' <span class="meiliscout-button__count">('.(int) $count.')</span>' : ''),
             esc_attr__('Close', 'meiliscout'),
             $body,
-            $footer !== '' ? '<div class="meiliscout-panel__footer">'.$footer.'</div>' : ''
+            $footer !== '' ? '<div class="meiliscout-panel__footer">'.$footer.'</div>' : '',
+            $inline ? ' meiliscout-panel__open--inline' : '',
+            $inline ? ' hidden' : '',
+            $inline ? ' meiliscout-panel--inline' : '',
+            $inline ? ' open data-wp-init="callbacks.panel"' : ''
         );
     }
 

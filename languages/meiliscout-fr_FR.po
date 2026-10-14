@@ -876,7 +876,7 @@ msgstr "Indexation"
 msgid "The last indexation completed."
 msgstr "La dernière indexation s'est terminée."
 
-#: src/Listings/Render/Renderer.php:263
+#: src/Listings/Render/Renderer.php:269
 #: build/app.js:38
 #: build/listings/editor.js:3
 msgid "Search"
@@ -894,6 +894,7 @@ msgid_plural "%1$s results in %2$s ms"
 msgstr[0] "%1$s résultat en %2$s ms"
 msgstr[1] "%1$s résultats en %2$s ms"
 
+#: src/Listings/Render/Renderer.php:69
 #: src/Listings/Render/UiKit.php:256
 #: src/Listings/Render/UiKit.php:271
 #: build/app.js:39
@@ -1445,51 +1446,51 @@ msgstr "L’URL publique de Meilisearch n’est pas une URL valide."
 msgid "Newest first"
 msgstr "Les plus récents"
 
-#: src/Listings/Render/Renderer.php:387
+#: src/Listings/Render/Renderer.php:393
 #: src/Listings/Render/Store.php:101
 #: src/Listings/Render/UiKit.php:255
 #: build/listings/editor.js:3
 msgid "Apply"
 msgstr "Appliquer"
 
-#: src/Listings/Render/Renderer.php:220
+#: src/Listings/Render/Renderer.php:226
 #: src/Listings/Render/UiKit.php:258
 #: src/Listings/Render/UiKit.php:268
 #: build/listings/editor.js:3
 msgid "Reset"
 msgstr "Réinitialiser"
 
-#: src/Listings/Render/Renderer.php:335
+#: src/Listings/Render/Renderer.php:341
 #: build/listings/editor.js:1
 msgid "Min"
 msgstr "Min"
 
-#: src/Listings/Render/Renderer.php:336
+#: src/Listings/Render/Renderer.php:342
 #: build/listings/editor.js:1
 msgid "Max"
 msgstr "Max"
 
-#: src/Listings/Render/Renderer.php:370
+#: src/Listings/Render/Renderer.php:376
 #: build/listings/editor.js:3
 msgid "Sort by"
 msgstr "Trier par"
 
 #: src/Listings/Blocks/BlockListings.php:353
-#: src/Listings/Render/Renderer.php:396
-#: src/Listings/Render/Renderer.php:419
+#: src/Listings/Render/Renderer.php:402
+#: src/Listings/Render/Renderer.php:425
 msgid "No results match these filters."
 msgstr "Aucun résultat ne correspond à ces filtres."
 
-#: src/Listings/Render/Renderer.php:434
+#: src/Listings/Render/Renderer.php:440
 msgid "Pages"
 msgstr "Pages"
 
-#: src/Listings/Render/Renderer.php:483
+#: src/Listings/Render/Renderer.php:489
 #: src/Listings/Render/Store.php:112
 msgid "Previous"
 msgstr "Précédent"
 
-#: src/Listings/Render/Renderer.php:484
+#: src/Listings/Render/Renderer.php:490
 #: src/Listings/Render/Store.php:113
 msgid "Next"
 msgstr "Suivant"
@@ -2740,16 +2741,16 @@ msgid "The facet “%1$s” reaches the number of values the index counts (%2$d)
 msgstr "La facette « %1$s » atteint le nombre de valeurs que compte l’index (%2$d) : les autres ne sont pas proposées (meiliscout/post/max_values_per_facet)."
 
 #. translators: %s: a facet's title
-#: src/Listings/Render/Renderer.php:311
+#: src/Listings/Render/Renderer.php:317
 #, php-format
 msgid "Search in %s"
 msgstr "Rechercher dans %s"
 
-#: src/Listings/Render/Renderer.php:312
+#: src/Listings/Render/Renderer.php:318
 msgid "Search…"
 msgstr "Rechercher…"
 
-#: src/Listings/Render/Renderer.php:313
+#: src/Listings/Render/Renderer.php:319
 msgid "No value matches."
 msgstr "Aucune valeur ne correspond."
 
@@ -2782,7 +2783,7 @@ msgctxt "block description"
 msgid "A filter of the listing: a taxonomy's terms, a field's values, the authors, a range of numbers, a yes/no."
 msgstr "Un filtre du listing : les termes d’une taxonomie, les valeurs d’un champ, les auteurs, une plage de nombres, un oui/non."
 
-#: src/Listings/Render/Renderer.php:549
+#: src/Listings/Render/Renderer.php:560
 msgid "Close"
 msgstr "Fermer"
 
@@ -2899,3 +2900,7 @@ msgstr "Cases dans une liste"
 #: build/listings/editor.js:6
 msgid "Chips"
 msgstr "Pastilles"
+
+#: src/Listings/Render/Renderer.php:61
+msgid "See the results"
+msgstr "Voir les résultats"

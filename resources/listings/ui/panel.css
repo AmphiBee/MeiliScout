@@ -109,3 +109,55 @@
 		opacity: 0;
 	}
 }
+
+/* A listing's panel (--inline): the filters stay on the page, as plain
+   content, beside the results; on a small screen the client closes it
+   behind its button, and it opens as the sheet above (:modal). Without
+   JavaScript it stays open, inline. */
+
+:where(.meiliscout-panel--inline:not(:modal)) {
+	position: static;
+	width: auto;
+	max-width: none;
+	height: auto;
+	max-height: none;
+	background: none;
+	color: inherit;
+	box-shadow: none;
+	animation: none;
+}
+
+:where(.meiliscout-panel--inline[open]:not(:modal)) {
+	display: block;
+}
+
+:where(.meiliscout-panel--inline:not(:modal) .meiliscout-panel__header, .meiliscout-panel--inline:not(:modal) .meiliscout-panel__see) {
+	display: none;
+}
+
+:where(.meiliscout-panel--inline:not(:modal) .meiliscout-panel__body) {
+	padding: 0;
+	overflow: visible;
+}
+
+/* The footer inline holds the apply button, when there is one to show */
+:where(.meiliscout-panel--inline:not(:modal) .meiliscout-panel__footer) {
+	padding: 0;
+	border: 0;
+	margin-top: var(--meiliscout-gap);
+}
+
+:where(.meiliscout-panel--inline:not(:modal) .meiliscout-panel__footer:not(:has(.meiliscout-listing__apply:not([hidden])))) {
+	display: none;
+}
+
+@media (min-width: 782px) {
+
+	:where(.meiliscout-panel--inline:not(:modal)) {
+		display: block;
+	}
+
+	.meiliscout-button.meiliscout-panel__open--inline {
+		display: none;
+	}
+}
