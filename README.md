@@ -18,6 +18,8 @@ The release zip, which ships its dependencies, in `wp-content/plugins`; or the p
 
 ## Configuration
 
+A complete walkthrough, with screenshots of each screen: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
 MeiliScout › Settings › Connection holds the instance's URL and keys. Each setting can come from the environment or a constant instead, and is then read-only in the admin:
 
 | Variable or constant | |
