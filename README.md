@@ -1,11 +1,37 @@
+<p align="center">
+  <img src="docs/images/banner.png" alt="MeiliScout: Meilisearch for WordPress" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://github.com/AmphiBee/MeiliScout/releases/latest"><img src="https://img.shields.io/github/v/release/AmphiBee/MeiliScout?color=d6247f&label=release" alt="Latest release"></a>
+  <a href="https://github.com/AmphiBee/MeiliScout/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/AmphiBee/MeiliScout/tests.yml?branch=main&label=tests" alt="Tests"></a>
+  <img src="https://img.shields.io/badge/PHP-8.2%2B-777bb4" alt="PHP 8.2+">
+  <img src="https://img.shields.io/badge/WordPress-6.6%2B-21759b" alt="WordPress 6.6+">
+  <img src="https://img.shields.io/badge/license-MIT-21004b" alt="MIT license">
+</p>
+
 # MeiliScout
 
-[Meilisearch](https://www.meilisearch.com/) for WordPress: posts and terms indexed as they change, `WP_Query` and `get_terms()` answered by Meilisearch when it can answer them as MySQL would, and filterable listings on the front end.
+[Meilisearch](https://www.meilisearch.com/) for WordPress: your posts and terms indexed as they change, `WP_Query` and `get_terms()` answered by Meilisearch **when it can answer them exactly as MySQL would**, and filterable listings on the front end, built in the block editor or in code.
 
-- **Queries.** A query asking for it (`use_meilisearch`), or one the admin serves (the site search, archives, REST searches, admin lists), is translated to Meilisearch or runs on MySQL with the reason recorded: never a different result. Posts are loaded from the database, `found_posts` and the pagination are exact. Coverage: [docs/WP_QUERY.md](docs/WP_QUERY.md), [docs/TERM_QUERY.md](docs/TERM_QUERY.md).
-- **Indexing.** Post types, taxonomies and meta keys chosen in the admin; posts and terms re-indexed when they change, at the end of the request or in the background; full indexations that build new indexes and switch to them when done.
-- **Front listings** (a module, off by default): facets with their counts, sorts, search, active filters and pagination, counted by the browser straight on Meilisearch; one canonical URL per state, facets in the path, SEO through the SEO plugin in use, Polylang and WPML; declared in PHP, Blade or Twig, or built in the block editor. See [docs/LISTINGS.md](docs/LISTINGS.md).
-- **Admin.** MeiliScout in the WordPress menu: overview and health, content to index, indexation and its log, a search preview and a `WP_Query` tester, the listings and their SEO rules, settings.
+## Why MeiliScout
+
+- **Never a different result.** A query is either translated faithfully to Meilisearch or it runs on MySQL, with the reason recorded (`unindexed_meta:price`, `unsupported_arg:author`...). Posts are loaded from the database, `found_posts` and the pagination are exact. Nothing in your theme or plugins has to change. [Coverage](docs/WP_QUERY.md).
+- **Indexing that follows the site.** Post types, taxonomies and meta keys chosen in the admin; content re-indexed when it changes, at the end of the request or in the background; full indexations that build new indexes beside the old ones and switch when done, without downtime.
+- **Filterable listings.** Facets with their counts, sorts, search, active filters, pagination, counted by the visitor's browser straight on Meilisearch. One canonical URL per state, facets in the path, SEO through the plugin you already use, Polylang and WPML. Works without JavaScript. [Step-by-step guide](docs/LISTINGS_GUIDE.md).
+- **Yours to build with.** Drop in the *Filterable listing* block, or declare the listing in PHP and print it whole or part by part from PHP, Blade or Twig. A default look that follows your theme, and tokens to change it.
+- **An admin that tells you what happens.** Overview and health, what is indexed, indexation and its log, a search preview, a `WP_Query` tester, the listings and their SEO rules. Export the configuration to move it to another site.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/listings/php-listing.jpg" alt="A filterable listing: facets, counts, sort and cards"><br><sub>A listing: facets with counts, sort, cards, pagination.</sub></td>
+    <td width="50%"><img src="docs/images/listings/mobile-filters.jpg" alt="The same listing on a phone, with its filters sheet"><br><sub>On a phone, the filters open as a sheet.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/listings/editor-listing-settings.jpg" alt="The Filterable listing block in the block editor"><br><sub>In the block editor, with the core's own blocks.</sub></td>
+    <td width="50%"><img src="docs/images/admin/overview.jpg" alt="The MeiliScout admin overview"><br><sub>The admin: health, content, queries served, activity.</sub></td>
+  </tr>
+</table>
 
 ## Requirements
 
@@ -14,13 +40,17 @@
 
 ## Installation
 
-The release zip, which ships its dependencies, in `wp-content/plugins`; or the package `amphibee/meiliscout` as a Composer dependency of the site (Bedrock, Pollora), whose autoloader then loads it. Then activate it.
+Download the zip of the [latest release](https://github.com/AmphiBee/MeiliScout/releases/latest), which ships its dependencies, and install it in `wp-content/plugins`; or require the package `amphibee/meiliscout` with Composer (Bedrock, Pollora), whose autoloader then loads it. Then activate it.
 
-## Configuration
+## Quick start
 
-A complete walkthrough, with screenshots of each screen: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+1. **Connect.** *MeiliScout › Settings › Connection*: the instance's URL and a key, or the variables below.
+2. **Choose what to index.** *MeiliScout › Content*: post types, taxonomies, custom fields.
+3. **Index.** *MeiliScout › Indexation*, or `wp meiliscout index`.
 
-MeiliScout › Settings › Connection holds the instance's URL and keys. Each setting can come from the environment or a constant instead, and is then read-only in the admin:
+Then ask Meilisearch for a query (see [Querying](#querying)), turn on the kinds of queries it serves on its own (*Settings › Queries*: the site search, archives, REST searches), or build a [listing](#front-listings). The complete walkthrough, with a screenshot of each screen: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
+Each connection setting can come from the environment or a constant instead, and is then read-only in the admin:
 
 | Variable or constant | |
 |---|---|
@@ -29,8 +59,6 @@ MeiliScout › Settings › Connection holds the instance's URL and keys. Each s
 | `MEILI_SEARCH_KEY` | A search key, for searches (optional) |
 | `MEILI_INDEX_PREFIX` | Prefix of the index names (default: the site's domain) |
 | `MEILISCOUT_ASYNC_INDEXING` | `true`: real-time indexing in the background (WP-Cron); `false`: at the end of the request |
-
-Then choose what to index (MeiliScout › Content) and run a full indexation (MeiliScout › Indexation, or `wp meiliscout index`).
 
 ## Querying
 
@@ -45,9 +73,11 @@ $query = new WP_Query([
 $query->meiliscout; // served or not, why, the search sent
 ```
 
-The meta keys a query filters or sorts on must be indexed (MeiliScout › Content › Meta keys). The `X-MeiliScout` header, the Query Monitor panel and MeiliScout › Search preview › WP_Query say what happened to a query.
+The meta keys a query filters or sorts on must be indexed (*MeiliScout › Content › Custom fields*). The `X-MeiliScout` header, the Query Monitor panel and *MeiliScout › Search preview › Query arguments* say what happened to a query.
 
 ## Front listings
+
+In the block editor, insert **Filterable listing**. Or in code:
 
 ```php
 add_action('init', function () {
@@ -57,15 +87,27 @@ add_action('init', function () {
         'facets' => [
             'type' => ['source' => 'taxonomy:project_type', 'path' => 'type'],
             'price' => ['source' => 'meta:_price', 'type' => 'range'],
+            'year' => ['source' => 'date', 'display' => 'chips'],
         ],
     ]);
 });
 
-// In the page's template, or the Filterable listing block in the editor
+// In the page's template (or <x-meiliscout::listing id="projects" /> in Blade)
 meiliscout_listing('projects');
 ```
 
-Turn the module on in MeiliScout › Settings › Listings. Build your first listing with the [step-by-step guide](docs/LISTINGS_GUIDE.md); everything else, from the cards to the SEO rules: [docs/LISTINGS.md](docs/LISTINGS.md).
+Turn the module on in *MeiliScout › Settings › Listings*. Build your first listing with the [step-by-step guide](docs/LISTINGS_GUIDE.md); everything else, from the cards to the SEO rules: [docs/LISTINGS.md](docs/LISTINGS.md).
+
+## Documentation
+
+| | |
+|---|---|
+| [Configuration](docs/CONFIGURATION.md) | Connect, index, serve queries, listings settings, export and import the configuration, deploy to another server |
+| [Listings guide](docs/LISTINGS_GUIDE.md) | A listing step by step, in blocks and in code (PHP, Blade, Twig), with screenshots |
+| [Listings reference](docs/LISTINGS.md) | Every option: facets, transports, URLs, SEO, languages, markup, UI kit |
+| [WP_Query](docs/WP_QUERY.md) · [Terms](docs/TERM_QUERY.md) | What is translated, what falls back to MySQL and why |
+| [Filters](docs/FILTERS.md) | The hooks, from what is indexed to the search parameters sent |
+| [Changelog](CHANGELOG.md) | The changes by version |
 
 ## WP-CLI
 
@@ -77,11 +119,9 @@ wp meiliscout check-queries --terms # get_terms(), the same way
 wp meiliscout check-listings        # the front listings: checks, counts against MySQL, URLs
 wp meiliscout bench-listings <id>   # a listing's page, fragment and counts, timed
 wp meiliscout seo-rules list|export|import|preview
+wp meiliscout export [<file>]       # the configuration, as JSON
+wp meiliscout import <file>         # what a file would change (a dry run); --apply writes it
 ```
-
-## Hooks
-
-The filters, from what is indexed to the search parameters sent: [docs/FILTERS.md](docs/FILTERS.md); the listings' own: [docs/LISTINGS.md#filters](docs/LISTINGS.md#filters).
 
 ## Development
 
@@ -93,8 +133,6 @@ npm run test:js               # the listings' client
 composer test:types           # PHPStan
 composer test:integration     # against a WordPress with Meilisearch (the demo site)
 ```
-
-[CHANGELOG.md](CHANGELOG.md) lists the changes by version.
 
 ## License
 
