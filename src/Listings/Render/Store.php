@@ -203,6 +203,10 @@ final class Store
 
                 return sprintf($total === 0 ? $labels['zero'] : ($total === 1 ? $labels['one'] : $labels['many']), $total);
             },
+            // The search field's text (the listing's search)
+            'search' => function () use ($listing): string {
+                return (string) ($listing()['search'] ?? '');
+            },
             // The results' region, named after its page: what a screen reader says when it gets the focus
             'resultsLabel' => function () use ($listing): string {
                 $current = $listing();

@@ -90,3 +90,10 @@ test('a facet\'s search field is hidden without JavaScript and never sent', func
         ->and($search[1])->not->toContain('name=')
         ->and($search[1])->toContain('aria-label=');
 });
+
+test('the search field keeps the listing\'s search, without JavaScript', function () {
+    Listings::setRequest('facets-test', new ListingState([], [], '', 1, 'chair'), home_url('/facets-test/'));
+    $html = Listings::render('facets-test');
+
+    expect($html)->toMatch('#<input[^>]+class="meiliscout-search__input"[^>]+value="chair"#');
+});

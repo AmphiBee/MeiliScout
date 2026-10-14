@@ -126,6 +126,9 @@ const { state, actions } = store( NAMESPACE, {
 			const label = pluralLabel( labels, total );
 			return label.replace( '%d', String( total ) );
 		},
+		get search() {
+			return state.listings[ getContext().listing ].search || '';
+		},
 		get resultsLabel() {
 			const { page, pages } = state.listings[ getContext().listing ];
 			return pages > 1
