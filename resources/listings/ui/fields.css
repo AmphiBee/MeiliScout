@@ -55,9 +55,14 @@
 	padding-inline-end: 2em;
 }
 
-/* A range: two bounds side by side (numbers, and dates) */
+/* A range: two bounds side by side (numbers); dates are wider (the picker's
+   button and the day, month and year), one under the other when they do not fit */
 :where(.meiliscout-range) {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: var(--meiliscout-gap-small);
+}
+
+:where(.meiliscout-range:has(input[type="date"])) {
+	grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
 }

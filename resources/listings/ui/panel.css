@@ -5,8 +5,9 @@
 
 :where(.meiliscout-panel) {
 	box-sizing: border-box;
-	width: min(26rem, 100vw);
-	max-width: 100vw;
+	/* % of the viewport the dialog is fixed in: 100vw counts a classic scrollbar */
+	width: min(26rem, 100%);
+	max-width: 100%;
 	height: 100dvh;
 	max-height: 100dvh;
 	margin: 0;

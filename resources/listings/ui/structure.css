@@ -66,6 +66,8 @@
 
 .meiliscout-pagination .meiliscout-pagination__link[aria-current="page"],
 .meiliscout-listing .wp-block-query-pagination .page-numbers.current {
+	border-color: var(--meiliscout-accent);
+	background: var(--meiliscout-accent);
 	color: var(--meiliscout-accent-contrast);
 }
 
@@ -112,6 +114,7 @@
 	color: var(--meiliscout-accent);
 	font: inherit;
 	font-size: var(--meiliscout-small);
+	text-align: start;
 	text-decoration: underline;
 	text-transform: none;
 	letter-spacing: normal;

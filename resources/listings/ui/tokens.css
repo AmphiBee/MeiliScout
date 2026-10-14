@@ -18,6 +18,16 @@
  * ancestor wins, wherever the listing is.
  */
 
+/* The accent falls back on currentColor on a theme without presets: a custom
+   property holding it is read where it is used (white, on a current page
+   written in --meiliscout-accent-contrast). Registered as a color, it is
+   resolved where the token is declared: the theme's text color. */
+@property --meiliscout-accent {
+	syntax: "<color>";
+	inherits: true;
+	initial-value: CanvasText;
+}
+
 :where(.meiliscout-listing, .meiliscout-part, .meiliscout-listing__filters, .meiliscout-panel, .meiliscout-kit) {
 
 	/* Colors */
