@@ -66,6 +66,8 @@
 
 .meiliscout-pagination .meiliscout-pagination__link[aria-current="page"],
 .meiliscout-listing .wp-block-query-pagination .page-numbers.current {
+	border-color: var(--meiliscout-accent);
+	background: var(--meiliscout-accent);
 	color: var(--meiliscout-accent-contrast);
 }
 
@@ -112,6 +114,7 @@
 	color: var(--meiliscout-accent);
 	font: inherit;
 	font-size: var(--meiliscout-small);
+	text-align: start;
 	text-decoration: underline;
 	text-transform: none;
 	letter-spacing: normal;
@@ -169,4 +172,78 @@
 .meiliscout-panel .meiliscout-panel__title {
 	font-size: 1.1em;
 	line-height: 1.3;
+}
+
+/* A checkbox in a list: drawn by the kit (a framed box, the accent when
+   ticked, a tick) over the native one, which stays the control: the same
+   input, the same keyboard and screen reader. The class repeated: themes
+   restyle input[type="checkbox"] (Twenty Twenty-One sizes, frames and
+   draws it). Chips keep their own (ui/chips.css). */
+.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input {
+	display: inline-grid;
+	place-content: center;
+	box-sizing: border-box;
+	width: 0.85em;
+	height: 0.85em;
+	margin: 0;
+	padding: 0;
+	font-size: inherit;
+	border: 1.5px solid color-mix(in srgb, currentColor 45%, transparent);
+	border-radius: 0.28em;
+	background: var(--meiliscout-background);
+	box-shadow: none;
+	color: inherit;
+	-webkit-appearance: none;
+	appearance: none;
+	cursor: pointer;
+	transform: translateY(0.02em);
+	transition: background-color 0.12s, border-color 0.12s;
+}
+
+.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input::before {
+	content: "";
+	width: 0.62em;
+	height: 0.62em;
+	background: var(--meiliscout-accent-contrast);
+	clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%);
+	transform: scale(0);
+	transition: transform 0.12s;
+}
+
+.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input:checked {
+	border-color: var(--meiliscout-accent);
+	background: var(--meiliscout-accent);
+}
+
+.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input:checked::before {
+	transform: scale(1);
+}
+
+.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__label:hover .meiliscout-facet__input.meiliscout-facet__input:not(:checked) {
+	border-color: var(--meiliscout-accent);
+}
+
+.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input:focus-visible {
+	outline: 2px solid var(--meiliscout-focus);
+	outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+
+	.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input:checked {
+		border-color: Highlight;
+		background: Highlight;
+	}
+
+	.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input::before {
+		background: HighlightText;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input,
+	.meiliscout-facet:not(.meiliscout-facet--chips) .meiliscout-facet__input.meiliscout-facet__input::before {
+		transition: none;
+	}
 }
