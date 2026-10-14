@@ -1,6 +1,14 @@
 # Plan: exporting and importing MeiliScout's configuration
 
-Status: proposal, for 2.3. Nothing is built.
+Status: built for 2.3 (core, REST, admin screen, WP-CLI, tests) and documented in [CONFIGURATION.md](../CONFIGURATION.md#11-export-and-import-the-configuration). Not built: `--resync-blocks`.
+
+What differs from the proposal below, found by reading the code:
+
+- The allow-list also carries `index_private`, the term meta keys (`TaxonomyIndexable::META_KEYS_SETTING`) and `query_integration` / `term_query_integration`.
+- The *Partial filters (LIKE)* setting (`ContainsFilter`) is not carried: it mirrors whether an experimental feature is on for the Meilisearch **instance**, so writing it blindly on another server would put the option and the instance out of step. The `missed meta keys` lists, the listings key and the connection are not carried either.
+- Sections write through the savers the admin uses (`SearchableAttributes::save`, `RealtimeIndexing::save`, `AutoIntegration::save`, `ListingsSettings::save`, `RulesCsv::import`), in the admin's order, and the preview simulates it (a searchable field is judged against the *incoming* meta keys).
+- `import` is a dry run unless `--apply` is given (there is no `--dry-run` flag).
+- The preview is stored for 15 minutes in a transient keyed by token and user; `apply` plans the stored file again before writing.
 
 ## Problem
 

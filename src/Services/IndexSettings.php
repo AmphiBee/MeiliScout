@@ -52,6 +52,19 @@ final class IndexSettings
     }
 
     /**
+     * Applies the maximum number of results to the index searches read, without waiting for an indexation.
+     */
+    public static function pushMaxTotalHits(): void
+    {
+        try {
+            ClientFactory::getClient()?->index(IndexNames::active('posts'))->updatePagination(['maxTotalHits' => self::maxTotalHits()]);
+        } catch (\Throwable $e) {
+            // The next indexation sends it with the other settings
+            error_log('MeiliScout: could not update the maximum number of results: '.$e->getMessage());
+        }
+    }
+
+    /**
      * The most results a search of this index reaches: an indexable may have pushed a lower maxTotalHits.
      */
     public static function reachable(string $indexName): int

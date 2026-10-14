@@ -14,6 +14,7 @@ import {
 	useResource,
 	useToast,
 } from '../components';
+import Transfer from './Transfer';
 
 const REALTIME_MODES = [
 	{
@@ -616,6 +617,9 @@ const Settings = ( { refreshOverview, overview } ) => {
 				<a href="#/settings#advanced">
 					{ __( 'Advanced', 'meiliscout' ) }
 				</a>
+				<a href="#/settings#transfer">
+					{ __( 'Export / Import', 'meiliscout' ) }
+				</a>
 			</nav>
 
 			<div className="ms-main">
@@ -1117,6 +1121,13 @@ const Settings = ( { refreshOverview, overview } ) => {
 							: __( 'Save the settings', 'meiliscout' ) }
 					</button>
 				</div>
+
+				<Transfer
+					onApplied={ () => {
+						resource.reload();
+						refreshOverview();
+					} }
+				/>
 			</div>
 		</form>
 	);

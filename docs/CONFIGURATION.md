@@ -16,8 +16,9 @@ The admin is one page, **MeiliScout**, with seven screens: *Overview*, *Content*
 8. [Turn on the front listings](#8-turn-on-the-front-listings)
 9. [Advanced settings](#9-advanced-settings)
 10. [Configuration by environment: variables and constants](#10-configuration-by-environment)
-11. [Deploying to another server](#11-deploying-to-another-server)
-12. [Troubleshooting](#12-troubleshooting)
+11. [Export and import the configuration](#11-export-and-import-the-configuration)
+12. [Deploying to another server](#12-deploying-to-another-server)
+13. [Troubleshooting](#13-troubleshooting)
 
 ---
 
@@ -266,21 +267,94 @@ Everything else is a **filter** for developers (batch size, HTTP options, rankin
 
 ---
 
-## 11. Deploying to another server
+## 11. Export and import the configuration
+
+**MeiliScout › Settings › Export / Import.** Moving a site's content is the database's job; its MeiliScout *configuration* (what is indexed, what is searched, the queries served, the front listings, the SEO rules) travels in one JSON file you can download, commit to Git and import on another site.
+
+![Export and import: the sections to put in a file, and a drop zone for a file to read](images/admin/transfer-idle.jpg)
+
+### Export
+
+Tick the sections the file should hold, then **Download the file** (`meiliscout-<site>-<date>.json`).
+
+| Section | What it holds |
+|---|---|
+| **What is indexed** | The post types, taxonomies, custom fields and term fields indexed; whether private content is; the fields searched, in order; the real-time mode; the size of an indexation's pages and batches |
+| **Queries** | The kinds of queries Meilisearch serves, the maximum results per query, the timeout |
+| **Front listings** | The module's switch, the default styles and their colours |
+| **SEO rules** | The rules of the listings, as the same CSV the SEO rules screen exports |
+
+A section the site cannot serve (SEO rules while the listings are off) is greyed out, with the reason.
+
+**Never in the file**, whatever you tick: the instance URL, the API keys, the listings key, the state of the indexes. The file only holds what an allow-list names, and the export stops if a setting whose name looks like a key, a token or a password ever slips into it. The one value tied to a server, **the public URL of Meilisearch**, is left out unless you switch on *Include the values of this server*.
+
+### Import
+
+Drop a file on the zone (or click it). **Reading it writes nothing**: MeiliScout compares it with the site and shows what would change.
+
+![A previewed file: where it comes from, and for each section what changes](images/admin/transfer-preview.jpg)
+
+For each section the screen shows:
+
+- a **status**: *Will change*, *Same as here*, *Cannot import* (the file has an error: nothing of that section is written) or *Skipped*;
+- the **changes**: values added (green `+`), removed (struck through red), a switch going from one state to another, a number from one value to another, and how many other settings already match;
+- **warnings** in amber, for what is kept or left out. For instance a post type the site does not register (the plugin that registers it may not be active yet): it is kept, but saving the Content screen would drop it until it is registered;
+- a pill **Needs a rebuild** when what is indexed or searched changes.
+
+![Differences: values added and removed, a switch turned on, a colour, a warning about a post type](images/admin/transfer-diff.jpg)
+
+Untick a section to leave it out, then **Import N sections**. The import **never rebuilds the index itself**: when a section needs it, the screen says so and links to *Indexation*.
+
+What protects the site:
+
+- only the settings a section names are read; anything else in the file is reported and ignored;
+- a value of the wrong type is an error, not a guess;
+- a field to search that depends on a custom field is kept only if the file indexes that custom field too;
+- a real-time mode forced by `MEILISCOUT_ASYNC_INDEXING` is not changed;
+- turning the listings on needs WordPress 6.9: on an older one the switch is left as it is;
+- what is applied is the file that was previewed (the browser sends back a token, valid for 15 minutes, not the file), planned again on the site as it is at that moment.
+
+### WP-CLI
+
+The same operations, for a deploy script:
+
+```bash
+wp meiliscout export meiliscout.json                      # all the sections; without a file name, to stdout
+wp meiliscout export --sections=indexing,queries          # some of them (indexing, queries, listings, seo_rules)
+wp meiliscout export --include-env                        # with the public URL of Meilisearch
+
+wp meiliscout import meiliscout.json                      # a DRY RUN: shows what would change, writes nothing
+wp meiliscout import meiliscout.json --apply              # writes it
+wp meiliscout import meiliscout.json --only=queries       # only some sections of the file
+wp meiliscout import meiliscout.json --strict --apply     # a warning is a refusal (exit 1)
+wp meiliscout import meiliscout.json --apply --reindex    # then a full indexation, if the index is out of date
+```
+
+`import` without `--apply` is always a dry run. It exits with an error (and writes nothing) when the file has errors, or with `--strict` when it raised warnings.
+
+### What does not travel
+
+The listings declared in PHP (they are in the theme's code); the listings built with blocks (their definition is saved with the post, and travels with the content); the languages (Polylang and WPML have their own tools); the documents of the indexes (rebuild them on the target). Synonyms, stop words and ranking rules are not managed by the plugin, so they are not part of the file.
+
+A plugin can add its own section with the `meiliscout/config_sections` filter.
+
+---
+
+## 12. Deploying to another server
 
 A site's content moves with its database. What does **not** move by itself is the index: Meilisearch is a separate service.
 
 1. Set the connection on the new server (environment variables, [section 10](#10-configuration-by-environment)), with its **own prefix** if the instance is shared.
-2. Check **Content**: the post types, taxonomies and custom fields are options of the database, so they come with it. If you started from a fresh database, set them again.
+2. Check **Content**: the post types, taxonomies and custom fields are options of the database, so they come with it. If you started from a fresh database, import the configuration file of the other site.
 3. Run a **full indexation** (`wp meiliscout index`). Never copy an index from one server to another: the document format and the active-index records are local.
 4. If the listings module is on, the **listings key** of the new server is its own: do not copy it; if the pages were cached with tokens of another key, replace it from Settings › Listings.
 5. Run `wp meiliscout check-queries` and, with listings, `wp meiliscout check-listings`.
 
-A configuration import/export is planned ([docs/plans/2026-10-config-import-export.md](plans/2026-10-config-import-export.md)).
+The configuration itself (what is indexed, the queries served, the listings' settings, the SEO rules) can be exported and imported: see [section 11](#11-export-and-import-the-configuration).
 
 ---
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 | Symptom | Likely cause and what to do |
 |---|---|

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Providers\Admin;
 
+use Pollora\MeiliScout\Admin\Rest\ConfigController;
 use Pollora\MeiliScout\Admin\Rest\ContentController;
 use Pollora\MeiliScout\Admin\Rest\Controller;
 use Pollora\MeiliScout\Admin\Rest\IndexationController;
@@ -47,6 +48,7 @@ class AdminServiceProvider extends ServiceProvider
         IndexationController::class,
         SearchPreviewController::class,
         SettingsController::class,
+        ConfigController::class,
         ListingsController::class,
         SeoRulesController::class,
     ];

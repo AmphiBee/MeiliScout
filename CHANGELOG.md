@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Configuration
+
+- **Export and import the configuration** (Settings › Export / Import, `wp meiliscout export` and `import`): what is indexed, the fields searched, the queries served, the front listings' settings and the SEO rules in one versioned JSON file, to move from staging to production or from one site to the next. An import is read first and shows what it would change (values added and removed, warnings, whether the index must be rebuilt); `wp meiliscout import` is a dry run until `--apply`. The connection, the API keys, the listings key and the indexes' state never go in the file; the public URL of Meilisearch only on request. A plugin adds a section with `meiliscout/config_sections`. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#11-export-and-import-the-configuration).
+
 ## [2.2.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.2.0) - 2026-10-14
 
 ### Front listings

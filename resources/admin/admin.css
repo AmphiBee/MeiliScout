@@ -1716,3 +1716,366 @@
 .ms-listing-parity p {
 	margin: 0;
 }
+
+/* Settings › Export / Import */
+
+.ms-transfer {
+	display: grid;
+	gap: 12px;
+	scroll-margin-top: 24px;
+}
+
+.ms-transfer__lead {
+	margin: 0;
+	max-width: 70ch;
+	color: var(--ms-muted);
+}
+
+.ms-transfer__cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+	gap: 16px;
+	align-items: start;
+}
+
+.ms-transfer__card .ms-card__head h3 {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.ms-transfer__card .ms-card__body {
+	display: grid;
+	gap: 16px;
+}
+
+.ms-transfer__card .ms-card__foot {
+	justify-content: flex-end;
+	align-items: center;
+}
+
+.ms-transfer__env {
+	padding-top: 4px;
+}
+
+.ms-transfer__safe,
+.ms-transfer__same {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0;
+	font-size: 13px;
+	color: var(--ms-muted);
+}
+
+.ms-transfer__same {
+	padding: 12px 14px;
+	border-radius: var(--ms-radius);
+	background: var(--ms-success-bg);
+	color: var(--ms-success);
+}
+
+.ms-transfer__file {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 16px;
+	padding: 12px 14px;
+	border: 1px solid var(--ms-border);
+	border-radius: var(--ms-radius-lg);
+	background: var(--ms-surface-2);
+}
+
+.ms-transfer__file > div {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.ms-transfer__file strong {
+	overflow-wrap: anywhere;
+}
+
+.ms-transfer__file span {
+	font-size: 13px;
+	color: var(--ms-muted);
+}
+
+/* What goes in an export */
+
+.meiliscout-admin .ms-picks {
+	display: grid;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	min-width: 0;
+}
+
+.ms-pick {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px 14px;
+	border: 1px solid var(--ms-border);
+	border-radius: var(--ms-radius-lg);
+	background: var(--ms-surface);
+	cursor: pointer;
+}
+
+.ms-pick:has(input:checked) {
+	border-color: var(--ms-primary);
+	background: var(--ms-attention-bg);
+}
+
+.ms-pick:has(input:focus-visible) {
+	outline: 2px solid var(--ms-primary);
+	outline-offset: 2px;
+}
+
+.ms-pick.is-disabled {
+	cursor: default;
+	opacity: 0.65;
+	background: var(--ms-surface-2);
+}
+
+.meiliscout-admin .ms-pick input[type="checkbox"],
+.meiliscout-admin .ms-diff__title input[type="checkbox"] {
+	margin: 2px 0 0;
+	accent-color: var(--ms-primary);
+}
+
+.ms-pick__text {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.ms-pick__title {
+	font-weight: 600;
+	color: var(--ms-ink);
+}
+
+.ms-pick__desc {
+	font-size: 13px;
+	color: var(--ms-muted);
+}
+
+/* The drop zone */
+
+.ms-drop {
+	display: grid;
+	justify-items: center;
+	gap: 6px;
+	padding: 36px 20px;
+	border: 2px dashed var(--ms-faint);
+	border-radius: var(--ms-radius-lg);
+	background: var(--ms-surface-2);
+	color: var(--ms-muted);
+	text-align: center;
+	cursor: pointer;
+	transition: border-color 0.15s, background-color 0.15s;
+}
+
+.ms-drop strong {
+	color: var(--ms-ink);
+	font-size: 15px;
+}
+
+.ms-drop:hover,
+.ms-drop:has(input:focus-visible),
+.ms-drop.is-dragging {
+	border-color: var(--ms-primary);
+	background: var(--ms-attention-bg);
+}
+
+.ms-drop:has(input:focus-visible) {
+	outline: 2px solid var(--ms-primary);
+	outline-offset: 2px;
+}
+
+.ms-drop.is-busy {
+	cursor: progress;
+}
+
+/* What an import would change */
+
+.ms-diffs {
+	display: grid;
+	gap: 12px;
+}
+
+.ms-diff {
+	border: 1px solid var(--ms-border);
+	border-radius: var(--ms-radius-lg);
+	background: var(--ms-surface);
+	overflow: hidden;
+}
+
+.ms-diff.is-selected {
+	border-color: var(--ms-primary);
+}
+
+.ms-diff.is-inert {
+	background: var(--ms-surface-2);
+}
+
+.ms-diff__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+	padding: 12px 14px;
+}
+
+.ms-diff__title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+}
+
+.ms-diff.is-inert .ms-diff__title {
+	cursor: default;
+}
+
+.ms-diff__flags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.ms-diff__rows {
+	margin: 0;
+	padding: 0 14px 6px;
+	display: grid;
+}
+
+.ms-diff__row {
+	display: grid;
+	grid-template-columns: minmax(110px, 0.35fr) 1fr;
+	gap: 4px 16px;
+	padding: 10px 0;
+	border-top: 1px solid var(--ms-border-soft);
+	font-size: 13px;
+}
+
+.ms-diff__row dt {
+	color: var(--ms-muted);
+	font-weight: 600;
+}
+
+.ms-diff__row dd {
+	margin: 0;
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+.ms-diff__value {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+.ms-diff__chip {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-family: var(--ms-mono);
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.ms-diff__chip.is-in {
+	background: var(--ms-success-bg);
+	color: var(--ms-success);
+}
+
+.ms-diff__chip.is-in::before {
+	content: "+ ";
+}
+
+.ms-diff__chip.is-out {
+	background: var(--ms-error-bg);
+	color: var(--ms-error);
+	text-decoration: line-through;
+}
+
+.ms-diff__pair {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	border-radius: var(--ms-radius);
+	background: var(--ms-surface-2);
+	border: 1px solid var(--ms-border-soft);
+}
+
+.ms-diff__from {
+	color: var(--ms-muted);
+	text-decoration: line-through;
+	text-decoration-color: var(--ms-faint);
+}
+
+.ms-diff__to {
+	color: var(--ms-ink);
+	font-weight: 700;
+}
+
+.ms-diff__arrow {
+	color: var(--ms-faint);
+	flex: none;
+}
+
+.ms-diff__note {
+	font-size: 12px;
+	color: var(--ms-muted);
+}
+
+.ms-diff__row.is-warning .ms-diff__note {
+	color: var(--ms-warning);
+}
+
+.ms-diff__line {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0;
+	padding: 8px 14px;
+	border-top: 1px solid var(--ms-border-soft);
+	font-size: 13px;
+	color: var(--ms-muted);
+}
+
+.ms-diff__line svg {
+	flex: none;
+	margin-top: 2px;
+}
+
+.ms-diff__line.is-error {
+	background: var(--ms-error-bg);
+	color: var(--ms-error);
+}
+
+.ms-diff__line.is-warning {
+	background: var(--ms-warning-bg);
+	color: var(--ms-warning);
+}
+
+@media (max-width: 600px) {
+
+	.ms-diff__row {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.ms-drop {
+		transition: none;
+	}
+}
