@@ -335,7 +335,7 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
 .meiliscout-listing
   .meiliscout-listing__intro                (a router region; empty without an SEO rule)
     h1.meiliscout-listing__heading, .meiliscout-listing__text
-  form.meiliscout-listing__filters
+  form.meiliscout-listing__filters          (the search and facets in dialog.meiliscout-panel.meiliscout-panel--inline: inline on a wide screen, behind the Filters (n) button on a small one)
     .meiliscout-search  (__label, __input)
     fieldset.meiliscout-facet.meiliscout-facet--list|range|boolean[.meiliscout-facet--chips]  [data-facet]
       legend.meiliscout-facet__title         (.meiliscout-visually-hidden on a yes/no)
@@ -345,16 +345,17 @@ Turn the default look off (Settings › Listings › Default styles, or `meilisc
       p.meiliscout-facet__none               (no value holds the text searched)
       button.meiliscout-facet__more          (past the facet's limit; aria-expanded)
       .meiliscout-range > label.meiliscout-range__bound (__label, __input)
-    .meiliscout-listing__toolbar
+    .meiliscout-panel__footer > button.meiliscout-listing__apply.meiliscout-button.meiliscout-button--primary[.wp-element-button]  (hidden when apply is instant; See N results in button mode), button.meiliscout-panel__see
+  .meiliscout-listing__main                (the column right of the filters)
+    .meiliscout-listing__toolbar            (total and sort on a line, the chips and the reset link under)
       p.meiliscout-listing__total            (aria-live)
-      ul.meiliscout-active > li.meiliscout-active__item > button.meiliscout-active__remove
       label.meiliscout-sort (__label, __select)
-      button.meiliscout-listing__apply.meiliscout-button.meiliscout-button--primary[.wp-element-button]  (hidden when apply is instant; See N results in button mode)
+      ul.meiliscout-active > li.meiliscout-active__item > button.meiliscout-active__remove
       a.meiliscout-listing__reset
-  .meiliscout-listing__results              (the router region: role=region, named after its page, tabindex=-1; aria-busy while loading)
-    ul.meiliscout-results > li.meiliscout-result > article.meiliscout-card (__title, __meta, __excerpt)
-    p.meiliscout-results__empty
-  nav.meiliscout-pagination > a.meiliscout-pagination__link (__previous, __number, __dots, __next; the current page and the dots without href)
+    .meiliscout-listing__results              (the router region: role=region, named after its page, tabindex=-1; aria-busy while loading)
+      ul.meiliscout-results > li.meiliscout-result > article.meiliscout-card (__title, __meta, __excerpt)
+      p.meiliscout-results__empty
+    nav.meiliscout-pagination > a.meiliscout-pagination__link (__previous, __number, __dots, __next; the current page and the dots without href)
   .meiliscout-listing__faq                  (a router region)
     details.meiliscout-faq__item > summary.meiliscout-faq__question, .meiliscout-faq__answer
 ```

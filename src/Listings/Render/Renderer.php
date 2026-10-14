@@ -62,12 +62,14 @@ final class Renderer
         );
 
         return sprintf(
-            '<div id="%1$s" class="meiliscout-listing" data-meiliscout="listing" data-wp-interactive="%2$s" data-wp-context="%3$s">%7$s%4$s%5$s%6$s%8$s</div>',
+            '<div id="%1$s" class="meiliscout-listing" data-meiliscout="listing" data-wp-interactive="%2$s" data-wp-context="%3$s">%7$s%4$s<div class="meiliscout-listing__main">%5$s%6$s</div>%8$s</div>',
             esc_attr($id),
             esc_attr(Store::NAMESPACE),
             esc_attr(self::context($definition)),
-            self::form($result, $base, self::panel($id.'-panel', __('Filters', 'meiliscout'), $fields, $footer, 0, true).'<div class="meiliscout-listing__toolbar">'.self::total().self::active().self::sort($result).self::resetLink($base).'</div>'),
-            self::region($result),
+            self::form($result, $base, self::panel($id.'-panel', __('Filters', 'meiliscout'), $fields, $footer, 0, true)),
+            // Above the results, in their column, not the filters': the sort is of the form by its form attribute, its change heard here
+            '<div class="meiliscout-listing__toolbar" data-wp-on--change="actions.change">'.self::total().self::sort($result).self::active().self::resetLink($base).'</div>'
+                .self::region($result),
             self::pagination($result),
             self::intro($result, $base),
             self::faq($result, $base)

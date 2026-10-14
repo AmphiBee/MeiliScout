@@ -33,3 +33,8 @@
 :where(.meiliscout-pagination__dots, .meiliscout-listing .page-numbers.dots) {
 	border-color: transparent;
 }
+
+/* In the listing's column, the grid's gap spaces it */
+:where(.meiliscout-listing__main > .meiliscout-pagination) {
+	margin-top: 0;
+}

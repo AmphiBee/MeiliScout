@@ -13,9 +13,17 @@
 		align-items: start;
 	}
 
-	:where(.meiliscout-listing > .meiliscout-pagination) {
+	/* The filters on the left, the toolbar, results and pagination in a column on the right */
+	:where(.meiliscout-listing:has(> .meiliscout-listing__filters fieldset) > .meiliscout-listing__main) {
 		grid-column: 2;
 	}
+}
+
+:where(.meiliscout-listing__main) {
+	display: grid;
+	gap: var(--meiliscout-gap);
+	align-content: start;
+	min-width: 0;
 }
 
 :where(.meiliscout-listing__filters, .meiliscout-part--facets) {
@@ -36,10 +44,43 @@
 /* The toolbar: total, active filters, sort, buttons */
 
 :where(.meiliscout-listing__toolbar) {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-areas: "total sort" "active reset";
 	align-items: center;
 	gap: var(--meiliscout-gap-small) var(--meiliscout-gap);
+}
+
+:where(.meiliscout-listing__toolbar > .meiliscout-listing__total) {
+	grid-area: total;
+}
+
+:where(.meiliscout-listing__toolbar > .meiliscout-sort) {
+	grid-area: sort;
+	justify-self: end;
+}
+
+:where(.meiliscout-listing__toolbar > .meiliscout-active) {
+	grid-area: active;
+}
+
+:where(.meiliscout-listing__toolbar > .meiliscout-listing__reset) {
+	grid-area: reset;
+	justify-self: end;
+	white-space: nowrap;
+}
+
+/* Little room: the total, the sort, the chips, the reset link, one under the other */
+@media (max-width: 30rem) {
+
+	:where(.meiliscout-listing__toolbar) {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: "total" "sort" "active" "reset";
+	}
+
+	:where(.meiliscout-listing__toolbar > .meiliscout-sort, .meiliscout-listing__toolbar > .meiliscout-listing__reset) {
+		justify-self: start;
+	}
 }
 
 :where(.meiliscout-listing__total) {
