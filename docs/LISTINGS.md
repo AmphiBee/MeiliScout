@@ -100,7 +100,9 @@ A facet offers the values Meilisearch counts in a facet distribution: while the 
 
 An `author` facet combines its values with `or` (a post has one author). Authors are not translated: every language shows the same names.
 
-A `date` facet is a list of years (`'label' => 'Year'` by default, `display` as boxes or chips) that combines with `or` (a post has one date); its clauses are the `date_query` builder's (`date_parts.post_date.year = 2025`), counted on the index like any list.
+A `date` facet with `'type' => 'range'` is a **range of days** (`'source' => 'date'`, `'label' => 'Date'` by default): two date fields (*From*, *To*, within the first and last post dates), `?period=2025-03-01..2025-06-30` in the URL (either bound may be empty; a day that does not exist drops the range), the upper day included whole. It filters `post_date_ts` (the date read as UTC, as the index stores it); the filters' chips show the days in the site's date format. A listing's client transport needs template version 4.
+
+A `date` facet (list) is a list of years (`'label' => 'Year'` by default, `display` as boxes or chips) that combines with `or` (a post has one date); its clauses are the `date_query` builder's (`date_parts.post_date.year = 2025`), counted on the index like any list.
 
 ### Cards
 

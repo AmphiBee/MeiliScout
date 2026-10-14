@@ -181,16 +181,8 @@ final class Store
             'rangeMax' => function () use ($listing): string {
                 return (string) ($listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['max'] ?? '');
             },
-            'rangeMinLimit' => function () use ($listing): string {
-                $stats = $listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['stats'] ?? null;
-
-                return $stats === null ? '' : (string) $stats['min'];
-            },
-            'rangeMaxLimit' => function () use ($listing): string {
-                $stats = $listing()['facets'][wp_interactivity_get_context()['facet'] ?? '']['stats'] ?? null;
-
-                return $stats === null ? '' : (string) $stats['max'];
-            },
+            'rangeMinLimit' => fn (): string => self::limit($listing(), 'min'),
+            'rangeMaxLimit' => fn (): string => self::limit($listing(), 'max'),
             'activeFilters' => function () use ($listing): array {
                 $current = $listing();
                 $remove = wp_interactivity_state(self::NAMESPACE)['i18n']['remove'];
@@ -206,7 +198,12 @@ final class Store
 
                     $range = ((array) ($current['ranges'] ?? []))[$key] ?? null;
                     if ($range) {
-                        $label = sprintf(wp_interactivity_state(self::NAMESPACE)['i18n']['facetValue'], $facet['label'] ?? $key, self::rangeLabel((string) ($current['facets'][$key]['min'] ?? ''), (string) ($current['facets'][$key]['max'] ?? '')));
+                        // A date range's bounds in the site's date format (the client does the same)
+                        $bounds = array_map(
+                            fn (string $bound): string => ! empty($facet['date']) && $bound !== '' ? Hits::formatDate(Hits::dateNames(), $bound) : $bound,
+                            [(string) ($current['facets'][$key]['min'] ?? ''), (string) ($current['facets'][$key]['max'] ?? '')]
+                        );
+                        $label = sprintf(wp_interactivity_state(self::NAMESPACE)['i18n']['facetValue'], $facet['label'] ?? $key, self::rangeLabel($bounds[0], $bounds[1]));
                         $filters[] = ['id' => $key.':range', 'facet' => $key, 'value' => '', 'label' => $label, 'removeLabel' => sprintf($remove, $label)];
                     }
                 }
@@ -281,6 +278,28 @@ final class Store
     /**
      * 1000 – 5000, ≥ 1000, ≤ 5000.
      */
+    /**
+     * A range's lower or upper limit in the facet in the context: what the posts have (a day for a date range).
+     *
+     * @param  array<string, mixed>  $listing
+     */
+    private static function limit(array $listing, string $bound): string
+    {
+        $key = wp_interactivity_get_context()['facet'] ?? '';
+        $stats = $listing['facets'][$key]['stats'] ?? null;
+
+        if ($stats === null) {
+            return '';
+        }
+
+        $date = false;
+        foreach ((array) ($listing['template']['facets'] ?? []) as $facet) {
+            $date = $date || ($facet['key'] === $key && ! empty($facet['date']));
+        }
+
+        return $date ? gmdate('Y-m-d', (int) $stats[$bound]) : (string) $stats[$bound];
+    }
+
     public static function rangeLabel(string $min, string $max): string
     {
         return match (true) {

@@ -405,16 +405,30 @@ final class UrlCodec
      */
     private static function range(FacetDefinition $facet, string $value): array
     {
-        if (! preg_match('/^(-?\d+(?:\.\d+)?)?\.\.(-?\d+(?:\.\d+)?)?$/', $value, $m)) {
+        $number = $facet->isDateRange() ? '(\d{4}-\d{2}-\d{2})?' : '(-?\d+(?:\.\d+)?)?';
+
+        if (! preg_match('/^'.$number.'\.\.'.$number.'$/', $value, $m)) {
             return [];
         }
 
         $range = [];
-        if (($m[1] ?? '') !== '') {
-            $range['min'] = round((float) $m[1], $facet->decimals);
-        }
-        if (($m[2] ?? '') !== '') {
-            $range['max'] = round((float) $m[2], $facet->decimals);
+        foreach (['min' => 1, 'max' => 2] as $bound => $i) {
+            if (($m[$i] ?? '') === '') {
+                continue;
+            }
+
+            if ($facet->isDateRange()) {
+                $day = self::day($m[$i]);
+                // 2025-02-30 is no day: the range is dropped, as a malformed one is
+                if ($day === null) {
+                    return [];
+                }
+                $range[$bound] = $day;
+
+                continue;
+            }
+
+            $range[$bound] = round((float) $m[$i], $facet->decimals);
         }
 
         if (isset($range['min'], $range['max']) && $range['min'] > $range['max']) {
@@ -425,12 +439,38 @@ final class UrlCodec
     }
 
     /**
-     * A bound as JavaScript prints Number(n.toFixed(decimals)): 1500, 1500.5.
+     * A day (Y-m-d) as the timestamp of its start, the date read as UTC (the
+     * index's *_ts fields are the site's wall clock read as UTC); null for a
+     * date that does not exist.
+     */
+    public static function day(string $date): ?float
+    {
+        $parts = array_map('intval', explode('-', $date));
+
+        return count($parts) === 3 && checkdate($parts[1], $parts[2], $parts[0]) ? (float) gmmktime(0, 0, 0, $parts[1], $parts[2], $parts[0]) : null;
+    }
+
+    /**
+     * The number a range's bound template takes ({n}): the bound, a day's end for the
+     * upper bound of a date range (the whole day is in).
+     */
+    public static function clauseNumber(FacetDefinition $facet, string $bound, float $value): string
+    {
+        return $facet->isDateRange() ? (string) (int) ($value + ($bound === 'max' ? 86399 : 0)) : self::number($facet, $value);
+    }
+
+    /**
+     * A bound as JavaScript prints Number(n.toFixed(decimals)): 1500, 1500.5;
+     * a date range's, as the day: 2025-03-01.
      */
     public static function number(FacetDefinition $facet, ?float $value): string
     {
         if ($value === null) {
             return '';
+        }
+
+        if ($facet->isDateRange()) {
+            return gmdate('Y-m-d', (int) $value);
         }
 
         $formatted = number_format($value, $facet->decimals, '.', '');

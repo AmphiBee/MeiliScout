@@ -323,23 +323,31 @@ final class Renderer
     private static function range(FacetDefinition $facet, ListingResult $result): string
     {
         $step = $facet->decimals > 0 ? '0.'.str_repeat('0', $facet->decimals - 1).'1' : '1';
-        $input = fn (string $bound, string $label) => sprintf(
-            '<label class="meiliscout-range__bound"><span class="meiliscout-range__label">%1$s</span><input class="meiliscout-range__input" type="number" inputmode="decimal" step="%2$s" name="%3$s_%4$s" form="%6$s" data-wp-bind--value="state.range%5$s" data-wp-bind--placeholder="state.range%5$sLimit"></label>',
-            esc_html($label),
-            esc_attr($step),
-            esc_attr($facet->param),
-            esc_attr($bound),
-            ucfirst($bound),
-            esc_attr(self::formId($result->definition))
-        );
+        $input = function (string $bound, string $label) use ($facet, $result, $step): string {
+            $name = ucfirst($bound);
+            // A day each, in the browser's own date picker, within what the posts have; else a number, the limit as placeholder
+            $kind = $facet->isDateRange()
+                ? 'type="date" data-wp-bind--min="state.rangeMinLimit" data-wp-bind--max="state.rangeMaxLimit"'
+                : sprintf('type="number" inputmode="decimal" step="%s" data-wp-bind--placeholder="state.range%sLimit"', esc_attr($step), $name);
+
+            return sprintf(
+                '<label class="meiliscout-range__bound"><span class="meiliscout-range__label">%1$s</span><input class="meiliscout-range__input" %2$s name="%3$s_%4$s" form="%5$s" data-wp-bind--value="state.range%6$s"></label>',
+                esc_html($label),
+                $kind,
+                esc_attr($facet->param),
+                esc_attr($bound),
+                esc_attr(self::formId($result->definition)),
+                $name
+            );
+        };
 
         return sprintf(
             '<fieldset class="meiliscout-facet meiliscout-facet--range" data-facet="%1$s" data-wp-context="%2$s"><legend class="meiliscout-facet__title">%3$s</legend><div class="meiliscout-range">%4$s%5$s</div></fieldset>',
             esc_attr($facet->key),
             esc_attr((string) wp_json_encode(['facet' => $facet->key])),
             esc_html($facet->label),
-            $input('min', __('Min', 'meiliscout')),
-            $input('max', __('Max', 'meiliscout'))
+            $input('min', $facet->isDateRange() ? __('From', 'meiliscout') : __('Min', 'meiliscout')),
+            $input('max', $facet->isDateRange() ? __('To', 'meiliscout') : __('Max', 'meiliscout'))
         );
     }
 

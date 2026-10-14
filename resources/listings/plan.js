@@ -4,7 +4,7 @@
  * (tests/fixtures/listings/plan-cases.json). No base filter: the tenant
  * token adds it.
  */
-import { formatNumber } from './codec';
+import { clauseBound } from './codec';
 
 const isDisjunctive = ( facet ) =>
 	facet.type === 'range' || ( facet.type === 'list' && facet.logic === 'or' );
@@ -39,7 +39,7 @@ export const clause = ( facet, state ) => {
 			.map( ( bound ) =>
 				facet.bounds[ bound ].replace(
 					'{n}',
-					formatNumber( range[ bound ], facet.decimals )
+					clauseBound( facet, bound, range[ bound ] )
 				)
 			);
 		if ( ! parts.length ) {

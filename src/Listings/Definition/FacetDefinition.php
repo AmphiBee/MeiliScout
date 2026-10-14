@@ -95,6 +95,14 @@ final class FacetDefinition
     }
 
     /**
+     * Its bounds are dates (a day each): a range on the post date.
+     */
+    public function isDateRange(): bool
+    {
+        return $this->isDate() && $this->type === self::RANGE;
+    }
+
+    /**
      * Its values combine as a disjunction: their counts ignore its own selection.
      */
     public function isDisjunctive(): bool
@@ -119,7 +127,8 @@ final class FacetDefinition
         }
 
         if ($this->isDate()) {
-            return "date_parts.{$this->name}.year";
+            // A range compares the timestamps (the date read as UTC), a list counts the years
+            return $this->type === self::RANGE ? "{$this->name}_ts" : "date_parts.{$this->name}.year";
         }
 
         return "metas.{$this->name}";

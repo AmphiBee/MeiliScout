@@ -40,6 +40,12 @@ final class FacetClauses
             $range = $state->rangeOf($facet->key);
             $clauses = [];
 
+            if ($facet->isDateRange()) {
+                $dates = array_filter(['after' => isset($range['min']) ? UrlCodec::number($facet, $range['min']) : null, 'before' => isset($range['max']) ? UrlCodec::number($facet, $range['max']) : null]);
+
+                return $dates === [] ? [] : ['date_query' => [$dates + ['inclusive' => true, 'column' => $facet->name]]];
+            }
+
             foreach (['min' => '>=', 'max' => '<='] as $bound => $compare) {
                 if (isset($range[$bound])) {
                     $clauses[] = ['key' => $facet->name, 'value' => $range[$bound], 'compare' => $compare, 'type' => $facet->numericType()];
@@ -115,6 +121,16 @@ final class FacetClauses
      */
     public static function bounds(FacetDefinition $facet): array
     {
+        // A date range: the date builder's bounds of a day known, its timestamps standing for {n}
+        // (the upper bound's is the day's last second: the client adds it, UrlCodec::clauseNumber())
+        if ($facet->isDateRange()) {
+            $template = fn (string $bound, string $stamp) => str_replace($stamp, '{n}', self::build(new DateQueryBuilder, ['date_query' => [
+                [$bound => '2000-01-01', 'inclusive' => true, 'column' => $facet->name],
+            ]]));
+
+            return ['min' => $template('after', '946684800'), 'max' => $template('before', '946771199')];
+        }
+
         $template = fn (string $compare) => str_replace((string) self::NUMBER, '{n}', self::build(new MetaQueryBuilder, ['meta_query' => [
             ['key' => $facet->name, 'value' => self::NUMBER, 'compare' => $compare, 'type' => $facet->numericType()],
         ]]));
@@ -141,7 +157,7 @@ final class FacetClauses
             $parts = [];
             foreach (['min', 'max'] as $bound) {
                 if (isset($range[$bound])) {
-                    $parts[] = str_replace('{n}', UrlCodec::number($facet, $range[$bound]), $bounds[$bound]);
+                    $parts[] = str_replace('{n}', UrlCodec::clauseNumber($facet, $bound, $range[$bound]), $bounds[$bound]);
                 }
             }
 

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-14T08:54:05+02:00\n"
+"POT-Creation-Date: 2026-10-14T09:02:38+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: meiliscout\n"
@@ -158,8 +158,8 @@ msgid "The URL must be a page of this site."
 msgstr ""
 
 #: src/Listings/Blocks/BlockListings.php:353
-#: src/Listings/Render/Renderer.php:402
-#: src/Listings/Render/Renderer.php:425
+#: src/Listings/Render/Renderer.php:410
+#: src/Listings/Render/Renderer.php:433
 msgid "No results match these filters."
 msgstr ""
 
@@ -176,11 +176,22 @@ msgid "Author"
 msgstr ""
 
 #: src/Listings/Definition/ListingDefinition.php:376
+msgid "Date modified"
+msgstr ""
+
+#: src/Listings/Definition/ListingDefinition.php:376
+#: build/app.js:11
+#: build/app.js:20
+#: build/listings/editor.js:1
+msgid "Date"
+msgstr ""
+
+#: src/Listings/Definition/ListingDefinition.php:377
 #: build/listings/editor.js:4
 msgid "Year modified"
 msgstr ""
 
-#: src/Listings/Definition/ListingDefinition.php:376
+#: src/Listings/Definition/ListingDefinition.php:377
 #: build/listings/editor.js:4
 msgid "Year"
 msgstr ""
@@ -319,43 +330,51 @@ msgstr ""
 msgid "No value matches."
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:341
+#: src/Listings/Render/Renderer.php:349
+msgid "From"
+msgstr ""
+
+#: src/Listings/Render/Renderer.php:349
 #: build/listings/editor.js:1
 msgid "Min"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:342
+#: src/Listings/Render/Renderer.php:350
+msgid "To"
+msgstr ""
+
+#: src/Listings/Render/Renderer.php:350
 #: build/listings/editor.js:1
 msgid "Max"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:376
+#: src/Listings/Render/Renderer.php:384
 #: build/listings/editor.js:3
 msgid "Sort by"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:393
+#: src/Listings/Render/Renderer.php:401
 #: src/Listings/Render/Store.php:101
 #: src/Listings/Render/UiKit.php:255
 #: build/listings/editor.js:3
 msgid "Apply"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:440
+#: src/Listings/Render/Renderer.php:448
 msgid "Pages"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:489
+#: src/Listings/Render/Renderer.php:497
 #: src/Listings/Render/Store.php:112
 msgid "Previous"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:490
+#: src/Listings/Render/Renderer.php:498
 #: src/Listings/Render/Store.php:113
 msgid "Next"
 msgstr ""
 
-#: src/Listings/Render/Renderer.php:560
+#: src/Listings/Render/Renderer.php:568
 msgid "Close"
 msgstr ""
 
@@ -721,12 +740,6 @@ msgstr ""
 
 #: build/app.js:11
 msgid "Duration"
-msgstr ""
-
-#: build/app.js:11
-#: build/app.js:20
-#: build/listings/editor.js:1
-msgid "Date"
 msgstr ""
 
 #: build/app.js:11
@@ -2693,6 +2706,14 @@ msgstr ""
 
 #: build/listings/editor.js:6
 msgid "Yes or no"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Years to tick"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "A range of dates"
 msgstr ""
 
 #: build/listings/editor.js:6

@@ -191,6 +191,7 @@ msgstr "Éléments"
 msgid "Duration"
 msgstr "Durée"
 
+#: src/Listings/Definition/ListingDefinition.php:376
 #: build/app.js:11
 #: build/app.js:20
 #: build/listings/editor.js:1
@@ -1446,7 +1447,7 @@ msgstr "L’URL publique de Meilisearch n’est pas une URL valide."
 msgid "Newest first"
 msgstr "Les plus récents"
 
-#: src/Listings/Render/Renderer.php:393
+#: src/Listings/Render/Renderer.php:401
 #: src/Listings/Render/Store.php:101
 #: src/Listings/Render/UiKit.php:255
 #: build/listings/editor.js:3
@@ -1460,37 +1461,37 @@ msgstr "Appliquer"
 msgid "Reset"
 msgstr "Réinitialiser"
 
-#: src/Listings/Render/Renderer.php:341
+#: src/Listings/Render/Renderer.php:349
 #: build/listings/editor.js:1
 msgid "Min"
 msgstr "Min"
 
-#: src/Listings/Render/Renderer.php:342
+#: src/Listings/Render/Renderer.php:350
 #: build/listings/editor.js:1
 msgid "Max"
 msgstr "Max"
 
-#: src/Listings/Render/Renderer.php:376
+#: src/Listings/Render/Renderer.php:384
 #: build/listings/editor.js:3
 msgid "Sort by"
 msgstr "Trier par"
 
 #: src/Listings/Blocks/BlockListings.php:353
-#: src/Listings/Render/Renderer.php:402
-#: src/Listings/Render/Renderer.php:425
+#: src/Listings/Render/Renderer.php:410
+#: src/Listings/Render/Renderer.php:433
 msgid "No results match these filters."
 msgstr "Aucun résultat ne correspond à ces filtres."
 
-#: src/Listings/Render/Renderer.php:440
+#: src/Listings/Render/Renderer.php:448
 msgid "Pages"
 msgstr "Pages"
 
-#: src/Listings/Render/Renderer.php:489
+#: src/Listings/Render/Renderer.php:497
 #: src/Listings/Render/Store.php:112
 msgid "Previous"
 msgstr "Précédent"
 
-#: src/Listings/Render/Renderer.php:490
+#: src/Listings/Render/Renderer.php:498
 #: src/Listings/Render/Store.php:113
 msgid "Next"
 msgstr "Suivant"
@@ -2783,7 +2784,7 @@ msgctxt "block description"
 msgid "A filter of the listing: a taxonomy's terms, a field's values, the authors, a range of numbers, a yes/no."
 msgstr "Un filtre du listing : les termes d’une taxonomie, les valeurs d’un champ, les auteurs, une plage de nombres, un oui/non."
 
-#: src/Listings/Render/Renderer.php:560
+#: src/Listings/Render/Renderer.php:568
 msgid "Close"
 msgstr "Fermer"
 
@@ -2905,12 +2906,12 @@ msgstr "Pastilles"
 msgid "See the results"
 msgstr "Voir les résultats"
 
-#: src/Listings/Definition/ListingDefinition.php:376
+#: src/Listings/Definition/ListingDefinition.php:377
 #: build/listings/editor.js:4
 msgid "Year modified"
 msgstr "Année de modification"
 
-#: src/Listings/Definition/ListingDefinition.php:376
+#: src/Listings/Definition/ListingDefinition.php:377
 #: build/listings/editor.js:4
 msgid "Year"
 msgstr "Année"
@@ -2922,3 +2923,23 @@ msgstr "Année de publication"
 #: build/listings/editor.js:4
 msgid "Year of last modification"
 msgstr "Année de dernière modification"
+
+#: src/Listings/Definition/ListingDefinition.php:376
+msgid "Date modified"
+msgstr "Date de modification"
+
+#: src/Listings/Render/Renderer.php:349
+msgid "From"
+msgstr "Du"
+
+#: src/Listings/Render/Renderer.php:350
+msgid "To"
+msgstr "Au"
+
+#: build/listings/editor.js:6
+msgid "Years to tick"
+msgstr "Années à cocher"
+
+#: build/listings/editor.js:6
+msgid "A range of dates"
+msgstr "Une plage de dates"

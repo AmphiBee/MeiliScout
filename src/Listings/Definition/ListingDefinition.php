@@ -324,8 +324,8 @@ final class ListingDefinition
             return null;
         }
 
-        if ($type !== FacetDefinition::LIST && $source !== 'meta') {
-            $errors[] = sprintf('The facet "%s": ranges and booleans read a meta key.', $key);
+        if (($type === FacetDefinition::BOOLEAN && $source !== 'meta') || ($type === FacetDefinition::RANGE && ! in_array($source, ['meta', 'date'], true))) {
+            $errors[] = sprintf('The facet "%s": ranges and booleans read a meta key (a range may also read the date).', $key);
 
             return null;
         }
@@ -373,6 +373,7 @@ final class ListingDefinition
         $label = (string) ($args['label'] ?? match (true) {
             (bool) $taxonomy => $taxonomy->labels->singular_name,
             $source === 'author' => __('Author', 'meiliscout'),
+            $source === 'date' && $type === FacetDefinition::RANGE => $name === 'post_modified' ? __('Date modified', 'meiliscout') : __('Date', 'meiliscout'),
             $source === 'date' => $name === 'post_modified' ? __('Year modified', 'meiliscout') : __('Year', 'meiliscout'),
             default => $key,
         });

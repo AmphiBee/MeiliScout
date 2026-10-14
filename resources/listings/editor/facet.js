@@ -52,7 +52,11 @@ const Preview = ( { attributes, taxonomy, label } ) => {
 					</span>
 					<input
 						className="meiliscout-range__input"
-						type="number"
+						type={
+							attributes.source.startsWith( 'date' )
+								? 'date'
+								: 'number'
+						}
 						disabled
 					/>
 				</label>
@@ -62,7 +66,11 @@ const Preview = ( { attributes, taxonomy, label } ) => {
 					</span>
 					<input
 						className="meiliscout-range__input"
-						type="number"
+						type={
+							attributes.source.startsWith( 'date' )
+								? 'date'
+								: 'number'
+						}
 						disabled
 					/>
 				</label>
@@ -227,6 +235,27 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 								{
 									value: 'boolean',
 									label: __( 'Yes or no', 'meiliscout' ),
+								},
+							] }
+							onChange={ ( type ) => setAttributes( { type } ) }
+						/>
+					) }
+					{ isDate && (
+						<SelectControl
+							__nextHasNoMarginBottom
+							label={ __( 'Kind', 'meiliscout' ) }
+							value={ attributes.type }
+							options={ [
+								{
+									value: 'list',
+									label: __( 'Years to tick', 'meiliscout' ),
+								},
+								{
+									value: 'range',
+									label: __(
+										'A range of dates',
+										'meiliscout'
+									),
 								},
 							] }
 							onChange={ ( type ) => setAttributes( { type } ) }
