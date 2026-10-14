@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [2.2.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.2.0) - 2026-10-14
 
 ### Front listings
 
@@ -9,7 +9,7 @@
 - Upgrading: the colors found in the theme's palette, or chosen in Settings › Listings, are no longer `--meiliscout-color-*` on `:root` but `--meiliscout-palette-*` on the listing's elements; a theme reading those variables outside a listing sets its own.
 - A yes/no facet showed its title twice. Themes styling every button strongly (Twenty Twenty-One) turned *Show more* and the active filters into dark blocks.
 - The search field lost the listing's search (`?q=…`): it was bound to a value the store did not have, with or without JavaScript.
-- **Year facets:** `'source' => 'date'` (published) or `'date:modified'` lists the years of the posts' date with their counts, newest first, combined with `or`; `?year=2025,2024` in the URL; also in the *Facet* block (*Year of publication*). Written by the `date_query` builder, like WP_Query's `year`.
+- **Year facets:** `'source' => 'date'` (published) or `'date:modified'` lists the years of the posts' date with their counts, newest first, combined with `or`; `?<key>=2025,2024` in the URL; also in the *Facet* block (*Year of publication*). Written by the `date_query` builder, like WP_Query's `year`.
 - **Date range facet:** `'source' => 'date', 'type' => 'range'` (also *A range of dates* in the *Facet* block): two date fields within what the posts have, `?period=2025-03-01..2025-06-30`, the last day included whole, chips in the site's date format. Written by the `date_query` builder; shared PHP/JS cases (`tests/fixtures/listings/date-cases.json`). The client's plan template is version 4: a page cached with the previous one reloads its listing as the server rendered it.
 - **Toolbar above the results:** the total, the sort, the active-filter chips and the reset link sit over the results, in their column (`.meiliscout-listing__main`), not at the foot of the filters; *Apply* moved to the filters' panel. Upgrading: a stylesheet reading `.meiliscout-listing__filters .meiliscout-listing__toolbar` no longer matches.
 - **Filters panel on small screens:** below 782 px a listing's search and facets go behind a *Filters (n)* button and open as a sheet, with *See N results* at its foot (the live count of `apply: button`, or closing the sheet when instant). Wider, nothing changes; without JavaScript the filters stay on the page. Listings placed part by part and the editor's blocks keep their filters in the page.
