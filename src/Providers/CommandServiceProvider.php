@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Providers;
 use Pollora\MeiliScout\Commands\BenchListingsCommand;
 use Pollora\MeiliScout\Commands\CheckListingsCommand;
 use Pollora\MeiliScout\Commands\CheckQueriesCommand;
+use Pollora\MeiliScout\Commands\ConfigCommand;
 use Pollora\MeiliScout\Commands\IndexCommand;
 use Pollora\MeiliScout\Commands\SeoRulesCommand;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
@@ -31,6 +32,9 @@ class CommandServiceProvider extends ServiceProvider
             \WP_CLI::add_command('meiliscout check-listings', new CheckListingsCommand);
             \WP_CLI::add_command('meiliscout bench-listings', new BenchListingsCommand);
             \WP_CLI::add_command('meiliscout seo-rules', SeoRulesCommand::class);
+            $configCommand = new ConfigCommand;
+            \WP_CLI::add_command('meiliscout export', [$configCommand, 'export']);
+            \WP_CLI::add_command('meiliscout import', [$configCommand, 'import']);
         }
     }
 }

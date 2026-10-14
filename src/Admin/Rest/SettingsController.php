@@ -98,7 +98,7 @@ final class SettingsController extends Controller
         ClientFactory::reset();
 
         if (IndexSettings::maxTotalHits() !== $previousMaxTotalHits) {
-            $this->pushMaxTotalHits();
+            IndexSettings::pushMaxTotalHits();
         }
 
         $integration = $request->get_param('query_integration');
@@ -198,19 +198,6 @@ final class SettingsController extends Controller
         }
 
         return ['readable' => $readable, 'total' => count(IndexNames::BASES)];
-    }
-
-    /**
-     * Applies the maximum number of results to the index searches read, without waiting for an indexation.
-     */
-    private function pushMaxTotalHits(): void
-    {
-        try {
-            ClientFactory::getClient()?->index(IndexNames::active('posts'))->updatePagination(['maxTotalHits' => IndexSettings::maxTotalHits()]);
-        } catch (\Throwable $e) {
-            // The next indexation sends it with the other settings
-            error_log('MeiliScout: could not update the maximum number of results: '.$e->getMessage());
-        }
     }
 
     private function typedOrSaved(WP_REST_Request $request, string $param, string $setting): string

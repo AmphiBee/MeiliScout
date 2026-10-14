@@ -58,9 +58,20 @@ final class SearchableAttributes
      */
     public static function available(): array
     {
+        return self::availableFor((array) Settings::get('indexed_meta_keys', []));
+    }
+
+    /**
+     * The same, for meta keys that are not saved yet (an import's preview).
+     *
+     * @param  array<mixed>  $indexedMetaKeys
+     * @return list<string>
+     */
+    public static function availableFor(array $indexedMetaKeys): array
+    {
         $metaKeys = array_map(
             static fn (string $key) => "metas.{$key}",
-            array_filter((array) Settings::get('indexed_meta_keys', []), 'is_string')
+            array_filter($indexedMetaKeys, 'is_string')
         );
 
         return array_values(array_unique([...self::DOCUMENT_FIELDS, ...$metaKeys]));
