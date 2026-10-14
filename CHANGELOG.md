@@ -5,6 +5,7 @@
 ### Front listings
 
 - **Classic themes** (Twenty Twenty-One checked): a listing carries `alignwide`, so the theme widens it past its reading column; the current page's number was invisible without a `primary` preset (the accent fell back on `currentColor`, read where it is used: now a registered color); *Show more* was centered.
+- **Checkboxes of a list** are drawn by the kit (a framed box, the accent when ticked, a tick; `forced-colors` and reduced motion honoured) over the native input, which stays the control. Chips keep theirs. Checked on Twenty Twenty-Five (light, the Midnight variation) and Twenty Twenty-One.
 - Date fields of a range stack when the column is narrow; the filters sheet is sized in `%`, not `vw` (a classic scrollbar made it overflow by its width).
 
 ## Unreleased
