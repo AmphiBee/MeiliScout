@@ -119,9 +119,11 @@ Exit code 1 on an invalid file or, with `--strict`, on a warning; 0 otherwise. `
 
 Each step is a PR of its own; none changes existing behavior.
 
-## Open questions for the owner
+## Decisions
 
-1. **Environment keys** (`listings_public_host`): excluded by default with an opt-in flag, or never exported? Proposal: the opt-in.
-2. **A missing post type or meta key on the target**: warn and keep (proposal), or refuse unless `--force`?
-3. **Should the import ever reindex** with `--reindex` (convenient in a deploy script), or only say so? Proposal: an explicit `--reindex` flag that starts the full indexation, never implicit.
-4. **Scope of "settings"**: also synonyms, stop words and ranking rules if they are stored in the plugin? To check when the first step starts: this plan covers what `Settings::save()` writes today.
+Taken on 2026-10-14 (delegated by the owner, weighing users and developers):
+
+1. **Environment keys** (`listings_public_host`): excluded by default, `--include-env` (and a checkbox in the admin, unticked) adds them. A file meant to be shared or committed must be safe by default, yet a developer cloning one server onto an identical one can still opt in.
+2. **A post type, taxonomy or meta key missing on the target**: warn and **keep** the entry, marked "not registered here"; `--strict` turns the warning into an error (for a deploy script that must fail loudly). Refusing by default would block the normal case of importing before the plugin that registers the type is active.
+3. **Reindexing**: the import never starts one by itself. `--reindex` starts it explicitly after a successful `--apply` (a deploy script wants one command), and the plan always says whether one is needed.
+4. **Scope**: what `Settings::save()` writes today. Synonyms and stop words are not managed by the plugin (no screen, no option), and the ranking rules are code (`meiliscout/post/ranking_rules`), so they stay out. A site that changes them directly in Meilisearch moves them with Meilisearch's own dump or settings API.
