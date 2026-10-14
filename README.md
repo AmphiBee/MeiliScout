@@ -31,6 +31,9 @@
     <td width="50%"><img src="docs/images/listings/editor-listing-settings.jpg" alt="The Filterable listing block in the block editor"><br><sub>In the block editor, with the core's own blocks.</sub></td>
     <td width="50%"><img src="docs/images/admin/overview.jpg" alt="The MeiliScout admin overview"><br><sub>The admin: health, content, queries served, activity.</sub></td>
   </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/setup/content.jpg" alt="The full-screen setup assistant, on its content step"><br><sub>A full-screen setup assistant walks you from the connection to the first indexation.</sub></td>
+  </tr>
 </table>
 
 ## Requirements
@@ -43,6 +46,8 @@
 Download the zip of the [latest release](https://github.com/AmphiBee/MeiliScout/releases/latest), which ships its dependencies, and install it in `wp-content/plugins`; or require the package `amphibee/meiliscout` with Composer (Bedrock, Pollora), whose autoloader then loads it. Then activate it.
 
 ## Quick start
+
+On a new install, a full-screen **setup assistant** opens by itself and walks you through all of it in about three minutes. By hand:
 
 1. **Connect.** *MeiliScout › Settings › Connection*: the instance's URL and a key, or the variables below.
 2. **Choose what to index.** *MeiliScout › Content*: post types, taxonomies, custom fields.

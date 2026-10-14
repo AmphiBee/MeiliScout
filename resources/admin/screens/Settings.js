@@ -628,6 +628,17 @@ const Settings = ( { refreshOverview, overview } ) => {
 						tone="info"
 						icon="info"
 						title={ __( 'Welcome to MeiliScout', 'meiliscout' ) }
+						actions={
+							<a
+								className="ms-button ms-button--primary"
+								href="#/setup"
+							>
+								{ __(
+									'Start the setup assistant',
+									'meiliscout'
+								) }
+							</a>
+						}
 					>
 						<p>
 							{ __(

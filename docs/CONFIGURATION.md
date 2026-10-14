@@ -31,6 +31,22 @@ You need:
 
 Install the release zip in `wp-content/plugins` (it ships its dependencies), or add the package `amphibee/meiliscout` to the site with Composer (Bedrock, Pollora), then activate the plugin. Activation changes nothing on the site's searches: MeiliScout serves nothing until it is connected and indexed.
 
+### The quick way: the setup assistant
+
+On a site that is not connected yet, MeiliScout opens a **full-screen setup assistant** by itself. It walks you through the main settings in seven steps, saves each one as you leave it, and ends with the first indexation. You can open it again at any time from **Setup assistant** in the header of the MeiliScout screens (`#/setup`), or leave it with **Exit the assistant** and configure everything by hand with the sections below.
+
+| | |
+|---|---|
+| ![Step 1, Welcome: a search that types itself, and the checks of PHP, WordPress and Meilisearch](images/setup/welcome.jpg) | **1. Welcome.** What the site runs on (PHP, WordPress, the connection), and a taste of what comes. |
+| ![Step 2, Connect: the instance URL and key, and the live check](images/setup/connect.jpg) | **2. Connect.** The URL and an admin key, checked as you type. A value set by `MEILI_HOST` or `MEILI_KEY` is shown locked. You cannot go on until the connection works. |
+| ![Step 3, Content: post types, taxonomies, custom fields, and the number of documents](images/setup/content.jpg) | **3. Content.** The post types to make searchable (with their counts), their taxonomies, and up to eight of the most used custom fields to filter and sort on (the others can be added in *Content*). |
+| ![Step 4, Behavior: real-time mode and the queries Meilisearch serves](images/setup/behavior.jpg) | **4. Behavior.** When changes are sent (instantly, in the background, or only on request) and which queries Meilisearch answers: the site search, archives, REST searches. The picture shows who answers each. |
+| ![Step 5, Listings: turn the front listings on](images/setup/listings.jpg) | **5. Listings.** Turn the front listings on (optional; needs WordPress 6.9). |
+| ![Step 6, Index: the number of items and a progress ring](images/setup/index.jpg) | **6. Index.** Starts the first indexation and follows it. A large site can use `wp meiliscout index` instead, or skip this step. |
+| ![Step 7, Done: a summary and the next places to go](images/setup/done.jpg) | **7. Done.** What was set up, and where to go next: the dashboard, the search preview. |
+
+The assistant uses the same settings as the screens below: nothing it does is hidden from them, and nothing needs it. Once finished or dismissed it does not open by itself again. Animations are reduced to a minimum for visitors who ask their system for it.
+
 ---
 
 ## 2. Connect to Meilisearch

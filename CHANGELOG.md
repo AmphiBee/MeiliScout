@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Admin
+
+- **Setup assistant:** a full-screen, animated walk through the main settings, for a site that is not connected yet (it opens by itself until finished or dismissed; *Setup assistant* in the header opens it again). Seven steps: the checks of the site, the connection to Meilisearch (tested as you type, values set by the environment shown locked), what to index (post types, taxonomies, the most used custom fields, at most eight), when changes are sent and which queries Meilisearch serves, the front listings, the first indexation with its progress, and a summary. Each step saves as it is left. `GET`/`POST /meiliscout/v1/setup` hold its state.
+- French typography: the French translations use non-breaking spaces before `: ; ! ?` and `%`, inside « », and between a number and its unit.
+
 ## [2.3.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.3.0) - 2026-10-14
 
 ### Configuration
