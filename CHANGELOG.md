@@ -1,10 +1,15 @@
 # Changelog
 
-## Unreleased
+## [2.3.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.3.0) - 2026-10-14
 
 ### Configuration
 
 - **Export and import the configuration** (Settings › Export / Import, `wp meiliscout export` and `import`): what is indexed, the fields searched, the queries served, the front listings' settings and the SEO rules in one versioned JSON file, to move from staging to production or from one site to the next. An import is read first and shows what it would change (values added and removed, warnings, whether the index must be rebuilt); `wp meiliscout import` is a dry run until `--apply`. The connection, the API keys, the listings key and the indexes' state never go in the file; the public URL of Meilisearch only on request. A plugin adds a section with `meiliscout/config_sections`. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#11-export-and-import-the-configuration).
+
+### Documentation
+
+- **Guides with screenshots:** [docs/LISTINGS_GUIDE.md](docs/LISTINGS_GUIDE.md) builds a listing step by step, in the block editor and in code (PHP, parts, Blade, Twig, cards); [docs/CONFIGURATION.md](docs/CONFIGURATION.md) goes from the connection to the first indexation, the queries served and the listings' settings, screen by screen. A new README, with a banner.
+- The build tooling's lock file is updated (`npm audit fix`, no change to the built files).
 
 ## [2.2.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.2.0) - 2026-10-14
 

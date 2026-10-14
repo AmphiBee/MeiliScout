@@ -12,3 +12,4 @@
 /.eslintrc.json     export-ignore
 /.stylelintrc.json  export-ignore
 /webpack.config.js  export-ignore
+/docs/images       export-ignore
