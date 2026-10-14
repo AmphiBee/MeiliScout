@@ -17,12 +17,18 @@ import {
 	getElement,
 	withScope,
 } from '@wordpress/interactivity';
-import { linkTarget, parse, parseUrl, url as urlOf } from './codec';
+import {
+	formatBound,
+	linkTarget,
+	parse,
+	parseUrl,
+	url as urlOf,
+} from './codec';
 import { counts, read, results, withOverflow } from './plan';
-import { hitFromDocument, pageItems, pageLinks } from './hits';
+import { formatDate, hitFromDocument, pageItems, pageLinks } from './hits';
 
 const NAMESPACE = 'meiliscout/listing';
-const CONTRACT = 3;
+const CONTRACT = 4;
 
 /** Requests in flight, by listing: a newer change aborts them. */
 const controllers = new Map();
@@ -111,14 +117,10 @@ const { state, actions } = store( NAMESPACE, {
 			return state.listings[ listing ].facets[ facet ].max;
 		},
 		get rangeMinLimit() {
-			const { listing, facet } = getContext();
-			const stats = state.listings[ listing ].facets[ facet ].stats;
-			return stats ? String( stats.min ) : '';
+			return rangeLimit( 'min' );
 		},
 		get rangeMaxLimit() {
-			const { listing, facet } = getContext();
-			const stats = state.listings[ listing ].facets[ facet ].stats;
-			return stats ? String( stats.max ) : '';
+			return rangeLimit( 'max' );
 		},
 		get totalLabel() {
 			const total = state.listings[ getContext().listing ].total;
@@ -165,6 +167,28 @@ const { state, actions } = store( NAMESPACE, {
 			const listing = state.listings[ getContext().listing ];
 			return listing.shownUrl !== listing.renderedUrl;
 		},
+		get filterCount() {
+			const listing = state.listings[ getContext().listing ];
+			return (
+				Object.values( listing.values ).reduce(
+					( sum, v ) => sum + v.length,
+					0
+				) +
+				Object.keys( listing.ranges ).length +
+				( listing.search !== '' ? 1 : 0 )
+			);
+		},
+		get filterCountLabel() {
+			return `(${ state.filterCount })`;
+		},
+		get seeLabel() {
+			const listing = state.listings[ getContext().listing ];
+			const total = listing.pending ?? listing.total;
+			return pluralLabel( state.i18n.see, total ).replace(
+				'%d',
+				String( total )
+			);
+		},
 		get hasFilters() {
 			const listing = state.listings[ getContext().listing ];
 			return (
@@ -190,7 +214,14 @@ const { state, actions } = store( NAMESPACE, {
 					} );
 				}
 				if ( listing.ranges[ facet.key ] ) {
-					const { min, max } = listing.facets[ facet.key ];
+					const bounds = listing.facets[ facet.key ];
+					// A date range's bounds in the site's date format (Store does the same)
+					const [ min, max ] = [ bounds.min, bounds.max ].map(
+						( bound ) =>
+							facet.date && bound !== ''
+								? formatDate( state.i18n.date, bound )
+								: bound
+					);
 					const range = rangeLabel( min, max );
 					const label = facetValue
 						.replace( '%1$s', facet.label )
@@ -347,6 +378,9 @@ const { state, actions } = store( NAMESPACE, {
 				return; // The form's own GET
 			}
 			event.preventDefault();
+			event.target
+				.querySelector( 'dialog.meiliscout-panel:modal' )
+				?.close();
 			actions.apply( event.target );
 		},
 
@@ -592,7 +626,60 @@ const { state, actions } = store( NAMESPACE, {
 				getElement().ref.hidden = true;
 			}
 		},
+
+		/**
+		 * The panel's "See N results" closes it: shown where nothing else applies (apply: instant).
+		 */
+		seeButton() {
+			const listing = state.listings[ getContext().listing ];
+			if ( ready( listing ) && listing.template.apply === 'instant' ) {
+				getElement().ref.hidden = false;
+			}
+		},
+
+		/**
+		 * The filters panel: inline beside the results on a wide screen, closed
+		 * behind its button on a small one (open without JavaScript: the
+		 * filters stay on the page).
+		 */
+		panel() {
+			const dialog = getElement().ref;
+			const button = document.querySelector(
+				`[data-meiliscout-panel="${ dialog.id }"]`
+			);
+			const small = window.matchMedia( PANEL_QUERY );
+			const sync = () => {
+				button.hidden = ! small.matches;
+				if (
+					dialog.open &&
+					( ! small.matches || ! dialog.matches( ':modal' ) )
+				) {
+					dialog.close();
+				}
+			};
+			sync();
+			small.addEventListener( 'change', sync );
+			return () => small.removeEventListener( 'change', sync );
+		},
 	},
+} );
+
+const PANEL_QUERY = '(max-width: 781.98px)';
+
+document.addEventListener( 'click', ( event ) => {
+	const open = event.target.closest?.( '[data-meiliscout-panel]' );
+	if ( open ) {
+		document.getElementById( open.dataset.meiliscoutPanel )?.showModal();
+		return;
+	}
+	const dialog = event.target.closest?.( 'dialog.meiliscout-panel:modal' );
+	if (
+		dialog &&
+		( event.target.closest( '[data-meiliscout-panel-close]' ) ||
+			event.target === dialog )
+	) {
+		dialog.close();
+	}
 } );
 
 /**
@@ -663,6 +750,27 @@ function fold( text ) {
 
 function ready( listing ) {
 	return Boolean( listing.template ) && listing.transport !== 'page';
+}
+
+/**
+ * A range's lower or upper limit, what the posts have: a number, a day for a date range.
+ *
+ * @param {string} bound min or max.
+ * @return {string} The limit, '' while unknown.
+ */
+function rangeLimit( bound ) {
+	const { listing, facet } = getContext();
+	const entry = state.listings[ listing ].facets[ facet ];
+	const stats = entry.stats;
+	if ( ! stats ) {
+		return '';
+	}
+	const template = state.listings[ listing ].template?.facets.find(
+		( f ) => f.key === facet
+	);
+	return template?.date
+		? formatBound( template, stats[ bound ] )
+		: String( stats[ bound ] );
 }
 
 /**
@@ -863,9 +971,9 @@ function moveTo( listing, next ) {
 		if ( facet.type === 'range' ) {
 			const range = next.ranges[ facet.key ] || {};
 			listing.facets[ facet.key ].min =
-				range.min !== undefined ? String( range.min ) : '';
+				range.min !== undefined ? formatBound( facet, range.min ) : '';
 			listing.facets[ facet.key ].max =
-				range.max !== undefined ? String( range.max ) : '';
+				range.max !== undefined ? formatBound( facet, range.max ) : '';
 		}
 	}
 }

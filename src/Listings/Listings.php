@@ -13,6 +13,7 @@ use Pollora\MeiliScout\Listings\Query\ListingQuery;
 use Pollora\MeiliScout\Listings\Query\ListingResult;
 use Pollora\MeiliScout\Listings\Render\Renderer;
 use Pollora\MeiliScout\Listings\Render\Store;
+use Pollora\MeiliScout\Listings\Render\UiKit;
 use Pollora\MeiliScout\Listings\Seo\SeoPolicy;
 use Pollora\MeiliScout\Listings\Seo\SeoRules;
 use Pollora\MeiliScout\Listings\Seo\Sitemap\Sitemaps;
@@ -42,12 +43,18 @@ final class Listings
         add_action('admin_init', [SeoRules::class, 'install']);
         SeoPolicy::boot();
         Sitemaps::boot();
+        UiKit::boot();
     }
 
     /**
      * The default look's stylesheet (build/listings/style.css).
      */
     public const STYLE = 'meiliscout-listings';
+
+    /**
+     * The elements the UI kit declares its tokens on (resources/listings/ui/tokens.css).
+     */
+    public const KIT_SCOPE = '.meiliscout-listing,.meiliscout-part,.meiliscout-listing__filters,.meiliscout-panel,.meiliscout-kit';
 
     /**
      * The tokens a palette slug sets, when the theme's palette has it, by order of preference.
@@ -211,11 +218,14 @@ final class Listings
         foreach ($colors as $token => $value) {
             // A color, nothing that could end the declaration
             if (preg_match('/^[a-z-]+$/', (string) $token) && ! preg_match('/[;{}<>]/', $value)) {
-                $declarations .= '--meiliscout-color-'.$token.':'.$value.';';
+                $declarations .= '--meiliscout-palette-'.$token.':'.$value.';';
             }
         }
 
-        return $declarations === '' ? '' : ':root{'.$declarations.'}';
+        // On the kit's elements, not :root: a preset the theme redefines lower
+        // (a dark section, a dark mode on body) resolves where the listing is;
+        // a --meiliscout-color-* a site sets in its CSS still wins (ui/tokens.css)
+        return $declarations === '' ? '' : ':where('.self::KIT_SCOPE.'){'.$declarations.'}';
     }
 
     /**

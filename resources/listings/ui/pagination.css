@@ -1,0 +1,40 @@
+/* Pagination: real links, the current page and the dots without one */
+
+:where(.meiliscout-pagination, .meiliscout-listing .wp-block-query-pagination, .meiliscout-listing .wp-block-query-pagination-numbers) {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25em;
+	margin-top: var(--meiliscout-gap);
+}
+
+:where(.meiliscout-pagination__link, .meiliscout-listing .page-numbers, .meiliscout-listing .wp-block-query-pagination-next, .meiliscout-listing .wp-block-query-pagination-previous) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.25em;
+	min-height: 2.25em;
+	padding: 0 0.6em;
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-radius);
+	color: inherit;
+	text-decoration: none;
+}
+
+:where(.meiliscout-pagination__link[href]:hover, .meiliscout-listing a.page-numbers:hover, .meiliscout-listing .wp-block-query-pagination-next:hover, .meiliscout-listing .wp-block-query-pagination-previous:hover) {
+	border-color: var(--meiliscout-accent);
+}
+
+:where(.meiliscout-pagination__link[aria-current="page"], .meiliscout-listing .page-numbers.current) {
+	border-color: var(--meiliscout-accent);
+	background: var(--meiliscout-accent);
+	color: var(--meiliscout-accent-contrast);
+}
+
+:where(.meiliscout-pagination__dots, .meiliscout-listing .page-numbers.dots) {
+	border-color: transparent;
+}
+
+/* In the listing's column, the grid's gap spaces it */
+:where(.meiliscout-listing__main > .meiliscout-pagination) {
+	margin-top: 0;
+}

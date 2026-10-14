@@ -168,6 +168,50 @@ const trim = ( value ) =>
 const last = ( values ) => ( values.length ? values[ values.length - 1 ] : '' );
 
 const RANGE = /^(-?\d+(?:\.\d+)?)?\.\.(-?\d+(?:\.\d+)?)?$/;
+const DATE_RANGE = /^(\d{4}-\d{2}-\d{2})?\.\.(\d{4}-\d{2}-\d{2})?$/;
+
+/**
+ * A day (Y-m-d) as the timestamp of its start, the date read as UTC (the
+ * index's *_ts fields): UrlCodec::day().
+ *
+ * @param {string} date
+ * @return {number|null} The timestamp, null for a date that does not exist.
+ */
+export const day = ( date ) => {
+	const [ year, month, dayOfMonth ] = date.split( '-' ).map( Number );
+	const ms = Date.UTC( year, month - 1, dayOfMonth );
+	const check = new Date( ms );
+	return check.getUTCFullYear() === year &&
+		check.getUTCMonth() === month - 1 &&
+		check.getUTCDate() === dayOfMonth
+		? ms / 1000
+		: null;
+};
+
+/**
+ * A range's bound in the URL and the fields: a number, a day (Y-m-d) for a date range.
+ *
+ * @param {Object}                facet A template facet.
+ * @param {number|undefined|null} value
+ * @return {string} The bound, '' without one.
+ */
+export const formatBound = ( facet, value ) =>
+	facet.date && value !== undefined && value !== null
+		? new Date( value * 1000 ).toISOString().slice( 0, 10 )
+		: formatNumber( value, facet.decimals );
+
+/**
+ * The number a bound's template takes ({n}): a day's end for the upper bound of a date range.
+ *
+ * @param {Object} facet A template facet.
+ * @param {string} bound min or max.
+ * @param {number} value
+ * @return {string} The number.
+ */
+export const clauseBound = ( facet, bound, value ) =>
+	facet.date
+		? String( value + ( bound === 'max' ? 86399 : 0 ) )
+		: formatNumber( value, facet.decimals );
 
 /**
  * Each parameter's values, split on bare commas, decoded.
@@ -218,14 +262,24 @@ export const parse = ( template, query, page = 1 ) => {
 		}
 
 		if ( facet.type === 'range' ) {
-			const m = last( parts ).match( RANGE );
-			if ( m ) {
+			const m = last( parts ).match( facet.date ? DATE_RANGE : RANGE );
+			// 2025-02-30 is no day: the range is dropped
+			const bounds = m
+				? [ m[ 1 ], m[ 2 ] ].map( ( bound ) =>
+						bound !== undefined && facet.date ? day( bound ) : bound
+				  )
+				: [];
+			if ( m && ! bounds.includes( null ) ) {
 				const range = {};
-				if ( m[ 1 ] !== undefined ) {
-					range.min = round( m[ 1 ], facet.decimals );
+				if ( bounds[ 0 ] !== undefined ) {
+					range.min = facet.date
+						? bounds[ 0 ]
+						: round( bounds[ 0 ], facet.decimals );
 				}
-				if ( m[ 2 ] !== undefined ) {
-					range.max = round( m[ 2 ], facet.decimals );
+				if ( bounds[ 1 ] !== undefined ) {
+					range.max = facet.date
+						? bounds[ 1 ]
+						: round( bounds[ 1 ], facet.decimals );
 				}
 				if (
 					range.min !== undefined &&
@@ -315,9 +369,9 @@ export const queryString = ( template, state ) => {
 				pairs.push(
 					facet.param +
 						'=' +
-						formatNumber( range.min, facet.decimals ) +
+						formatBound( facet, range.min ) +
 						'..' +
-						formatNumber( range.max, facet.decimals )
+						formatBound( facet, range.max )
 				);
 			}
 			continue;

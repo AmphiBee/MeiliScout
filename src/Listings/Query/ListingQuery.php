@@ -54,10 +54,10 @@ final class ListingQuery
     public static function wpQueryArgs(ListingDefinition $definition, ListingState $state): array
     {
         $args = FacetPlan::baseArgs($definition);
-        $groups = ['tax_query' => [], 'meta_query' => []];
+        $groups = ['tax_query' => [], 'meta_query' => [], 'date_query' => []];
 
         foreach ($groups as $clause => $unused) {
-            if ($args[$clause] !== []) {
+            if (($args[$clause] ?? []) !== []) {
                 $groups[$clause][] = $args[$clause];
             }
         }
@@ -84,6 +84,7 @@ final class ListingQuery
             'has_password' => false,
             'tax_query' => $groups['tax_query'] === [] ? null : ['relation' => 'AND', ...$groups['tax_query']],
             'meta_query' => $groups['meta_query'] === [] ? null : ['relation' => 'AND', ...$groups['meta_query']],
+            'date_query' => $groups['date_query'] === [] ? null : ['relation' => 'AND', ...$groups['date_query']],
             'author__in' => $authors,
             's' => $state->search !== '' ? $state->search : null,
             'orderby' => $sort['orderby'],
@@ -244,6 +245,14 @@ final class ListingQuery
 
         if ($facet->isAuthor()) {
             return self::authors($ids, $state->valuesOf($facet->key));
+        }
+
+        if ($facet->isDate()) {
+            // The newest year first; a year in the URL no post has any more still shows, to be removed
+            $years = array_values(array_unique([...array_map('strval', $ids), ...$state->valuesOf($facet->key)]));
+            rsort($years, SORT_NUMERIC);
+
+            return array_map(fn (string $year) => ['value' => $year, 'id' => $year, 'label' => $year, 'depth' => 0, 'parent' => ''], $years);
         }
 
         if (! $facet->isTaxonomy()) {

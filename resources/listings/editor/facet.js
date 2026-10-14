@@ -52,7 +52,11 @@ const Preview = ( { attributes, taxonomy, label } ) => {
 					</span>
 					<input
 						className="meiliscout-range__input"
-						type="number"
+						type={
+							attributes.source.startsWith( 'date' )
+								? 'date'
+								: 'number'
+						}
 						disabled
 					/>
 				</label>
@@ -62,7 +66,11 @@ const Preview = ( { attributes, taxonomy, label } ) => {
 					</span>
 					<input
 						className="meiliscout-range__input"
-						type="number"
+						type={
+							attributes.source.startsWith( 'date' )
+								? 'date'
+								: 'number'
+						}
 						disabled
 					/>
 				</label>
@@ -86,7 +94,11 @@ const Preview = ( { attributes, taxonomy, label } ) => {
 	return (
 		<ul className="meiliscout-facet__options">
 			{ options.map( ( option ) => (
-				<li key={ option.id } className="meiliscout-facet__option">
+				<li
+					key={ option.id }
+					className="meiliscout-facet__option"
+					data-depth={ option.parent ? 1 : 0 }
+				>
 					<label className="meiliscout-facet__label">
 						<input
 							className="meiliscout-facet__input"
@@ -139,6 +151,8 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 	);
 	const isMeta = attributes.source.startsWith( 'meta:' );
 	const isAuthor = attributes.source === 'author';
+	// The years of the post date: one date per post, like one author
+	const isDate = attributes.source.startsWith( 'date' );
 	let label = attributes.label || taxonomy?.label;
 	if ( ! label ) {
 		label = isMeta
@@ -146,6 +160,12 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 			: __( 'Facet', 'meiliscout' );
 		if ( isAuthor ) {
 			label = __( 'Author', 'meiliscout' );
+		}
+		if ( isDate ) {
+			label =
+				attributes.source === 'date:modified'
+					? __( 'Year modified', 'meiliscout' )
+					: __( 'Year', 'meiliscout' );
 		}
 	}
 
@@ -156,6 +176,11 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 			label: t.label,
 		} ) ),
 		{ value: 'author', label: __( 'Author', 'meiliscout' ) },
+		{ value: 'date', label: __( 'Year of publication', 'meiliscout' ) },
+		{
+			value: 'date:modified',
+			label: __( 'Year of last modification', 'meiliscout' ),
+		},
 		...( config?.metaKeys || [] ).map( ( key ) => ( {
 			value: 'meta:' + key,
 			/* translators: %s: a meta key */
@@ -177,12 +202,14 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 								source,
 								type:
 									source.startsWith( 'taxonomy:' ) ||
+									source.startsWith( 'date' ) ||
 									source === 'author'
 										? 'list'
 										: attributes.type,
-								// A post has one author
+								// A post has one author, one date
 								logic:
-									source === 'author'
+									source === 'author' ||
+									source.startsWith( 'date' )
 										? 'or'
 										: attributes.logic,
 							} )
@@ -213,7 +240,28 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 							onChange={ ( type ) => setAttributes( { type } ) }
 						/>
 					) }
-					{ attributes.type === 'list' && ! isAuthor && (
+					{ isDate && (
+						<SelectControl
+							__nextHasNoMarginBottom
+							label={ __( 'Kind', 'meiliscout' ) }
+							value={ attributes.type }
+							options={ [
+								{
+									value: 'list',
+									label: __( 'Years to tick', 'meiliscout' ),
+								},
+								{
+									value: 'range',
+									label: __(
+										'A range of dates',
+										'meiliscout'
+									),
+								},
+							] }
+							onChange={ ( type ) => setAttributes( { type } ) }
+						/>
+					) }
+					{ attributes.type === 'list' && ! isAuthor && ! isDate && (
 						<SelectControl
 							__nextHasNoMarginBottom
 							label={ __( 'Several values match', 'meiliscout' ) }
@@ -280,6 +328,29 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 							min={ 0 }
 							max={ 50 }
 							onChange={ ( limit ) => setAttributes( { limit } ) }
+						/>
+					) }
+					{ attributes.type !== 'range' && (
+						<SelectControl
+							__nextHasNoMarginBottom
+							label={ __( 'Values shown as', 'meiliscout' ) }
+							value={ attributes.display }
+							options={ [
+								{
+									value: 'list',
+									label: __(
+										'Boxes in a list',
+										'meiliscout'
+									),
+								},
+								{
+									value: 'chips',
+									label: __( 'Chips', 'meiliscout' ),
+								},
+							] }
+							onChange={ ( display ) =>
+								setAttributes( { display } )
+							}
 						/>
 					) }
 					{ attributes.type === 'list' && (
@@ -381,10 +452,24 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 			<fieldset
 				{ ...useBlockProps( {
 					className:
-						'meiliscout-facet meiliscout-facet--' + attributes.type,
+						'meiliscout-facet meiliscout-facet--' +
+						attributes.type +
+						( attributes.display === 'chips' &&
+						attributes.type !== 'range'
+							? ' meiliscout-facet--chips'
+							: '' ),
 				} ) }
 			>
-				<legend className="meiliscout-facet__title">{ label }</legend>
+				<legend
+					className={
+						'meiliscout-facet__title' +
+						( attributes.type === 'boolean'
+							? ' meiliscout-visually-hidden'
+							: '' )
+					}
+				>
+					{ label }
+				</legend>
 				<Preview
 					attributes={ attributes }
 					taxonomy={ taxonomy }

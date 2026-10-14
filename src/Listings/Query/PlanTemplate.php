@@ -21,7 +21,7 @@ use Pollora\MeiliScout\Services\IndexNames;
  */
 final class PlanTemplate
 {
-    public const VERSION = 3;
+    public const VERSION = 4;
 
     /**
      * @param  array<string, list<array{value: string, id: string, label: string, depth: int, parent: string}>>  $values  Each facet's values
@@ -45,6 +45,8 @@ final class PlanTemplate
                     'field' => $facet->countField(),
                     'taxonomy' => $facet->isTaxonomy(),
                     'decimals' => $facet->decimals,
+                    // A range of days: bounds are dates, the upper one's {n} the day's last second
+                    'date' => $facet->isDateRange(),
                     'limit' => $facet->limit,
                     'values' => [],
                 ];

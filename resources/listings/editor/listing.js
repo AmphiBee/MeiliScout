@@ -53,7 +53,21 @@ const TEMPLATE = [
 				'core/column',
 				{ width: '72%' },
 				[
-					[ 'meiliscout/listing-part', { part: 'total' } ],
+					[
+						'core/group',
+						{
+							layout: {
+								type: 'flex',
+								flexWrap: 'wrap',
+								justifyContent: 'space-between',
+								verticalAlignment: 'center',
+							},
+						},
+						[
+							[ 'meiliscout/listing-part', { part: 'total' } ],
+							[ 'meiliscout/listing-part', { part: 'sort' } ],
+						],
+					],
 					[ 'meiliscout/listing-part', { part: 'active' } ],
 					[
 						'core/post-template',

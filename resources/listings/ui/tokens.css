@@ -1,0 +1,46 @@
+/**
+ * Tokens, in three layers (docs/LISTINGS.md, UI kit):
+ *
+ * 1. What the theme gives: theme.json presets (--wp--preset--color--*,
+ *    --wp--preset--font-size--*, --wp--preset--spacing--*), else
+ *    currentColor, inherit and the system colors.
+ * 2. What a site sets: --meiliscout-color-*, --meiliscout-border-radius,
+ *    --meiliscout-spacing, --meiliscout-font-size-small,
+ *    --meiliscout-control-height, --meiliscout-shadow, on any ancestor.
+ *    Below them, --meiliscout-palette-*: the colors chosen in Settings ›
+ *    Listings, else found in the theme's palette (Listings::themeColors()).
+ * 3. What the components read: the short names below, derived here.
+ *
+ * Listings::KIT_SCOPE names the same elements: keep both lists alike.
+ *
+ * Declared on every element the kit renders on its own (a listing, a part,
+ * a form, a panel), not on :root: a theme setting a public token on any
+ * ancestor wins, wherever the listing is.
+ */
+
+:where(.meiliscout-listing, .meiliscout-part, .meiliscout-listing__filters, .meiliscout-panel, .meiliscout-kit) {
+
+	/* Colors */
+	--meiliscout-accent: var(--meiliscout-color-accent, var(--meiliscout-palette-accent, var(--wp--preset--color--primary, currentColor)));
+	--meiliscout-accent-contrast: var(--meiliscout-color-accent-contrast, var(--meiliscout-palette-accent-contrast, var(--wp--preset--color--base, #fff)));
+	--meiliscout-text: var(--meiliscout-color-text, var(--meiliscout-palette-text, inherit));
+	--meiliscout-muted: var(--meiliscout-color-muted, var(--meiliscout-palette-muted, color-mix(in srgb, currentColor 62%, transparent)));
+	--meiliscout-background: var(--meiliscout-color-background, var(--meiliscout-palette-background, transparent));
+	--meiliscout-border: var(--meiliscout-color-border, var(--meiliscout-palette-border, color-mix(in srgb, currentColor 18%, transparent)));
+	--meiliscout-tint: color-mix(in srgb, var(--meiliscout-accent) 7%, transparent);
+
+	/* An opaque surface: a panel over the page */
+	--meiliscout-surface: var(--meiliscout-color-surface, var(--meiliscout-color-background, var(--meiliscout-palette-background, var(--wp--preset--color--base, Canvas))));
+	--meiliscout-surface-text: var(--meiliscout-color-text, var(--meiliscout-palette-text, var(--wp--preset--color--contrast, CanvasText)));
+
+	/* Shapes and sizes */
+	--meiliscout-radius: var(--meiliscout-border-radius, 0.375em);
+	--meiliscout-pill: 999px;
+	--meiliscout-gap: var(--meiliscout-spacing, var(--wp--preset--spacing--30, 1rem));
+	--meiliscout-gap-small: calc(var(--meiliscout-gap) / 2);
+	--meiliscout-small: var(--meiliscout-font-size-small, 0.875em);
+	--meiliscout-control: var(--meiliscout-control-height, 2.5rem);
+	--meiliscout-control-font: var(--meiliscout-control-font-size, 1rem);
+	--meiliscout-focus: var(--meiliscout-color-focus, var(--meiliscout-accent));
+	--meiliscout-elevation: var(--meiliscout-shadow, 0 0.5em 2em color-mix(in srgb, currentColor 18%, transparent));
+}

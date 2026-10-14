@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Listings\Query;
 use Pollora\MeiliScout\Listings\Definition\FacetDefinition;
 use Pollora\MeiliScout\Listings\State\ListingState;
 use Pollora\MeiliScout\Listings\State\UrlCodec;
+use Pollora\MeiliScout\Query\Builders\DateQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\MetaQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\PostFieldsBuilder;
 use Pollora\MeiliScout\Query\Builders\TaxQueryBuilder;
@@ -39,6 +40,12 @@ final class FacetClauses
             $range = $state->rangeOf($facet->key);
             $clauses = [];
 
+            if ($facet->isDateRange()) {
+                $dates = array_filter(['after' => isset($range['min']) ? UrlCodec::number($facet, $range['min']) : null, 'before' => isset($range['max']) ? UrlCodec::number($facet, $range['max']) : null]);
+
+                return $dates === [] ? [] : ['date_query' => [$dates + ['inclusive' => true, 'column' => $facet->name]]];
+            }
+
             foreach (['min' => '>=', 'max' => '<='] as $bound => $compare) {
                 if (isset($range[$bound])) {
                     $clauses[] = ['key' => $facet->name, 'value' => $range[$bound], 'compare' => $compare, 'type' => $facet->numericType()];
@@ -56,6 +63,10 @@ final class FacetClauses
 
         if ($facet->isAuthor()) {
             return ['author__in' => array_map([self::class, 'authorId'], $values)];
+        }
+
+        if ($facet->isDate()) {
+            return ['date_query' => [['relation' => 'OR', ...array_map(fn (string $year) => self::yearClause($facet, $year), $values)]]];
         }
 
         if ($facet->type === FacetDefinition::BOOLEAN) {
@@ -92,6 +103,10 @@ final class FacetClauses
             return self::build(new PostFieldsBuilder, ['author__in' => [self::authorId($value)]]);
         }
 
+        if ($facet->isDate()) {
+            return self::build(new DateQueryBuilder, ['date_query' => [self::yearClause($facet, $value)]]);
+        }
+
         $value = $facet->type === FacetDefinition::BOOLEAN ? $facet->booleanValue : $value;
 
         return self::build(new MetaQueryBuilder, ['meta_query' => [['key' => $facet->name, 'value' => $value, 'compare' => '=']]]);
@@ -106,6 +121,16 @@ final class FacetClauses
      */
     public static function bounds(FacetDefinition $facet): array
     {
+        // A date range: the date builder's bounds of a day known, its timestamps standing for {n}
+        // (the upper bound's is the day's last second: the client adds it, UrlCodec::clauseNumber())
+        if ($facet->isDateRange()) {
+            $template = fn (string $bound, string $stamp) => str_replace($stamp, '{n}', self::build(new DateQueryBuilder, ['date_query' => [
+                [$bound => '2000-01-01', 'inclusive' => true, 'column' => $facet->name],
+            ]]));
+
+            return ['min' => $template('after', '946684800'), 'max' => $template('before', '946771199')];
+        }
+
         $template = fn (string $compare) => str_replace((string) self::NUMBER, '{n}', self::build(new MetaQueryBuilder, ['meta_query' => [
             ['key' => $facet->name, 'value' => self::NUMBER, 'compare' => $compare, 'type' => $facet->numericType()],
         ]]));
@@ -132,7 +157,7 @@ final class FacetClauses
             $parts = [];
             foreach (['min', 'max'] as $bound) {
                 if (isset($range[$bound])) {
-                    $parts[] = str_replace('{n}', UrlCodec::number($facet, $range[$bound]), $bounds[$bound]);
+                    $parts[] = str_replace('{n}', UrlCodec::clauseNumber($facet, $bound, $range[$bound]), $bounds[$bound]);
                 }
             }
 
@@ -164,6 +189,16 @@ final class FacetClauses
     }
 
     /**
+     * A year of a date facet, as a date_query clause.
+     *
+     * @return array{year: int, column: string}
+     */
+    private static function yearClause(FacetDefinition $facet, string $year): array
+    {
+        return ['year' => (int) $year, 'column' => $facet->name];
+    }
+
+    /**
      * A user's id from their slug (user_nicename, as author archives write it), 0 for none.
      */
     public static function authorId(string $slug): int
@@ -176,7 +211,7 @@ final class FacetClauses
     /**
      * @param  array<string, mixed>  $vars
      */
-    private static function build(TaxQueryBuilder|MetaQueryBuilder|PostFieldsBuilder $builder, array $vars): string
+    private static function build(TaxQueryBuilder|MetaQueryBuilder|PostFieldsBuilder|DateQueryBuilder $builder, array $vars): string
     {
         $params = [];
         $builder->build(new ArrayQuery($vars), $params);

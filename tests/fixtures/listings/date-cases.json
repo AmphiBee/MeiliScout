@@ -1,0 +1,92 @@
+{
+    "about": "A range of days (type range, source date): the URL, the state (timestamps of the days read as UTC) and the filter, in UrlCodec/FacetClauses (PHP) and codec.js/plan.js (JS). An upper bound is the last second of its day.",
+    "facet": {
+        "key": "periode",
+        "param": "periode",
+        "path": null,
+        "type": "range",
+        "logic": "or",
+        "field": "post_date_ts",
+        "date": true,
+        "decimals": 0,
+        "bounds": {
+            "min": "(post_date_ts >= {n})",
+            "max": "(post_date_ts <= {n})"
+        },
+        "values": {}
+    },
+    "cases": [
+        {
+            "name": "both days",
+            "query": "periode=2025-03-01..2025-06-30",
+            "ranges": {
+                "periode": {
+                    "min": 1740787200,
+                    "max": 1751241600
+                }
+            },
+            "canonical": "periode=2025-03-01..2025-06-30",
+            "clause": "((post_date_ts >= 1740787200) AND (post_date_ts <= 1751327999))"
+        },
+        {
+            "name": "a form without JavaScript",
+            "query": "periode_min=2025-03-01&periode_max=2025-06-30",
+            "ranges": {
+                "periode": {
+                    "min": 1740787200,
+                    "max": 1751241600
+                }
+            },
+            "canonical": "periode=2025-03-01..2025-06-30",
+            "clause": "((post_date_ts >= 1740787200) AND (post_date_ts <= 1751327999))"
+        },
+        {
+            "name": "swapped bounds",
+            "query": "periode=2025-06-30..2025-03-01",
+            "ranges": {
+                "periode": {
+                    "min": 1740787200,
+                    "max": 1751241600
+                }
+            },
+            "canonical": "periode=2025-03-01..2025-06-30",
+            "clause": "((post_date_ts >= 1740787200) AND (post_date_ts <= 1751327999))"
+        },
+        {
+            "name": "an upper bound only",
+            "query": "periode=..2025-06-30",
+            "ranges": {
+                "periode": {
+                    "max": 1751241600
+                }
+            },
+            "canonical": "periode=..2025-06-30",
+            "clause": "(post_date_ts <= 1751327999)"
+        },
+        {
+            "name": "a lower bound only",
+            "query": "periode=2025-03-01..",
+            "ranges": {
+                "periode": {
+                    "min": 1740787200
+                }
+            },
+            "canonical": "periode=2025-03-01..",
+            "clause": "(post_date_ts >= 1740787200)"
+        },
+        {
+            "name": "a day that does not exist",
+            "query": "periode=2025-02-30..2025-06-30",
+            "ranges": {},
+            "canonical": "",
+            "clause": null
+        },
+        {
+            "name": "not a date",
+            "query": "periode=soon..later",
+            "ranges": {},
+            "canonical": "",
+            "clause": null
+        }
+    ]
+}

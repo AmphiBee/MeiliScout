@@ -20,7 +20,8 @@
 		"key": { "type": "string", "default": "" },
 		"param": { "type": "string", "default": "" },
 		"path": { "type": "string", "default": "" },
-		"search": { "type": "boolean", "default": false }
+		"search": { "type": "boolean", "default": false },
+		"display": { "type": "string", "default": "list", "enum": [ "list", "chips" ] }
 	},
 	"supports": {
 		"html": false,

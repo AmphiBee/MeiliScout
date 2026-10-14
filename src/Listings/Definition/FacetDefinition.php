@@ -19,13 +19,14 @@ final class FacetDefinition
     public const BOOLEAN = 'boolean';
 
     /**
-     * @param  'taxonomy'|'meta'|'author'  $source
+     * @param  'taxonomy'|'meta'|'author'|'date'  $source  A date facet reads post_date or post_modified ($name)
      * @param  'list'|'range'|'boolean'  $type
      * @param  'or'|'and'  $logic  How the values of a list combine
      * @param  array<string, string>  $labels  Meta values' labels, by value
      * @param  string|null  $path  Its prefix in the URL's path ({prefix}-{a},{b}), null when it is a parameter
      * @param  array<string, string>  $paths  Its prefix by language, when they differ (fr => type, en => kind)
      * @param  bool  $search  A field narrowing its values by their label (a list)
+     * @param  'list'|'chips'  $display  Its values as boxes in a list, or as pills
      */
     public function __construct(
         public readonly string $key,
@@ -43,6 +44,7 @@ final class FacetDefinition
         public readonly ?string $path = null,
         public readonly array $paths = [],
         public readonly bool $search = false,
+        public readonly string $display = 'list',
     ) {}
 
     /**
@@ -85,6 +87,22 @@ final class FacetDefinition
     }
 
     /**
+     * Its values are the years of the posts' date (post_date, or post_modified).
+     */
+    public function isDate(): bool
+    {
+        return $this->source === 'date';
+    }
+
+    /**
+     * Its bounds are dates (a day each): a range on the post date.
+     */
+    public function isDateRange(): bool
+    {
+        return $this->isDate() && $this->type === self::RANGE;
+    }
+
+    /**
      * Its values combine as a disjunction: their counts ignore its own selection.
      */
     public function isDisjunctive(): bool
@@ -106,6 +124,11 @@ final class FacetDefinition
 
         if ($this->isAuthor()) {
             return 'post_author';
+        }
+
+        if ($this->isDate()) {
+            // A range compares the timestamps (the date read as UTC), a list counts the years
+            return $this->type === self::RANGE ? "{$this->name}_ts" : "date_parts.{$this->name}.year";
         }
 
         return "metas.{$this->name}";

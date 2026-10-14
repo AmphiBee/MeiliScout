@@ -55,13 +55,21 @@ final class Renderer
             $fields .= self::facet($facet, $result);
         }
 
+        $footer = self::apply($result).sprintf(
+            '<button type="button" class="%s meiliscout-panel__see" hidden data-meiliscout-panel-close data-wp-init="callbacks.seeButton" data-wp-text="state.seeLabel">%s</button>',
+            esc_attr(self::buttonClass('primary')),
+            esc_html__('See the results', 'meiliscout')
+        );
+
         return sprintf(
-            '<div id="%1$s" class="meiliscout-listing" data-meiliscout="listing" data-wp-interactive="%2$s" data-wp-context="%3$s">%7$s%4$s%5$s%6$s%8$s</div>',
+            '<div id="%1$s" class="meiliscout-listing" data-meiliscout="listing" data-wp-interactive="%2$s" data-wp-context="%3$s">%7$s%4$s<div class="meiliscout-listing__main">%5$s%6$s</div>%8$s</div>',
             esc_attr($id),
             esc_attr(Store::NAMESPACE),
             esc_attr(self::context($definition)),
-            self::form($result, $base, $fields.'<div class="meiliscout-listing__toolbar">'.self::total().self::active().self::sort($result).self::apply($result).self::resetLink($base).'</div>'),
-            self::region($result),
+            self::form($result, $base, self::panel($id.'-panel', __('Filters', 'meiliscout'), $fields, $footer, 0, true)),
+            // Above the results, in their column, not the filters': the sort is of the form by its form attribute, its change heard here
+            '<div class="meiliscout-listing__toolbar" data-wp-on--change="actions.change">'.self::total().self::sort($result).self::active().self::resetLink($base).'</div>'
+                .self::region($result),
             self::pagination($result),
             self::intro($result, $base),
             self::faq($result, $base)
@@ -275,7 +283,7 @@ final class Renderer
     private static function list(FacetDefinition $facet, ListingResult $result): string
     {
         return sprintf(
-            '<fieldset class="meiliscout-facet meiliscout-facet--%1$s" data-facet="%2$s" data-wp-context="%3$s"><legend class="meiliscout-facet__title">%4$s</legend>'
+            '<fieldset class="meiliscout-facet meiliscout-facet--%1$s%8$s" data-facet="%2$s" data-wp-context="%3$s"><legend class="meiliscout-facet__title%9$s">%4$s</legend>'
             .'%7$s'
             .'<ul class="meiliscout-facet__options" role="list"><template data-wp-each--option="state.options" data-wp-each-key="context.option.value">'
             .'<li class="meiliscout-facet__option" data-wp-bind--hidden="state.optionHidden" data-wp-bind--data-depth="context.option.depth">'
@@ -291,7 +299,10 @@ final class Renderer
             esc_html($facet->label),
             esc_attr($facet->param),
             esc_attr(self::formId($result->definition)),
-            $facet->search ? self::facetSearch($facet) : ''
+            $facet->search ? self::facetSearch($facet) : '',
+            $facet->display === 'chips' ? ' meiliscout-facet--chips' : '',
+            // A yes/no's one value is labelled with the facet's title: the legend stays for screen readers
+            $facet->type === FacetDefinition::BOOLEAN ? ' meiliscout-visually-hidden' : ''
         );
     }
 
@@ -314,23 +325,31 @@ final class Renderer
     private static function range(FacetDefinition $facet, ListingResult $result): string
     {
         $step = $facet->decimals > 0 ? '0.'.str_repeat('0', $facet->decimals - 1).'1' : '1';
-        $input = fn (string $bound, string $label) => sprintf(
-            '<label class="meiliscout-range__bound"><span class="meiliscout-range__label">%1$s</span><input class="meiliscout-range__input" type="number" inputmode="decimal" step="%2$s" name="%3$s_%4$s" form="%6$s" data-wp-bind--value="state.range%5$s" data-wp-bind--placeholder="state.range%5$sLimit"></label>',
-            esc_html($label),
-            esc_attr($step),
-            esc_attr($facet->param),
-            esc_attr($bound),
-            ucfirst($bound),
-            esc_attr(self::formId($result->definition))
-        );
+        $input = function (string $bound, string $label) use ($facet, $result, $step): string {
+            $name = ucfirst($bound);
+            // A day each, in the browser's own date picker, within what the posts have; else a number, the limit as placeholder
+            $kind = $facet->isDateRange()
+                ? 'type="date" data-wp-bind--min="state.rangeMinLimit" data-wp-bind--max="state.rangeMaxLimit"'
+                : sprintf('type="number" inputmode="decimal" step="%s" data-wp-bind--placeholder="state.range%sLimit"', esc_attr($step), $name);
+
+            return sprintf(
+                '<label class="meiliscout-range__bound"><span class="meiliscout-range__label">%1$s</span><input class="meiliscout-range__input" %2$s name="%3$s_%4$s" form="%5$s" data-wp-bind--value="state.range%6$s"></label>',
+                esc_html($label),
+                $kind,
+                esc_attr($facet->param),
+                esc_attr($bound),
+                esc_attr(self::formId($result->definition)),
+                $name
+            );
+        };
 
         return sprintf(
             '<fieldset class="meiliscout-facet meiliscout-facet--range" data-facet="%1$s" data-wp-context="%2$s"><legend class="meiliscout-facet__title">%3$s</legend><div class="meiliscout-range">%4$s%5$s</div></fieldset>',
             esc_attr($facet->key),
             esc_attr((string) wp_json_encode(['facet' => $facet->key])),
             esc_html($facet->label),
-            $input('min', __('Min', 'meiliscout')),
-            $input('max', __('Max', 'meiliscout'))
+            $input('min', $facet->isDateRange() ? __('From', 'meiliscout') : __('Min', 'meiliscout')),
+            $input('max', $facet->isDateRange() ? __('To', 'meiliscout') : __('Max', 'meiliscout'))
         );
     }
 
@@ -378,8 +397,9 @@ final class Renderer
     private static function apply(ListingResult $result): string
     {
         return sprintf(
-            '<button type="submit" form="%s" class="meiliscout-listing__apply" data-wp-init="callbacks.applyButton" data-wp-text="state.applyLabel">%s</button>',
+            '<button type="submit" form="%s" class="meiliscout-listing__apply %s" data-wp-init="callbacks.applyButton" data-wp-text="state.applyLabel">%s</button>',
             esc_attr(self::formId($result->definition)),
+            esc_attr(self::buttonClass('primary')),
             esc_html__('Apply', 'meiliscout')
         );
     }
@@ -506,6 +526,55 @@ final class Renderer
         return '<article class="meiliscout-card"><h3 class="meiliscout-card__title"><a data-wp-bind--href="context.hit.url" data-wp-text="context.hit.title"></a></h3>'
             .'<p class="meiliscout-card__meta"><time data-wp-bind--datetime="context.hit.date" data-wp-text="context.hit.dateLabel"></time></p>'
             .'<div class="meiliscout-card__excerpt"><p data-wp-text="context.hit.excerpt"></p></div></article>';
+    }
+
+    /**
+     * A button's classes in the UI kit: primary, secondary or link. The primary
+     * one takes the theme's button style on a theme with theme.json.
+     */
+    public static function buttonClass(string $kind = 'primary'): string
+    {
+        $themed = $kind === 'primary' && function_exists('wp_theme_has_theme_json') && wp_theme_has_theme_json();
+
+        return 'meiliscout-button meiliscout-button--'.$kind.($themed ? ' wp-element-button' : '');
+    }
+
+    /**
+     * A panel (UI kit): a <dialog> and the button opening it, the filters in
+     * its body, its footer always in sight. Markup only: the client opens it.
+     *
+     * @param  string  $id  The dialog's id
+     * @param  string  $title  Its title, also the button's label
+     * @param  string  $body  Its content
+     * @param  string  $footer  Its footer's buttons
+     * @param  int  $count  Shown in the button: Filters (2), none at 0
+     * @param  bool  $inline  A listing's panel: the filters stay on the page, open and
+     *                        beside the results on a wide screen; behind the button, which
+     *                        the client shows, on a small one. The count follows the state.
+     */
+    public static function panel(string $id, string $title, string $body, string $footer = '', int $count = 0, bool $inline = false): string
+    {
+        return sprintf(
+            '<button type="button" class="%1$s meiliscout-panel__open%8$s" aria-haspopup="dialog" aria-controls="%2$s" data-meiliscout-panel="%2$s"%9$s>%3$s%4$s</button>'
+            .'<dialog id="%2$s" class="meiliscout-panel%10$s" aria-labelledby="%2$s-title"%11$s>'
+            .'<div class="meiliscout-panel__header"><h2 id="%2$s-title" class="meiliscout-panel__title">%3$s</h2>'
+            .'<button type="button" class="meiliscout-panel__close" aria-label="%5$s" data-meiliscout-panel-close><span aria-hidden="true">×</span></button></div>'
+            .'<div class="meiliscout-panel__body">%6$s</div>'
+            .'%7$s</dialog>',
+            esc_attr(self::buttonClass('secondary')),
+            esc_attr($id),
+            esc_html($title),
+            $inline
+                ? ' <span class="meiliscout-button__count" data-wp-text="state.filterCountLabel" data-wp-bind--hidden="!state.hasFilters"></span>'
+                : ($count > 0 ? ' <span class="meiliscout-button__count">('.(int) $count.')</span>' : ''),
+            esc_attr__('Close', 'meiliscout'),
+            $body,
+            $footer !== '' ? '<div class="meiliscout-panel__footer">'.$footer.'</div>' : '',
+            $inline ? ' meiliscout-panel__open--inline' : '',
+            $inline ? ' hidden' : '',
+            $inline ? ' meiliscout-panel--inline' : '',
+            $inline ? ' open data-wp-init="callbacks.panel"' : ''
+        );
     }
 
     private static function context(ListingDefinition $definition): string

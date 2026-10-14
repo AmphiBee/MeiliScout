@@ -1,0 +1,58 @@
+/* Chips: a facet's values as pills (display: chips). The same markup as the
+   boxes: a native checkbox in each label, out of sight but focusable, ticked
+   by a click on the pill; without JavaScript the form sends it as ever. The
+   selection reads as a tick, not only as a color. */
+
+:where(.meiliscout-facet--chips .meiliscout-facet__options) {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--meiliscout-gap-small);
+}
+
+/* A tree's depth does not show in a row of pills */
+:where(.meiliscout-facet--chips .meiliscout-facet__option) {
+	padding-inline-start: 0;
+}
+
+:where(.meiliscout-facet--chips .meiliscout-facet__label) {
+	position: relative;
+	align-items: center;
+	gap: 0.4em;
+	min-height: calc(var(--meiliscout-control) * 0.8);
+	padding: 0.2em 0.85em;
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-pill);
+	background: var(--meiliscout-background);
+	font-size: var(--meiliscout-small);
+	line-height: 1.3;
+}
+
+:where(.meiliscout-facet--chips .meiliscout-facet__text) {
+	flex: none;
+}
+
+:where(.meiliscout-facet--chips .meiliscout-facet__count) {
+	color: inherit;
+	font-size: 0.9em;
+	opacity: 0.75;
+}
+
+:where(.meiliscout-facet--chips .meiliscout-facet__label:hover) {
+	border-color: var(--meiliscout-accent);
+}
+
+:where(.meiliscout-facet--chips .meiliscout-facet__label:has(:checked)) {
+	border-color: var(--meiliscout-accent);
+	background: var(--meiliscout-accent);
+	color: var(--meiliscout-accent-contrast);
+}
+
+:where(.meiliscout-facet--chips .meiliscout-facet__label:has(:checked) .meiliscout-facet__text)::before {
+	content: "✓\00a0";
+	content: "✓\00a0" / "";
+}
+
+:where(.meiliscout-facet--chips .meiliscout-facet__label:has(:focus-visible)) {
+	outline: 2px solid var(--meiliscout-focus);
+	outline-offset: 2px;
+}
