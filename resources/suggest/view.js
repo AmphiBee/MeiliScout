@@ -20,6 +20,7 @@ import {
 	buildSearches,
 	limitAnswer,
 	normalize,
+	optionFrom,
 	readAnswers,
 	recentSuggestions,
 	step,
@@ -223,6 +224,30 @@ const { state } = store( NAMESPACE, {
 	},
 
 	callbacks: {
+		/**
+		 * Draws a group's suggestions with the theme's JavaScript template
+		 * (`js:<name>`: window.MeiliScout.suggestTemplates[name]), again
+		 * whenever its suggestions or the active one change.
+		 */
+		renderGroup() {
+			const context = getContext();
+			const { ref } = getElement();
+			const group = context.groups[ Number( ref.dataset.group ) ];
+			const template =
+				window.MeiliScout?.suggestTemplates?.[ ref.dataset.template ];
+
+			ref.replaceChildren(
+				...group.hits.map( ( hit ) =>
+					optionFrom(
+						template,
+						hit,
+						context.activeId,
+						ref.ownerDocument
+					)
+				)
+			);
+		},
+
 		init() {
 			const context = getContext();
 			context.focused = false;

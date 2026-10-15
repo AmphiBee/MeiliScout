@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Suggest\Definition;
 
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Listings\PublicFields;
+use Pollora\MeiliScout\Suggest\Template\SuggestTemplate;
 
 /**
  * A search field with suggestions: its groups of suggestions (sources), what
@@ -167,9 +169,20 @@ final class SuggestDefinition
             $limit = self::integer($source, 'limit', $isPosts ? 5 : 3, 1, self::MAX_LIMIT, $errors, "The source \"{$key}\": ");
 
             $template = $source['template'] ?? null;
-            if ($template !== null && ! is_callable($template) && (! is_string($template) || $template === '')) {
-                $errors[] = sprintf('The source "%s": template must be a template reference or a callable.', $key);
+            if ($template !== null && ! is_callable($template) && ! $template instanceof SuggestTemplate && (! is_string($template) || trim($template) === '')) {
+                $errors[] = sprintf('The source "%s": template must be a callable, a SuggestTemplate, or a string (HTML, blade:<view>, twig:<template>, js:<name> or a theme template part).', $key);
                 $template = null;
+            }
+
+            $fields = [];
+            foreach ((array) ($source['fields'] ?? []) as $name) {
+                $public = $isPosts ? PublicFields::FIELDS : PublicFields::TERM_FIELDS;
+                if (! is_string($name) || ! in_array($name, $public, true)) {
+                    $errors[] = sprintf('The source "%s": the field "%s" is not one browsers may read (%s).', $key, is_scalar($name) ? (string) $name : gettype($name), implode(', ', $public));
+
+                    continue;
+                }
+                $fields[] = $name;
             }
 
             $label = $source['label'] ?? '';
@@ -178,11 +191,11 @@ final class SuggestDefinition
                 $label = '';
             }
 
-            foreach (array_diff(array_keys($source), ['type', $field, 'limit', 'label', 'template']) as $unknown) {
+            foreach (array_diff(array_keys($source), ['type', $field, 'limit', 'label', 'template', 'fields']) as $unknown) {
                 $errors[] = sprintf('The source "%s": unknown option "%s".', $key, $unknown);
             }
 
-            $sources[$key] = new SuggestSource($key, $type, $objects, $limit, $label, $template);
+            $sources[$key] = new SuggestSource($key, $type, $objects, $limit, $label, $template, array_values(array_unique($fields)));
         }
 
         return $sources;

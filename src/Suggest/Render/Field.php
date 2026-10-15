@@ -36,7 +36,8 @@ final class Field
     public static function render(SuggestDefinition $definition, ?array $token, array $args = []): string
     {
         $dom = sprintf('meiliscout-suggest-%s-%d', $definition->id, ++self::$printed);
-        $plan = Plan::forDefinition($definition);
+        $templates = Templates::forDefinition($definition);
+        $plan = Plan::forDefinition($definition, $templates);
         $action = $definition->resultsUrl ?? home_url('/');
         $value = array_key_exists('value', $args) ? (string) $args['value'] : (string) get_search_query(false);
         $label = (string) ($args['label'] ?? __('Search', 'meiliscout'));
@@ -79,14 +80,19 @@ final class Field
 
         $groups = '';
         foreach (array_values($definition->sources) as $i => $source) {
+            $template = $templates[$source->key];
+            // Cloned by the Interactivity API for each result, or drawn by the theme's JavaScript template
+            $hits = $template['js'] !== null
+                ? sprintf('<div class="meiliscout-suggest__js" data-group="%d" data-template="%s" data-wp-watch="callbacks.renderGroup"></div>', $i, esc_attr($template['js']))
+                : sprintf('<template data-wp-each--hit="context.groups.%d.hits" data-wp-each-key="context.hit.optionId">%s</template>', $i, $template['markup']);
+
             $groups .= sprintf(
                 '<div class="meiliscout-suggest__group" role="group" aria-labelledby="%1$s-g%2$d" data-wp-bind--hidden="!context.groups.%2$d.hasHits">'
-                .'<div class="meiliscout-suggest__heading" id="%1$s-g%2$d" role="presentation">%3$s</div>'
-                .'<template data-wp-each--hit="context.groups.%2$d.hits" data-wp-each-key="context.hit.optionId">%4$s</template></div>',
+                .'<div class="meiliscout-suggest__heading" id="%1$s-g%2$d" role="presentation">%3$s</div>%4$s</div>',
                 esc_attr($dom),
                 $i,
                 esc_html($source->label),
-                Templates::for($source)['markup']
+                $hits
             );
         }
 
