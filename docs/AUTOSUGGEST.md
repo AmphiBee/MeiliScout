@@ -2,8 +2,6 @@
 
 A step-by-step tutorial, with screenshots, is in [AUTOSUGGEST_GUIDE.md](AUTOSUGGEST_GUIDE.md); this page is the reference.
 
-> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). Built: the declaration of a field, its key and token, the field itself on a desktop (markup, client, default suggestion). Built: the field, the phone's sheet, recent searches, the template engines, the block, the core Search block, the REST transport and the admin screen.
-
 A search field with suggestions asks Meilisearch **directly from the browser**, with a token that carries what the field may read. WordPress is not involved while the visitor types. It does not depend on the [front listings](LISTINGS.md) module.
 
 ## Declaring a field
