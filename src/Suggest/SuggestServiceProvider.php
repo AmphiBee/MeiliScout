@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Suggest;
 
 use Pollora\MeiliScout\Foundation\ServiceProvider;
+use Pollora\MeiliScout\Suggest\Blocks\BlockSuggests;
 use Pollora\MeiliScout\Suggest\Transport\RestController;
 
 /**
@@ -24,5 +25,6 @@ final class SuggestServiceProvider extends ServiceProvider
 
         add_action('rest_api_init', [RestController::class, 'routes']);
         Suggest::boot();
+        BlockSuggests::boot();
     }
 }

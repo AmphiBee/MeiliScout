@@ -286,7 +286,9 @@ window.addEventListener( 'popstate', () => {
  */
 function usable( context ) {
 	return Boolean(
-		context.ready && context.token && context.plan.version === CONTRACT
+		context.ready &&
+			( context.token || context.transport === 'rest' ) &&
+			context.plan.version === CONTRACT
 	);
 }
 
@@ -297,7 +299,7 @@ function usable( context ) {
  */
 function warmUp( context ) {
 	const run = runtime.get( context.id );
-	if ( ! run || run.warmed ) {
+	if ( ! run || run.warmed || context.transport === 'rest' ) {
 		return;
 	}
 	run.warmed = true;
@@ -355,11 +357,14 @@ async function search( context, query ) {
 	context.busy = true;
 
 	try {
-		const results = await multiSearch(
-			context,
-			buildSearches( context.plan, query ),
-			signal
-		);
+		const results =
+			context.transport === 'rest'
+				? await restSearch( context, query, signal )
+				: await multiSearch(
+						context,
+						buildSearches( context.plan, query ),
+						signal
+				  );
 		const answer = readAnswers(
 			context.plan,
 			results,
@@ -614,6 +619,27 @@ async function multiSearch( context, queries, signal ) {
 	}
 	if ( ! response.ok ) {
 		throw new Error( `Meilisearch answered ${ response.status }` );
+	}
+
+	return ( await response.json() ).results;
+}
+
+/**
+ * The suggestions through WordPress, for a Meilisearch browsers cannot reach:
+ * the same results as Meilisearch's own multi-search.
+ *
+ * @param {Object}      context
+ * @param {string}      query
+ * @param {AbortSignal} signal
+ * @return {Promise<Object[]>} The results.
+ */
+async function restSearch( context, query, signal ) {
+	const url = new URL( context.searchEndpoint, window.location.href );
+	url.searchParams.set( 'q', query );
+
+	const response = await fetch( url, { signal, credentials: 'omit' } );
+	if ( ! response.ok ) {
+		throw new Error( `WordPress answered ${ response.status }` );
 	}
 
 	return ( await response.json() ).results;

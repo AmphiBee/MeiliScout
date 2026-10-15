@@ -1,6 +1,6 @@
 # Plan: search fields with autosuggestion
 
-Status: **phases 0 (measures), 1 (thumbnail, schema 6), 2 (definition, key, token) and 3 (the field on a desktop) 4 (mobile sheet, recent searches) and 5 (the template engines: HTML, callable, class, Blade, Twig, theme part, JavaScript) built; terms in the admin, the block and the admin screen are next.** Written 2026-10-15 from the code of 2.4.0. Decisions marked **(proposed)** wait for the owner's answer ([Open questions](#open-questions)).
+Status: **phases 0 (measures), 1 (thumbnail, schema 6), 2 (definition, key, token) and 3 (the field on a desktop) 4 (mobile sheet, recent searches) and 5 (the template engines: HTML, callable, class, Blade, Twig, theme part, JavaScript) built; 6 (the block, the core Search block and the REST transport) built; the admin screen, the CLI check, the guide with screenshots and the release are next.** Written 2026-10-15 from the code of 2.4.0. Decisions marked **(proposed)** wait for the owner's answer ([Open questions](#open-questions)).
 
 ## Goals (from the brief)
 

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-15T10:14:53+02:00\n"
+"POT-Creation-Date: 2026-10-15T10:42:01+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: meiliscout\n"
@@ -657,8 +657,8 @@ msgid "Reset"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:271
-#: src/Suggest/Render/Field.php:42
-#: src/Suggest/Render/Field.php:140
+#: src/Suggest/Render/Field.php:43
+#: src/Suggest/Render/Field.php:149
 #: build/app.js:38
 #: build/listings/editor.js:3
 msgid "Search"
@@ -671,7 +671,8 @@ msgid "Search in %s"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:320
-#: src/Suggest/Render/Field.php:43
+#: src/Suggest/Render/Field.php:44
+#: build/listings/editor.js:6
 msgid "Search…"
 msgstr ""
 
@@ -724,7 +725,7 @@ msgid "Next"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:570
-#: src/Suggest/Render/Field.php:144
+#: src/Suggest/Render/Field.php:153
 msgid "Close"
 msgstr ""
 
@@ -1019,19 +1020,21 @@ msgstr ""
 msgid "Delete the previous indexes"
 msgstr ""
 
-#: src/Suggest/Render/Field.php:102
+#: src/Suggest/Render/Field.php:111
+#: build/listings/editor.js:6
 msgid "Recent searches"
 msgstr ""
 
-#: src/Suggest/Render/Field.php:106
+#: src/Suggest/Render/Field.php:115
 msgid "Clear recent searches"
 msgstr ""
 
-#: src/Suggest/Render/Field.php:141
+#: src/Suggest/Render/Field.php:150
+#: build/listings/editor.js:6
 msgid "Suggestions"
 msgstr ""
 
-#: src/Suggest/Render/Field.php:143
+#: src/Suggest/Render/Field.php:152
 msgid "See all results"
 msgstr ""
 
@@ -1716,6 +1719,7 @@ msgstr ""
 
 #: build/app.js:39
 #: build/app.js:40
+#: build/listings/editor.js:3
 msgid "None"
 msgstr ""
 
@@ -3443,6 +3447,7 @@ msgid "Order by"
 msgstr ""
 
 #: build/listings/editor.js:1
+#: build/listings/editor.js:6
 msgid "Field"
 msgstr ""
 
@@ -3494,6 +3499,18 @@ msgstr ""
 
 #: build/listings/editor.js:3
 msgid "The questions of the SEO rule matching the filters (MeiliScout › SEO rules). Empty without one."
+msgstr ""
+
+#: build/listings/editor.js:3
+msgid "Suggestions (MeiliScout)"
+msgstr ""
+
+#: build/listings/editor.js:3
+msgid "Suggest as the visitor types"
+msgstr ""
+
+#: build/listings/editor.js:3
+msgid "A suggest field declared with meiliscout_register_suggest()."
 msgstr ""
 
 #: build/listings/editor.js:3
@@ -3656,6 +3673,62 @@ msgstr ""
 msgid "Lowercase letters, digits and dashes: {prefix}-{value}."
 msgstr ""
 
+#: build/listings/editor.js:6
+msgid "The indexed content could not be read."
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Posts"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Posts shown"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Terms shown"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Label (for screen readers)"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Placeholder"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Characters before suggesting"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Kept in the visitor’s browser only."
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Results page"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "The site’s search page when left empty."
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Search through"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "WordPress is slower, and for a Meilisearch that browsers cannot reach."
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "Meilisearch, directly"
+msgstr ""
+
+#: build/listings/editor.js:6
+msgid "WordPress"
+msgstr ""
+
 #: blocks/facet/block.json
 msgctxt "block title"
 msgid "Facet"
@@ -3712,6 +3785,7 @@ msgid "filters"
 msgstr ""
 
 #: blocks/listing/block.json
+#: blocks/suggest/block.json
 msgctxt "block keyword"
 msgid "meilisearch"
 msgstr ""
@@ -3814,4 +3888,29 @@ msgstr ""
 #: blocks/part/block.json
 msgctxt "block variation description"
 msgid "The questions and answers of the SEO rule matching the filters."
+msgstr ""
+
+#: blocks/suggest/block.json
+msgctxt "block title"
+msgid "Search with suggestions"
+msgstr ""
+
+#: blocks/suggest/block.json
+msgctxt "block description"
+msgid "A search field that suggests posts and terms as you type, straight from Meilisearch."
+msgstr ""
+
+#: blocks/suggest/block.json
+msgctxt "block keyword"
+msgid "search"
+msgstr ""
+
+#: blocks/suggest/block.json
+msgctxt "block keyword"
+msgid "autocomplete"
+msgstr ""
+
+#: blocks/suggest/block.json
+msgctxt "block keyword"
+msgid "suggestions"
 msgstr ""

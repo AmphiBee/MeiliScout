@@ -19,6 +19,13 @@ final class Plan
     public const VERSION = 1;
 
     /**
+     * What Meilisearch wraps a match in: private-use characters, never in a title (client.js MARK_OPEN, MARK_CLOSE).
+     */
+    public const MARK_OPEN = "\u{E000}";
+
+    public const MARK_CLOSE = "\u{E001}";
+
+    /**
      * @param  array<string, array{markup: string, fields: list<string>, js: string|null}>|null  $templates  The sources' templates, compiled (Templates::forDefinition())
      * @return array{version: int, sources: list<array<string, mixed>>}
      */

@@ -48,7 +48,10 @@ final class Field
             'id' => $dom,
             'field' => $definition->id,
             // Without a token the form stays a plain search
-            'ready' => $token !== null,
+            'ready' => $token !== null || $definition->transport === 'rest',
+            // `direct`: Meilisearch with a token; `rest`: WordPress asks it
+            'transport' => $definition->transport,
+            'searchEndpoint' => add_query_arg(array_filter(['lang' => Languages::current()]), rest_url('meiliscout/v1/suggest/'.$definition->id.'/search')),
             'host' => $token['host'] ?? '',
             'token' => $token === null ? null : ['value' => $token['value'], 'exp' => $token['exp']],
             'endpoint' => add_query_arg(array_filter(['lang' => Languages::current()]), rest_url('meiliscout/v1/suggest/'.$definition->id.'/token')),
