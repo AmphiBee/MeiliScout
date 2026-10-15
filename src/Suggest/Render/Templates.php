@@ -144,7 +144,7 @@ final class Templates
             $html = match (true) {
                 $template === null => null,
                 $template instanceof SuggestTemplate => $template->markup($source, $definition, new Hit),
-                $text === null => is_callable($template) ? call_user_func($template, $source, $definition, new Hit) : null,
+                $text === null => call_user_func($template, $source, $definition, new Hit),
                 str_starts_with(ltrim($text), '<') => $text,
                 str_starts_with($text, 'blade:') => self::blade(substr($text, 6), $source, $definition),
                 str_starts_with($text, 'twig:') => self::twig(substr($text, 5), $source, $definition),
