@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Search fields with suggestions (in progress)
+
+- `meiliscout_register_suggest()` declares a field: its groups of suggestions (posts of some types, terms of some taxonomies) and options, validated with every error given. **A Meilisearch key of its own** (search only, posts and taxonomies indexes) signs the fields' tenant tokens, `GET /meiliscout/v1/suggest/{id}/token` renews one. The taxonomies index returns a term's own fields only while browsers search it (`meiliscout/term/displayed_attributes`). See [docs/AUTOSUGGEST.md](docs/AUTOSUGGEST.md).
+
 ### Indexing
 
 - **Featured image in the posts index** (`thumbnail`: `url`, `width`, `height`, `alt`, or null): the `thumbnail` size by default, changed with `meiliscout/post/thumbnail_size`, or replaced per post with `meiliscout/post/thumbnail`. It is a public field, so browsers' cards can show it. Posts index **schema 6**: additive, queries keep reading a schema 5 index, but a full indexation is needed to fill the field (`wp meiliscout status` says so).

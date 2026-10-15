@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Foundation;
 
 use Pollora\MeiliScout\Listings\ListingsServiceProvider;
+use Pollora\MeiliScout\Suggest\SuggestServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\AdminServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\IndexationServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\MigrationServiceProvider;
@@ -32,6 +33,7 @@ class Application
         QueryServiceProvider::class,
         SingleIndexingServiceProvider::class,
         ListingsServiceProvider::class,
+        SuggestServiceProvider::class,
     ];
 
     /**

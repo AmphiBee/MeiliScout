@@ -84,6 +84,14 @@ class TaxonomyIndexable implements Indexable
             ],
             // A term query's search looks into the name and the slug, as WordPress does
             'searchableAttributes' => ['name', 'slug', 'description'],
+            /**
+             * Filters the fields the taxonomies index returns. All of them by
+             * default; a site whose browsers search it (the suggest fields)
+             * returns the public ones, never a term's metas.
+             *
+             * @param  list<string>  $attributes
+             */
+            'displayedAttributes' => apply_filters('meiliscout/term/displayed_attributes', ['*']),
             'rankingRules' => self::rankingRules(),
             'pagination' => ['maxTotalHits' => IndexSettings::maxTotalHits()],
         ];
