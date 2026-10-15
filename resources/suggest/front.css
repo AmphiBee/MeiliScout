@@ -44,6 +44,7 @@
 	scroll-padding-block-end: 3.5rem;
 }
 
+.meiliscout-suggest__heading:empty,
 .meiliscout-suggest__panel[hidden],
 .meiliscout-suggest__empty[hidden],
 .meiliscout-suggest__all[hidden],

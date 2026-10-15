@@ -222,7 +222,7 @@ final class BlockSuggests
     /**
      * @return array<string, array{post: int, args: array<string, mixed>}>
      */
-    private static function saved(): array
+    public static function saved(): array
     {
         $saved = get_option(self::OPTION, []);
 

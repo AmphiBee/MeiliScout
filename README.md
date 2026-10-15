@@ -19,6 +19,7 @@
 - **Never a different result.** A query is either translated faithfully to Meilisearch or it runs on MySQL, with the reason recorded (`unindexed_meta:price`, `unsupported_arg:author`...). Posts are loaded from the database, `found_posts` and the pagination are exact. Nothing in your theme or plugins has to change. [Coverage](docs/WP_QUERY.md).
 - **Indexing that follows the site.** Post types, taxonomies and meta keys chosen in the admin; content re-indexed when it changes, at the end of the request or in the background; full indexations that build new indexes beside the old ones and switch when done, without downtime.
 - **Filterable listings.** Facets with their counts, sorts, search, active filters, pagination, counted by the visitor's browser straight on Meilisearch. One canonical URL per state, facets in the path, SEO through the plugin you already use, Polylang and WPML. Works without JavaScript. [Step-by-step guide](docs/LISTINGS_GUIDE.md).
+- **Search with suggestions.** A search field that suggests posts and terms as the visitor types, asked straight to Meilisearch (a few milliseconds), accessible, with a full-screen sheet on a phone, recent searches kept in the browser, and suggestions drawn with HTML, PHP, Blade, Twig or JavaScript. A block, a setting on the core Search block, or `meiliscout_suggest()`. [Step-by-step guide](docs/AUTOSUGGEST_GUIDE.md).
 - **Yours to build with.** Drop in the *Filterable listing* block, or declare the listing in PHP and print it whole or part by part from PHP, Blade or Twig. A default look that follows your theme, and tokens to change it.
 - **An admin that tells you what happens.** Overview and health, what is indexed, indexation and its log, a search preview, a `WP_Query` tester, the listings and their SEO rules. Export the configuration to move it to another site.
 
@@ -109,6 +110,8 @@ Turn the module on in *MeiliScout › Settings › Listings*. Build your first l
 |---|---|
 | [Configuration](docs/CONFIGURATION.md) | Connect, index, serve queries, listings settings, export and import the configuration, deploy to another server |
 | [Listings guide](docs/LISTINGS_GUIDE.md) | A listing step by step, in blocks and in code (PHP, Blade, Twig), with screenshots |
+| [Suggestions guide](docs/AUTOSUGGEST_GUIDE.md) | A search field with suggestions step by step, in the editor and in code, with screenshots |
+| [Suggestions reference](docs/AUTOSUGGEST.md) | Every option, the templates, the key and token, the transports |
 | [Listings reference](docs/LISTINGS.md) | Every option: facets, transports, URLs, SEO, languages, markup, UI kit |
 | [WP_Query](docs/WP_QUERY.md) · [Terms](docs/TERM_QUERY.md) | What is translated, what falls back to MySQL and why |
 | [Filters](docs/FILTERS.md) | The hooks, from what is indexed to the search parameters sent |

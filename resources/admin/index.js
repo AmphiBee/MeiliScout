@@ -12,6 +12,7 @@ import SearchPreview from './screens/SearchPreview';
 import Settings from './screens/Settings';
 import Listings from './screens/Listings';
 import SeoRules from './screens/SeoRules';
+import Suggest from './screens/Suggest';
 import Setup from './setup/Setup';
 
 const boot = window.meiliscoutAdmin ?? {};
@@ -39,6 +40,12 @@ const SCREENS = [
 		path: 'seo-rules',
 		label: __( 'SEO rules', 'meiliscout' ),
 		Screen: SeoRules,
+	},
+	// Once a search field with suggestions is declared
+	boot.suggest && {
+		path: 'suggest',
+		label: __( 'Suggestions', 'meiliscout' ),
+		Screen: Suggest,
 	},
 	{
 		path: 'settings',
