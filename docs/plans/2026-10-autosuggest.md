@@ -1,6 +1,6 @@
 # Plan: search fields with autosuggestion
 
-Status: **study, nothing built.** Written 2026-10-15 from the code of 2.4.0. Decisions marked **(proposed)** wait for the owner's answer ([Open questions](#open-questions)).
+Status: **study; phase 0 measured (below), nothing built.** Written 2026-10-15 from the code of 2.4.0. Decisions marked **(proposed)** wait for the owner's answer ([Open questions](#open-questions)).
 
 ## Goals (from the brief)
 
@@ -91,6 +91,25 @@ resources/suggest/   suggest.js (view module), client.js (search, cache, abort),
 3. Templates: PHP, Blade, Twig emitters; JS template API; `thumbnail` field and schema 6.
 4. Terms group, per-group templates, A2 fallback, enhancement of the core Search block / theme forms by attribute.
 5. Admin screen + `check-suggest`, docs and guide with screenshots, FR translations, release.
+
+## Phase 0: measures (demo, 2026-10-15)
+
+Demo site (DDEV, 70 réalisations + ~180 posts), requests from the host through DDEV's router (TLS, HTTP/2), a real tenant token of the `realisations` listing, `q=web`, `limit=6`, 20 requests on one connection:
+
+| Path | Median | Min–max |
+|---|---|---|
+| Meilisearch **in the container**, no proxy (engine alone) | **4.4 ms** | 3.4–7.5 |
+| **A1** browser → Meilisearch with a token (through DDEV's router) | **47.5 ms** | 44.8–49.7 |
+| **A2** WP REST (`/wp-json/wp/v2/search`, Meilisearch on) | **166 ms** | 122–446 |
+| First request of a page (new connection + TLS) | ~130–180 ms | |
+
+- **A1 is 3.5× faster than A2 here, and the 47 ms is mostly the local proxy:** the engine answers in about 4 ms, so on a real server the cost is network + TLS, and with a warm connection the first keystroke after focus is the only slow one. That justifies the `preconnect` on focus ([F](#f-speed-discipline-client)).
+- **CORS preflight:** Meilisearch answers `OPTIONS` with `access-control-allow-origin: *`, `allow-headers: authorization,content-type` and **`access-control-max-age: 86400`**: one preflight a day per browser and origin, not one per keystroke. No proxy setting is needed on a direct Meilisearch; a reverse proxy in front must pass these headers (to document).
+- **Payload:** without `attributesToRetrieve` a 6-hit answer is **18.4 KB**; with `ID, post_title, url, post_type` + a highlighted title it is **2.9 KB** (437 bytes when gzipped). The template must therefore declare the fields it reads, and the client asks for those only (decision: the compiled template carries its `attributesToRetrieve`).
+- Prefix search works on the last word as typed (`w`, `we`, `web`), each keystroke being one request of a few ms of engine time: no server-side cost worth a cache beyond the in-memory one.
+- Not measured: keystroke-to-paint on a phone (needs a real device / throttled CPU), left for the phase 1 client.
+
+Decision: **A1 by default, A2 as an opt-in fallback**, as proposed.
 
 ## Open questions
 
