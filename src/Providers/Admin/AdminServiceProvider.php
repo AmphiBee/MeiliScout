@@ -13,6 +13,8 @@ use Pollora\MeiliScout\Admin\Rest\SearchPreviewController;
 use Pollora\MeiliScout\Admin\Rest\SettingsController;
 use Pollora\MeiliScout\Admin\Rest\SetupController;
 use Pollora\MeiliScout\Listings\Admin\ListingsController;
+use Pollora\MeiliScout\Suggest\Admin\SuggestController;
+use Pollora\MeiliScout\Suggest\Definition\SuggestRegistry;
 use Pollora\MeiliScout\Listings\Admin\SeoRulesController;
 use Pollora\MeiliScout\Listings\ListingsServiceProvider;
 use Pollora\MeiliScout\Foundation\ServiceProvider;
@@ -53,6 +55,7 @@ class AdminServiceProvider extends ServiceProvider
         SetupController::class,
         ListingsController::class,
         SeoRulesController::class,
+        SuggestController::class,
     ];
 
     private string $hookSuffix = '';
@@ -128,6 +131,8 @@ class AdminServiceProvider extends ServiceProvider
             'docsUrl' => 'https://github.com/AmphiBee/MeiliScout#readme',
             // The Listings and SEO rules screens show while the listings module runs
             'listings' => ListingsServiceProvider::unavailable() === null,
+            // The Suggestions screen shows once a search field with suggestions is declared
+            'suggest' => SuggestRegistry::ids() !== [],
         ]).';', 'before');
     }
 }
