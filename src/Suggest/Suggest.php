@@ -23,7 +23,7 @@ final class Suggest
 
     public static function boot(): void
     {
-        add_action('wp_enqueue_scripts', [self::class, 'register']);
+        add_action('init', [self::class, 'register']);
     }
 
     /**
@@ -67,7 +67,7 @@ final class Suggest
 
         wp_interactivity_state(self::NAMESPACE, ['i18n' => self::i18n()]);
 
-        return wp_interactivity_process_directives(Field::render($definition, SuggestTokens::forDefinition($definition), $args));
+        return wp_interactivity_process_directives(Field::render($definition, $definition->transport === 'rest' ? null : SuggestTokens::forDefinition($definition), $args));
     }
 
     /**

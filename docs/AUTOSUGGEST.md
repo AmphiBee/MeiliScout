@@ -1,6 +1,6 @@
 # Search fields with suggestions
 
-> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). Built: the declaration of a field, its key and token, the field itself on a desktop (markup, client, default suggestion). The phone's sheet, recent searches and the template engines are built. Next: terms in the admin, the block and the admin screen.
+> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). Built: the declaration of a field, its key and token, the field itself on a desktop (markup, client, default suggestion). Built: the field, the phone's sheet, recent searches, the template engines, the block, the core Search block and the REST transport. Next: the admin screen and the guide.
 
 A search field with suggestions asks Meilisearch **directly from the browser**, with a token that carries what the field may read. WordPress is not involved while the visitor types. It does not depend on the [front listings](LISTINGS.md) module.
 
@@ -28,6 +28,7 @@ Declare it from `functions.php` or a plugin, at any time before `wp_loaded`. A d
 | `results_url` | the site's search page | Where "all results" leads |
 | `recent` | `true` | Recent searches, kept in the visitor's browser only |
 | `public_metas` | `[]` | Meta keys browsers may read (a template shows them); they must be indexed |
+| `transport` | `direct` | `direct`: the browser asks Meilisearch. `rest`: it asks WordPress ([below](#a-meilisearch-browsers-cannot-reach)) |
 
 A source:
 
@@ -37,7 +38,8 @@ A source:
 | `post_types` / `taxonomies` | required | What the group reads; must be indexed |
 | `limit` | `5` for posts, `3` for terms | 1 to 20 |
 | `label` | | The group's heading |
-| `template` | the default one | A template reference or a callable (see the design) |
+| `template` | the default one | How a suggestion is drawn ([below](#drawing-a-suggestion)) |
+| `fields` | `[]` | Public document fields the template reads, besides the default suggestion's |
 
 ## Printing a field
 
@@ -140,6 +142,15 @@ The function receives the suggestion and `{ html, escape }` and returns `html` m
 ### Look
 
 `build/suggest/style.css` uses the front listings' UI kit tokens (the theme's presets, `--meiliscout-*`), under `:where()`: any rule of the theme wins. `meiliscout/suggest/load_styles` turns it off.
+
+## In the editor
+
+- **The *Search with suggestions* block** (MeiliScout category): the post types and taxonomies to suggest and how many of each, the label and placeholder, the characters before suggesting, recent searches, the results page and the transport, in the block's panel. Its field is made from those attributes and **saved with the post** (like the listing blocks) so that the token endpoint and the public fields know it on a request that does not render the block. Two blocks with the same settings are one field.
+- **The core *Search* block**: when a field is declared in PHP, a *Suggestions (MeiliScout)* panel names it, and the block is printed as that field (its label and placeholder kept). Not declared (or the setting left on *None*): the block as WordPress prints it.
+
+## A Meilisearch browsers cannot reach
+
+`'transport' => 'rest'` (or the block's *Search through › WordPress*) sends the field's searches to `GET /wp-json/meiliscout/v1/suggest/{id}/search?q=` instead: WordPress asks Meilisearch with the same filters a token would add, and returns Meilisearch's own answers (cacheable for a minute per query). No token, no key and no public URL are needed, at the price of WordPress's start on every keystroke (about 150 ms against about 5 ms for the engine, see the plan's measures): reserve it for a private Meilisearch.
 
 ## Key and token
 

@@ -21,6 +21,12 @@ final class SuggestDefinition
     public const MAX_LIMIT = 20;
 
     /**
+     * `direct`: the browser asks Meilisearch with a token. `rest`: it asks
+     * WordPress, which asks Meilisearch: for a Meilisearch no browser can reach.
+     */
+    public const TRANSPORTS = ['direct', 'rest'];
+
+    /**
      * @param  array<string, SuggestSource>  $sources  By key, in display order
      * @param  list<string>  $publicMetas  Meta keys browsers may read (templates show them)
      */
@@ -33,6 +39,7 @@ final class SuggestDefinition
         public readonly ?string $resultsUrl,
         public readonly bool $recent,
         public readonly array $publicMetas,
+        public readonly string $transport = 'direct',
     ) {}
 
     /**
@@ -101,7 +108,13 @@ final class SuggestDefinition
             $publicMetas[] = $key;
         }
 
-        $known = ['sources', 'min_chars', 'debounce', 'search_param', 'results_url', 'recent', 'public_metas'];
+        $transport = $args['transport'] ?? 'direct';
+        if (! is_string($transport) || ! in_array($transport, self::TRANSPORTS, true)) {
+            $errors[] = sprintf('transport must be one of %s.', implode(', ', self::TRANSPORTS));
+            $transport = 'direct';
+        }
+
+        $known = ['sources', 'min_chars', 'debounce', 'search_param', 'results_url', 'recent', 'public_metas', 'transport'];
         foreach (array_diff(array_keys($args), $known) as $unknown) {
             $errors[] = sprintf('Unknown option "%s".', $unknown);
         }
@@ -110,7 +123,7 @@ final class SuggestDefinition
             throw new InvalidSuggest($id, $errors);
         }
 
-        return new self($id, $sources, $minChars, $debounce, $searchParam, $resultsUrl, $recent, array_values(array_unique($publicMetas)));
+        return new self($id, $sources, $minChars, $debounce, $searchParam, $resultsUrl, $recent, array_values(array_unique($publicMetas)), $transport);
     }
 
     /**

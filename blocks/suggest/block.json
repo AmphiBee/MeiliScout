@@ -1,0 +1,82 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "meiliscout/suggest",
+	"title": "Search with suggestions",
+	"category": "meiliscout",
+	"description": "A search field that suggests posts and terms as you type, straight from Meilisearch.",
+	"keywords": [
+		"search",
+		"autocomplete",
+		"suggestions",
+		"meilisearch"
+	],
+	"textdomain": "meiliscout",
+	"attributes": {
+		"postTypes": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"default": []
+		},
+		"taxonomies": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"default": []
+		},
+		"postsLimit": {
+			"type": "number",
+			"default": 5
+		},
+		"termsLimit": {
+			"type": "number",
+			"default": 3
+		},
+		"label": {
+			"type": "string",
+			"default": ""
+		},
+		"placeholder": {
+			"type": "string",
+			"default": ""
+		},
+		"minChars": {
+			"type": "number",
+			"default": 2
+		},
+		"recent": {
+			"type": "boolean",
+			"default": true
+		},
+		"resultsUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"transport": {
+			"type": "string",
+			"default": "direct",
+			"enum": [
+				"direct",
+				"rest"
+			]
+		}
+	},
+	"supports": {
+		"html": false,
+		"align": [
+			"wide",
+			"full"
+		],
+		"spacing": {
+			"margin": true,
+			"padding": true
+		},
+		"interactivity": true
+	},
+	"editorScript": "meiliscout-listings-editor",
+	"style": "meiliscout-suggest",
+	"editorStyle": "meiliscout-suggest"
+}

@@ -896,8 +896,8 @@ msgid "The last indexation completed."
 msgstr "La dernière indexation s'est terminée."
 
 #: src/Listings/Render/Renderer.php:271
-#: src/Suggest/Render/Field.php:42
-#: src/Suggest/Render/Field.php:140
+#: src/Suggest/Render/Field.php:43
+#: src/Suggest/Render/Field.php:149
 #: build/app.js:38
 #: build/listings/editor.js:3
 msgid "Search"
@@ -1723,6 +1723,7 @@ msgid "Order by"
 msgstr "Trier selon"
 
 #: build/listings/editor.js:1
+#: build/listings/editor.js:6
 msgid "Field"
 msgstr "Champ"
 
@@ -1954,6 +1955,7 @@ msgid "filters"
 msgstr "filtres"
 
 #: blocks/listing/block.json
+#: blocks/suggest/block.json
 msgctxt "block keyword"
 msgid "meilisearch"
 msgstr "meilisearch"
@@ -2792,7 +2794,8 @@ msgid "Search in %s"
 msgstr "Rechercher dans %s"
 
 #: src/Listings/Render/Renderer.php:320
-#: src/Suggest/Render/Field.php:43
+#: src/Suggest/Render/Field.php:44
+#: build/listings/editor.js:6
 msgid "Search…"
 msgstr "Rechercher…"
 
@@ -2830,7 +2833,7 @@ msgid "A filter of the listing: a taxonomy's terms, a field's values, the author
 msgstr "Un filtre du listing : les termes d’une taxonomie, les valeurs d’un champ, les auteurs, une plage de nombres, un oui/non."
 
 #: src/Listings/Render/Renderer.php:570
-#: src/Suggest/Render/Field.php:144
+#: src/Suggest/Render/Field.php:153
 msgid "Close"
 msgstr "Fermer"
 
@@ -3223,6 +3226,7 @@ msgstr "Activé"
 
 #: build/app.js:39
 #: build/app.js:40
+#: build/listings/editor.js:3
 msgid "None"
 msgstr "Aucun"
 
@@ -3790,11 +3794,12 @@ msgstr "Assistant d’installation"
 msgid "The %d most used are suggested. Add the others later in MeiliScout › Content."
 msgstr "Les %d plus utilisés sont suggérés. Ajoutez les autres plus tard dans MeiliScout › Contenus."
 
-#: src/Suggest/Render/Field.php:141
+#: src/Suggest/Render/Field.php:150
+#: build/listings/editor.js:6
 msgid "Suggestions"
 msgstr "Suggestions"
 
-#: src/Suggest/Render/Field.php:143
+#: src/Suggest/Render/Field.php:152
 msgid "See all results"
 msgstr "Voir tous les résultats"
 
@@ -3808,10 +3813,104 @@ msgstr "Aucune suggestion pour « %s »."
 msgid "Suggestions are not available right now. Press Enter to search."
 msgstr "Les suggestions ne sont pas disponibles pour le moment. Appuyez sur Entrée pour lancer la recherche."
 
-#: src/Suggest/Render/Field.php:102
+#: src/Suggest/Render/Field.php:111
+#: build/listings/editor.js:6
 msgid "Recent searches"
 msgstr "Recherches récentes"
 
-#: src/Suggest/Render/Field.php:106
+#: src/Suggest/Render/Field.php:115
 msgid "Clear recent searches"
 msgstr "Effacer les recherches récentes"
+
+#: build/listings/editor.js:3
+msgid "Suggestions (MeiliScout)"
+msgstr "Suggestions (MeiliScout)"
+
+#: build/listings/editor.js:3
+msgid "Suggest as the visitor types"
+msgstr "Suggérer pendant la frappe"
+
+#: build/listings/editor.js:3
+msgid "A suggest field declared with meiliscout_register_suggest()."
+msgstr "Un champ de suggestions déclaré avec meiliscout_register_suggest()."
+
+#: build/listings/editor.js:6
+msgid "The indexed content could not be read."
+msgstr "Le contenu indexé n’a pas pu être lu."
+
+#: build/listings/editor.js:6
+msgid "Posts"
+msgstr "Contenus"
+
+#: build/listings/editor.js:6
+msgid "Posts shown"
+msgstr "Contenus affichés"
+
+#: build/listings/editor.js:6
+msgid "Terms shown"
+msgstr "Termes affichés"
+
+#: build/listings/editor.js:6
+msgid "Label (for screen readers)"
+msgstr "Libellé (pour les lecteurs d’écran)"
+
+#: build/listings/editor.js:6
+msgid "Placeholder"
+msgstr "Texte indicatif"
+
+#: build/listings/editor.js:6
+msgid "Characters before suggesting"
+msgstr "Caractères avant de suggérer"
+
+#: build/listings/editor.js:6
+msgid "Kept in the visitor’s browser only."
+msgstr "Conservées uniquement dans le navigateur du visiteur."
+
+#: build/listings/editor.js:6
+msgid "Results page"
+msgstr "Page de résultats"
+
+#: build/listings/editor.js:6
+msgid "The site’s search page when left empty."
+msgstr "La page de recherche du site si ce champ est vide."
+
+#: build/listings/editor.js:6
+msgid "Search through"
+msgstr "Rechercher via"
+
+#: build/listings/editor.js:6
+msgid "WordPress is slower, and for a Meilisearch that browsers cannot reach."
+msgstr "WordPress est plus lent ; à réserver à un Meilisearch inaccessible aux navigateurs."
+
+#: build/listings/editor.js:6
+msgid "Meilisearch, directly"
+msgstr "Meilisearch, directement"
+
+#: build/listings/editor.js:6
+msgid "WordPress"
+msgstr "WordPress"
+
+#: blocks/suggest/block.json
+msgctxt "block title"
+msgid "Search with suggestions"
+msgstr "Recherche avec suggestions"
+
+#: blocks/suggest/block.json
+msgctxt "block description"
+msgid "A search field that suggests posts and terms as you type, straight from Meilisearch."
+msgstr "Un champ de recherche qui suggère des contenus et des termes pendant la frappe, directement depuis Meilisearch."
+
+#: blocks/suggest/block.json
+msgctxt "block keyword"
+msgid "search"
+msgstr "recherche"
+
+#: blocks/suggest/block.json
+msgctxt "block keyword"
+msgid "autocomplete"
+msgstr "autocomplétion"
+
+#: blocks/suggest/block.json
+msgctxt "block keyword"
+msgid "suggestions"
+msgstr "suggestions"
