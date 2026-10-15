@@ -37,7 +37,9 @@ final class IndexNames
      * counts as numbers, has_password, date timestamps and parts, post_title_sort).
      * 4, every value of a meta key (a list when there are several, '' kept),
      * title and comment statuses filterable, attachments' mime groups and
-     * parent statuses.
+     * parent statuses. 5, each term of a hierarchical taxonomy with its ancestors
+     * (`taxonomies.<tax>.tree`). 6, `thumbnail`: the featured image (url, width,
+     * height, alt), or null; additive, so queries read a schema 5 index as before.
      *
      * Terms: up to 3, the term's fields as WordPress gives them. 4, the fields of
      * term queries (ids and counts as numbers, name_sort, description_sort,
@@ -46,7 +48,7 @@ final class IndexNames
      * Versions were shared by every index up to 3: an index moves to the next
      * one on its own, and only its own indexation is needed.
      */
-    public const SCHEMA_VERSIONS = ['posts' => 5, 'taxonomies' => 4];
+    public const SCHEMA_VERSIONS = ['posts' => 6, 'taxonomies' => 4];
 
     /**
      * The indexes of the plugin, by base name.

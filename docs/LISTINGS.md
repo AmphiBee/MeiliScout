@@ -493,7 +493,7 @@ Another plugin: a `Pollora\MeiliScout\Listings\Language\LanguageAdapter` through
 
 ## Public fields
 
-Browsers search the posts index with a token, so while the module is on the index returns **public fields only** (its `displayedAttributes`): `ID`, `post_type`, `post_title`, `post_name`, `post_excerpt`, `post_parent`, `content_text`, `url`, `post_date`, `post_date_ts`, `terms`, `taxonomies`, `card`, and `metas.<key>` for the meta keys a listing declares in `public_metas`. A post's author, its other metas, its raw content are not returned to anyone. MeiliScout's own queries read nothing else.
+Browsers search the posts index with a token, so while the module is on the index returns **public fields only** (its `displayedAttributes`): `ID`, `post_type`, `post_title`, `post_name`, `post_excerpt`, `post_parent`, `content_text`, `url`, `thumbnail`, `post_date`, `post_date_ts`, `terms`, `taxonomies`, `card`, and `metas.<key>` for the meta keys a listing declares in `public_metas`. A post's author, its other metas, its raw content are not returned to anyone. MeiliScout's own queries read nothing else.
 
 - `meiliscout/post/displayed_attributes` keeps the last word: the list is its default.
 - A changed list (a listing's `public_metas`, the module turned on or off) is a settings update of the index, no re-indexation, sent in the background by the next request (WP-Cron).

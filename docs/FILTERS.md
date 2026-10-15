@@ -62,6 +62,10 @@ Control async queue processor registration.
 add_filter('meiliscout/register_async_queue_processor', '__return_false');
 ```
 
+### meiliscout/post/thumbnail_size, meiliscout/post/thumbnail
+
+The featured image indexed in each post's `thumbnail` field (schema 6). `meiliscout/post/thumbnail_size` (default `'thumbnail'`) is the registered size read for it; `meiliscout/post/thumbnail` receives the document `['url' => …, 'width' => …, 'height' => …, 'alt' => …]` (or null) and the `WP_Post`, and returns the same shape, or null for none. A change needs a new indexation.
+
 ### meiliscout/post/displayed_attributes
 Restrict which fields Meilisearch may return. Defaults to `['*']`; while front
 listings are on, to their public fields ([LISTINGS.md](LISTINGS.md#public-fields)).

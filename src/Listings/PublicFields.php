@@ -40,6 +40,7 @@ final class PublicFields
         'post_parent',
         'content_text',
         'url',
+        'thumbnail',
         'post_date',
         'post_date_ts',
         'terms',

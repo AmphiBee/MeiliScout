@@ -19,6 +19,8 @@ use function get_object_taxonomies;
 use function get_option;
 use function get_permalink;
 use function get_post_meta;
+use function get_post_thumbnail_id;
+use function wp_get_attachment_image_src;
 use function get_post_status;
 use function get_posts;
 use function get_term;
@@ -307,6 +309,15 @@ class PostIndexable implements Indexable
         // Preload meta cache using WordPress core function
         update_meta_cache('post', $postIds);
 
+        // The featured images' posts and metas, one query each rather than one per post
+        $thumbnailIds = array_values(array_unique(array_filter(array_map(
+            static fn (int $id): int => (int) get_post_meta($id, '_thumbnail_id', true),
+            array_map('intval', $postIds)
+        ))));
+        if ($thumbnailIds !== []) {
+            _prime_post_caches($thumbnailIds, false, true);
+        }
+
         // Preload terms cache using WordPress core function, then build the terms from it,
         // both as an integration reads them (WPML would fill the cache with adjusted terms)
         $this->preloadedTerms = [];
@@ -478,6 +489,7 @@ class PostIndexable implements Indexable
         $document = [...$document, ...$this->queryFields($item)];
 
         $document['url'] = get_permalink($item);
+        $document['thumbnail'] = $this->thumbnail($item);
         $document['content_text'] = $this->plainText((string) $document['post_content']);
         $document['terms'] = $this->getFlattenedTerms($item);
         $document['taxonomies'] = $this->groupedByTaxonomy($document['terms']);
@@ -487,6 +499,51 @@ class PostIndexable implements Indexable
         MetaValueFlags::noteAltered($document['metas'], is_array($filtered) ? (array) ($filtered['metas'] ?? []) : []);
 
         return $filtered;
+    }
+
+    /**
+     * The post's featured image as browsers show it (schema 6): its URL in one
+     * size, the size's dimensions and the alternative text. Null without one.
+     *
+     * @return array{url: string, width: int, height: int, alt: string}|null
+     */
+    private function thumbnail(WP_Post $post): ?array
+    {
+        $attachmentId = (int) get_post_thumbnail_id($post);
+        $thumbnail = null;
+
+        if ($attachmentId > 0) {
+            /**
+             * Filters the size of the featured image indexed for browsers
+             * (autosuggest, client cards). Changing it needs a new indexation.
+             *
+             * @param  string|int[]  $size  A registered size name; default `thumbnail`.
+             * @param  WP_Post  $post  The post.
+             */
+            $size = apply_filters('meiliscout/post/thumbnail_size', 'thumbnail', $post);
+            $image = wp_get_attachment_image_src($attachmentId, $size);
+
+            if ($image !== false && $image[0] !== '') {
+                $thumbnail = [
+                    'url' => $image[0],
+                    'width' => $image[1],
+                    'height' => $image[2],
+                    'alt' => trim(wp_strip_all_tags((string) get_post_meta($attachmentId, '_wp_attachment_image_alt', true))),
+                ];
+            }
+        }
+
+        /**
+         * Filters the thumbnail document of a post: return null for none, or
+         * the same shape with another image.
+         *
+         * @param  array{url: string, width: int, height: int, alt: string}|null  $thumbnail
+         * @param  WP_Post  $post  The post.
+         */
+        /** @var mixed $filtered */
+        $filtered = apply_filters('meiliscout/post/thumbnail', $thumbnail, $post);
+
+        return is_array($filtered) && ($filtered['url'] ?? '') !== '' ? $filtered : null;
     }
 
     /**
