@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Indexing
+
+- **Featured image in the posts index** (`thumbnail`: `url`, `width`, `height`, `alt`, or null): the `thumbnail` size by default, changed with `meiliscout/post/thumbnail_size`, or replaced per post with `meiliscout/post/thumbnail`. It is a public field, so browsers' cards can show it. Posts index **schema 6**: additive, queries keep reading a schema 5 index, but a full indexation is needed to fill the field (`wp meiliscout status` says so).
+
 ## [2.4.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.4.0) - 2026-10-15
 
 ### Admin

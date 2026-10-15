@@ -15,6 +15,12 @@ namespace {
     if (! function_exists('maybe_unserialize')) {
         function maybe_unserialize($value) { return $value; }
     }
+    if (! function_exists('get_post_thumbnail_id')) {
+        function get_post_thumbnail_id($post) { return (int) (($GLOBALS['meta']['_thumbnail_id'] ?? [0])[0] ?? 0); }
+    }
+    if (! function_exists('wp_get_attachment_image_src')) {
+        function wp_get_attachment_image_src($id, $size) { return $GLOBALS['images'][$id] ?? false; }
+    }
     if (! function_exists('get_post_meta')) {
         function get_post_meta($id, $key, $single = false)
         {
@@ -109,5 +115,21 @@ namespace Pollora\MeiliScout\Tests\Unit\Indexables\Post {
         SearchableAttributes::save(['post_title', 'content_text', 'guid', 'metas._price', 'post_title']);
 
         expect((new PostIndexable)->getIndexSettings()['searchableAttributes'])->toBe(['post_title', 'content_text', 'metas._price']);
+    });
+
+    test('a document carries the featured image, or null without one', function () {
+        $none = (new PostIndexable)->formatForIndexing(new \WP_Post(1, 'post', 'No image'));
+
+        $GLOBALS['meta']['_thumbnail_id'] = [55];
+        $GLOBALS['meta']['_wp_attachment_image_alt'] = ['  A <b>red</b> door '];
+        $GLOBALS['images'] = [55 => ['https://example.test/door-150x150.jpg', 150, 150, true]];
+        $with = (new PostIndexable)->formatForIndexing(new \WP_Post(2, 'post', 'With image'));
+
+        $GLOBALS['images'] = [];
+        $gone = (new PostIndexable)->formatForIndexing(new \WP_Post(3, 'post', 'Image deleted'));
+
+        expect($none['thumbnail'])->toBeNull()
+            ->and($with['thumbnail'])->toBe(['url' => 'https://example.test/door-150x150.jpg', 'width' => 150, 'height' => 150, 'alt' => 'A red door'])
+            ->and($gone['thumbnail'])->toBeNull();
     });
 }
