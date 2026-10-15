@@ -120,7 +120,10 @@ export const suggestionFromDocument = ( source, doc, labels, prefix ) => {
 		imageAlt: String( doc.thumbnail?.alt ?? '' ),
 		count: Number( doc.count ?? 0 ),
 		excerpt: decodeEntities( doc.post_excerpt ),
+		date: String( doc.post_date ?? '' ),
 		metas,
+		// The document as Meilisearch returned it: a JavaScript template reads any field of it
+		doc,
 	};
 };
 
@@ -191,6 +194,108 @@ export const recentSuggestions = ( queries, dom, urlOf ) =>
 		query,
 		url: urlOf( query ),
 	} ) );
+
+/**
+ * HTML a JavaScript template wrote with `html`: its interpolations were escaped.
+ */
+export class SafeHtml {
+	constructor( value ) {
+		this.value = value;
+	}
+
+	toString() {
+		return this.value;
+	}
+}
+
+/**
+ * Escapes text for HTML.
+ *
+ * @param {*} value
+ * @return {string} The text, safe in markup and in a quoted attribute.
+ */
+export const escape = ( value ) =>
+	String( value ?? '' )
+		.replace( /&/g, '&amp;' )
+		.replace( /</g, '&lt;' )
+		.replace( />/g, '&gt;' )
+		.replace( /"/g, '&quot;' )
+		.replace( /'/g, '&#39;' );
+
+/**
+ * The tag of a JavaScript template: html`<a href="${ hit.url }">${ hit.title }</a>`.
+ * Interpolations are escaped, unless they are html themselves (or a list of
+ * them), so a title never becomes markup.
+ *
+ * @param {string[]} strings The literal parts.
+ * @param {...*}     values
+ * @return {SafeHtml} The markup.
+ */
+export const html = ( strings, ...values ) =>
+	new SafeHtml(
+		strings.reduce( ( out, text, i ) => {
+			const value = values[ i - 1 ];
+			let part;
+			if ( value instanceof SafeHtml ) {
+				part = value.value;
+			} else if ( Array.isArray( value ) ) {
+				part = value
+					.map( ( v ) =>
+						v instanceof SafeHtml ? v.value : escape( v )
+					)
+					.join( '' );
+			} else {
+				part = escape( value );
+			}
+			return out + ( i === 0 ? '' : part ) + text;
+		}, '' )
+	);
+
+/**
+ * The element a JavaScript template returned for a suggestion, with what the
+ * list box needs: an option with its id, and the active one marked. A template
+ * returns `html`, an element, or plain text (a link to the suggestion).
+ *
+ * @param {Function} template The theme's template: (hit, { html, escape }) => result.
+ * @param {Object}   hit      The suggestion.
+ * @param {string}   activeId The active option's id.
+ * @param {Document} doc      The document to create elements in.
+ * @return {Element} The option.
+ */
+export const optionFrom = ( template, hit, activeId, doc ) => {
+	let result;
+	try {
+		result = template ? template( hit, { html, escape } ) : hit.title;
+	} catch ( e ) {
+		result = hit.title;
+	}
+
+	let node;
+	if ( result instanceof SafeHtml ) {
+		const holder = doc.createElement( 'template' );
+		holder.innerHTML = result.value.trim();
+		node = holder.content.firstElementChild;
+	} else if ( result && result.nodeType === 1 ) {
+		node = result;
+	}
+
+	if ( ! node ) {
+		node = doc.createElement( 'a' );
+		node.textContent = String( result ?? hit.title );
+	}
+
+	node.id = hit.optionId;
+	node.setAttribute( 'role', 'option' );
+	node.setAttribute( 'tabindex', '-1' );
+	node.setAttribute( 'aria-selected', String( hit.optionId === activeId ) );
+	node.classList.toggle( 'is-active', hit.optionId === activeId );
+	if ( node.tagName === 'A' && ! node.getAttribute( 'href' ) ) {
+		node.setAttribute( 'href', hit.url );
+	}
+	node.classList.add( 'meiliscout-suggest__option' );
+
+	return node;
+};
 
 /**
  * Where "all results" leads: the results page with the query.

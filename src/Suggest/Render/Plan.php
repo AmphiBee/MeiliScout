@@ -19,15 +19,16 @@ final class Plan
     public const VERSION = 1;
 
     /**
+     * @param  array<string, array{markup: string, fields: list<string>, js: string|null}>|null  $templates  The sources' templates, compiled (Templates::forDefinition())
      * @return array{version: int, sources: list<array<string, mixed>>}
      */
-    public static function forDefinition(SuggestDefinition $definition): array
+    public static function forDefinition(SuggestDefinition $definition, ?array $templates = null): array
     {
+        $templates ??= Templates::forDefinition($definition);
         $sources = [];
 
         foreach ($definition->sources as $source) {
-            $template = Templates::for($source);
-            $fields = $template['fields'];
+            $fields = $templates[$source->key]['fields'];
 
             if ($source->isPosts()) {
                 foreach ($definition->publicMetas as $key) {

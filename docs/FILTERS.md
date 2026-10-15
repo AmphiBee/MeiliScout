@@ -68,7 +68,7 @@ The featured image indexed in each post's `thumbnail` field (schema 6). `meilisc
 
 ### meiliscout/suggest/template, meiliscout/suggest/load_styles
 
-`meiliscout/suggest/template` receives a source's template `['markup' => …, 'fields' => […]]` and the `SuggestSource`, and returns another: the markup of one suggestion (one root element, bound to `context.hit`) and the index fields it reads. `meiliscout/suggest/load_styles` (default true) says whether the default look is loaded.
+`meiliscout/suggest/template` receives a source's compiled template `['markup' => …, 'fields' => […], 'js' => name|null]`, the `SuggestSource` and the `SuggestDefinition`, and returns another: the markup of one suggestion (one root element, bound to `context.hit`), the index fields it reads, and the name of its JavaScript template (then without markup). `meiliscout/suggest/load_styles` (default true) says whether the default look is loaded.
 
 ### meiliscout/suggest/token_lifetime
 

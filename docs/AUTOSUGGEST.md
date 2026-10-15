@@ -1,6 +1,6 @@
 # Search fields with suggestions
 
-> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). Built: the declaration of a field, its key and token, the field itself on a desktop (markup, client, default suggestion). The phone's sheet and recent searches are built. Next: the template engines.
+> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). Built: the declaration of a field, its key and token, the field itself on a desktop (markup, client, default suggestion). The phone's sheet, recent searches and the template engines are built. Next: terms in the admin, the block and the admin screen.
 
 A search field with suggestions asks Meilisearch **directly from the browser**, with a token that carries what the field may read. WordPress is not involved while the visitor types. It does not depend on the [front listings](LISTINGS.md) module.
 
@@ -65,20 +65,77 @@ Under 782 px (the listings' breakpoint) a tap on the field opens it as a **full-
 
 Kept in the visitor's browser (`localStorage`, `meiliscout-suggest-recent:<id>`), five per field, last one first. A search is remembered when the form is submitted or a suggestion followed. They show when the field is empty (above the suggestions on a phone, under the field on a desktop), with *Clear recent searches*. Nothing is sent anywhere. `'recent' => false` turns them off; without storage (a private window) the field simply has none.
 
-### A suggestion's markup
+### Drawing a suggestion
 
-The default suggestion is an image, the title with what was typed in bold, and the type's label. It is bound to `context.hit` with the Interactivity API's directives and cloned for each result: it is compiled once, when the page is rendered, and no PHP runs while the visitor types. `meiliscout/suggest/template` replaces it per source (`['markup' => …, 'fields' => […]]`; the engines — Blade, Twig, PHP callables, JS — come next). What a template may bind:
+A source's `template` says how its suggestions are drawn. It is compiled **once, when the page is rendered**, into markup the client clones for every result: no PHP runs while the visitor types. Everything a template prints is *a binding*, never the data, and everything is bound as **text** (never as HTML).
 
-| `context.hit.` | |
+| `template` | |
 |---|---|
-| `title`, `titleParts` | The title as text, and cut in `{text, match}` (`match` is what was typed) |
-| `url`, `meta` | Its address, the type's label |
-| `image`, `imageAlt` | The featured image (the `thumbnail` field of the index) |
-| `count` | A term's number of posts |
-| `excerpt` | When the template asks for `post_excerpt` |
-| `metas.<key>` | A key of `public_metas` |
+| *(none)* | The default: an image, the title with what was typed in bold, the type's label |
+| `'<a …>…</a>'` | A string of HTML, bound with Interactivity directives by hand |
+| `'blade:suggest.hit'` | A Blade view, with `$hit`, `$source`, `$suggest` |
+| `'twig:suggest/hit.twig'` | A Twig template (Timber, or the environment given to `meiliscout/listings/twig`), with `hit`, `source`, `suggest` |
+| `'meiliscout/suggest-hit'` | A template part of the theme (`meiliscout/suggest-hit.php`), with `$args['hit']`, `$args['source']`, `$args['suggest']` |
+| `fn ($source, $suggest, $hit) => '…'` | A callable returning the markup (or `['markup' => …, 'fields' => […]]`) |
+| `new MyHit` | A class implementing `Suggest\Template\SuggestTemplate` |
+| `'js:my-hit'` | Drawn in the browser by a function the theme registers ([below](#a-javascript-template)) |
 
-Everything is text: bind it with `data-wp-text`, never as HTML.
+The engines (Blade, Twig) are the ones the front listings use: `meiliscout/listings/blade` and `meiliscout/listings/twig` hand over a factory or an environment.
+
+`$hit` is the binder. Its methods print the attributes and elements that bind a suggestion:
+
+| | |
+|---|---|
+| `$hit->option()` | The attributes of the root: an option of the list box, active under the keyboard. A template that leaves them out is wrapped in an element that has them |
+| `$hit->href()` | The suggestion's address as a link's `href` |
+| `$hit->text('title')` | A field as the element's text |
+| `$hit->attr('src', 'image')` | A field as an attribute (never an `on…` handler) |
+| `$hit->show('image')`, `$hit->hide('count')` | Show or hide the element on a field's value |
+| `$hit->toggle('is-new', 'count')` | A class while a field has a value |
+| `$hit->title()` | The title with its matches marked: a `span` per part, `meiliscout-suggest__match` on the typed ones |
+
+```php
+// PHP (a callable; the same in a theme part)
+'template' => fn ($source, $suggest, $hit) => '<a class="hit" '.$hit->option().$hit->href().'>'
+    .$hit->title().'<span '.$hit->text('metas._price').'></span></a>',
+```
+
+```blade
+{{-- resources/views/suggest/hit.blade.php --}}
+<a class="hit" {{ $hit->option() }} {{ $hit->href() }}>
+    <img {{ $hit->attr('src', 'image') }} {{ $hit->show('image') }} alt="">
+    {{ $hit->title() }}
+    <small {{ $hit->text('meta') }}></small>
+</a>
+```
+
+```twig
+{# suggest/hit.twig #}
+<a class="hit" {{ hit.option() }} {{ hit.href() }}>{{ hit.title() }} <small {{ hit.text('meta') }}></small></a>
+```
+
+A suggestion holds: `title`, `titleParts` (`{text, match}`), `url`, `type`, `meta` (the type's label), `image`, `imageAlt`, `count` (a term's posts), `excerpt`, `date`, `metas.<key>` (a key of `public_metas`) and `doc.<field>` (a field of the document as Meilisearch returns it). The document fields a template reads must be asked for: the default suggestion's, plus the source's `fields` (`post_excerpt`, `post_date`... for posts; `description`... for terms: the public fields only). A template asking for a field that is not a suggestion's is refused with an error naming what it holds.
+
+A template that fails, or an engine the site does not have, falls back to the default suggestion (and logs why). `meiliscout/suggest/template` has the last word on a compiled template.
+
+#### A JavaScript template
+
+```js
+// Registered by the theme, before or after the page's scripts: the field reads it when it draws.
+( window.MeiliScout ||= {} ).suggestTemplates = {
+    ...( window.MeiliScout.suggestTemplates || {} ),
+    'my-hit': ( hit, { html } ) =>
+        html`<a class="hit" href="${ hit.url }">
+            ${ hit.titleParts.map( ( p ) => ( p.match ? html`<strong>${ p.text }</strong>` : p.text ) ) }
+            <small>${ hit.meta }</small></a>`,
+};
+```
+
+```php
+'posts' => ['post_types' => ['post'], 'template' => 'js:my-hit', 'fields' => ['post_date']],
+```
+
+The function receives the suggestion and `{ html, escape }` and returns `html` markup, an element, or plain text (a link to the suggestion). `html` escapes everything it interpolates, unless it is `html` itself (or a list of them): a title never becomes markup. The returned element becomes the option (its `id`, `role`, `aria-selected` and `is-active` are set for it); a link without an `href` gets the suggestion's. A function that throws, or one not registered yet, shows the title.
 
 ### Look
 

@@ -5,6 +5,8 @@ import {
 	allUrl,
 	announce,
 	buildSearches,
+	html,
+	optionFrom,
 	limitAnswer,
 	recentSuggestions,
 	normalize,
@@ -272,4 +274,91 @@ test( 'recent searches are suggestions leading to the results page', () => {
 		{ optionId: 'f-r-0', title: 'web', query: 'web', url: '/?s=web' },
 		{ optionId: 'f-r-1', title: 'seo', query: 'seo', url: '/?s=seo' },
 	] );
+} );
+
+describe( 'JavaScript templates', () => {
+	// Not named html: prettier would reformat the markup inside
+	const tag = html;
+	const hit = {
+		optionId: 'f-0-1',
+		url: '/a/',
+		title: 'A <b>bold</b> & "quoted" title',
+	};
+
+	test( 'html escapes what it interpolates, not the html it is given', () => {
+		const inner = tag`<i>${ 'x < y' }</i>`;
+		const items = [ 'a', '<b>' ].map( ( x ) => tag`<li>${ x }</li>` );
+
+		expect( String( tag`<a href="${ hit.url }">${ hit.title }</a>` ) ).toBe(
+			'<a href="/a/">A &lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot; title</a>'
+		);
+		expect( String( tag`<p>${ inner }</p>` ) ).toBe(
+			'<p><i>x &lt; y</i></p>'
+		);
+		expect( String( tag`<ul>${ items }</ul>` ) ).toBe(
+			'<ul><li>a</li><li>&lt;b&gt;</li></ul>'
+		);
+		// Plain text in a list is escaped too
+		expect( String( tag`<p>${ [ '<i>' ] }</p>` ) ).toBe(
+			'<p>&lt;i&gt;</p>'
+		);
+	} );
+
+	test( 'the option has what the list box needs, and the active one is marked', () => {
+		const make = ( active ) =>
+			optionFrom(
+				( h, { html: t } ) =>
+					t`<div class="mine"><span>${ h.title }</span></div>`,
+				hit,
+				active,
+				document
+			);
+
+		const option = make( 'f-0-1' );
+		expect( option.id ).toBe( 'f-0-1' );
+		expect( option.getAttribute( 'role' ) ).toBe( 'option' );
+		expect( option.getAttribute( 'aria-selected' ) ).toBe( 'true' );
+		expect( option.classList.contains( 'is-active' ) ).toBe( true );
+		expect( option.classList.contains( 'mine' ) ).toBe( true );
+		// The title stayed text
+		expect( option.querySelector( 'b' ) ).toBeNull();
+		expect( make( '' ).getAttribute( 'aria-selected' ) ).toBe( 'false' );
+	} );
+
+	test( "a link without an address gets the suggestion's, and plain text becomes a link", () => {
+		expect(
+			optionFrom(
+				( h, { html: t } ) => t`<a>${ h.title }</a>`,
+				hit,
+				'',
+				document
+			).getAttribute( 'href' )
+		).toBe( '/a/' );
+
+		const text = optionFrom( () => 'Just text', hit, '', document );
+		expect( text.tagName ).toBe( 'A' );
+		expect( text.textContent ).toBe( 'Just text' );
+		expect( text.getAttribute( 'href' ) ).toBe( '/a/' );
+	} );
+
+	test( 'a missing or failing template shows the title', () => {
+		expect( optionFrom( undefined, hit, '', document ).textContent ).toBe(
+			hit.title
+		);
+		expect(
+			optionFrom(
+				() => {
+					throw new Error( 'broken' );
+				},
+				hit,
+				'',
+				document
+			).textContent
+		).toBe( hit.title );
+	} );
+
+	test( 'an element is used as it is', () => {
+		const li = document.createElement( 'li' );
+		expect( optionFrom( () => li, hit, '', document ) ).toBe( li );
+	} );
 } );

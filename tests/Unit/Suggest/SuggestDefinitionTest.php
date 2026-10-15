@@ -61,7 +61,7 @@ test('every error is given at once', function () {
         'sources' => [
             'posts' => ['post_types' => ['post', 'product'], 'limit' => 50],
             'Bad Key' => ['post_types' => ['post']],
-            'topics' => ['type' => 'terms', 'taxonomies' => ['genre'], 'template' => 12],
+            'topics' => ['type' => 'terms', 'taxonomies' => ['genre'], 'template' => 12, 'fields' => ['name', 'term_meta']],
         ],
         'min_chars' => 0,
         'public_metas' => ['price', 'secret'],
@@ -73,7 +73,8 @@ test('every error is given at once', function () {
         ->toContain('The source "posts": limit must be a whole number from 1 to 20.')
         ->toContain('The source key "Bad Key" may only hold lowercase letters, digits, - and _.')
         ->toContain('The source "topics": the taxonomy "genre" is not indexed (Content › Taxonomies).')
-        ->toContain('The source "topics": template must be a template reference or a callable.')
+        ->toContain('The source "topics": template must be a callable, a SuggestTemplate, or a string (HTML, blade:<view>, twig:<template>, js:<name> or a theme template part).')
+        ->toContain('The source "topics": the field "term_meta" is not one browsers may read (term_id, term_taxonomy_id, taxonomy, name, slug, description, parent, count, tree_count, url).')
         ->toContain('min_chars must be a whole number from 1 to 5.')
         ->toContain('The meta key "secret" in public_metas is not indexed (Content › Custom fields).')
         ->toContain('Unknown option "colour".');

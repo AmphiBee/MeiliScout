@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Suggest\Definition;
 
+use Pollora\MeiliScout\Suggest\Template\SuggestTemplate;
+
 /**
  * One group of suggestions of a field: the posts of some types, or the terms
  * of some taxonomies, with its own limit, label and template.
@@ -16,7 +18,8 @@ final class SuggestSource
 
     /**
      * @param  list<string>  $objects  Post types (posts) or taxonomies (terms)
-     * @param  string|callable|null  $template  How a suggestion is drawn: see docs
+     * @param  string|callable|SuggestTemplate|null  $template  How a suggestion is drawn (docs/AUTOSUGGEST.md)
+     * @param  list<string>  $fields  Document fields the template reads, besides the default suggestion's
      */
     public function __construct(
         public readonly string $key,
@@ -25,6 +28,7 @@ final class SuggestSource
         public readonly int $limit,
         public readonly string $label,
         public readonly mixed $template = null,
+        public readonly array $fields = [],
     ) {}
 
     public function isPosts(): bool
