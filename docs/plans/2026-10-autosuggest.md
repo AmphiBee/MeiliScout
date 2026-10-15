@@ -1,6 +1,6 @@
 # Plan: search fields with autosuggestion
 
-Status: **phases 0 (measures), 1 (thumbnail, schema 6) and 2 (definition, key, token) built; the field itself is next.** Written 2026-10-15 from the code of 2.4.0. Decisions marked **(proposed)** wait for the owner's answer ([Open questions](#open-questions)).
+Status: **phases 0 (measures), 1 (thumbnail, schema 6), 2 (definition, key, token) and 3 (the field on a desktop) built; the mobile sheet is next.** Written 2026-10-15 from the code of 2.4.0. Decisions marked **(proposed)** wait for the owner's answer ([Open questions](#open-questions)).
 
 ## Goals (from the brief)
 

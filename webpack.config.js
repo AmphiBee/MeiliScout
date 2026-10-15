@@ -1,7 +1,7 @@
 const path = require('path');
 
 // Two builds: the admin app and the listings' blocks (scripts), and the
-// listings' client (a script module, for the Interactivity API). wp-scripts
+// clients of the listings and the suggest fields (script modules, for the Interactivity API). wp-scripts
 // builds modules with this flag.
 process.env.WP_EXPERIMENTAL_MODULES = 'true';
 
@@ -16,6 +16,8 @@ module.exports = [
 			// The listings' blocks in the editor, and their default look (build/listings/style.css)
 			'listings/editor': path.resolve(__dirname, 'resources/listings/editor/index.js'),
 			'listings/style': path.resolve(__dirname, 'resources/listings/front.css'),
+			// The search fields with suggestions' default look
+			'suggest/style': path.resolve(__dirname, 'resources/suggest/front.css'),
 		},
 		output: {
 			...scriptConfig.output,
@@ -26,6 +28,7 @@ module.exports = [
 		...moduleConfig,
 		entry: {
 			'listings/view': path.resolve(__dirname, 'resources/listings/view.js'),
+			'suggest/view': path.resolve(__dirname, 'resources/suggest/view.js'),
 		},
 		output: {
 			...moduleConfig.output,

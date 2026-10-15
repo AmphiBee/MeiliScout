@@ -23,5 +23,6 @@ final class SuggestServiceProvider extends ServiceProvider
         require_once __DIR__.'/functions.php';
 
         add_action('rest_api_init', [RestController::class, 'routes']);
+        Suggest::boot();
     }
 }

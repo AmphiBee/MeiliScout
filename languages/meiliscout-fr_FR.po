@@ -896,6 +896,8 @@ msgid "The last indexation completed."
 msgstr "La dernière indexation s'est terminée."
 
 #: src/Listings/Render/Renderer.php:271
+#: src/Suggest/Render/Field.php:37
+#: src/Suggest/Render/Field.php:110
 #: build/app.js:38
 #: build/listings/editor.js:3
 msgid "Search"
@@ -1530,6 +1532,9 @@ msgstr "Suivant"
 #: src/Listings/Render/Store.php:94
 #: src/Listings/Render/Store.php:95
 #: src/Listings/Render/Store.php:96
+#: src/Suggest/Suggest.php:82
+#: src/Suggest/Suggest.php:83
+#: src/Suggest/Suggest.php:84
 #, php-format
 msgid "%d result"
 msgid_plural "%d results"
@@ -2787,6 +2792,7 @@ msgid "Search in %s"
 msgstr "Rechercher dans %s"
 
 #: src/Listings/Render/Renderer.php:320
+#: src/Suggest/Render/Field.php:38
 msgid "Search…"
 msgstr "Rechercher…"
 
@@ -3782,3 +3788,21 @@ msgstr "Assistant d’installation"
 #, js-format
 msgid "The %d most used are suggested. Add the others later in MeiliScout › Content."
 msgstr "Les %d plus utilisés sont suggérés. Ajoutez les autres plus tard dans MeiliScout › Contenus."
+
+#: src/Suggest/Render/Field.php:111
+msgid "Suggestions"
+msgstr "Suggestions"
+
+#: src/Suggest/Render/Field.php:113
+msgid "See all results"
+msgstr "Voir tous les résultats"
+
+#. translators: %s: what the visitor typed
+#: src/Suggest/Suggest.php:87
+#, php-format
+msgid "No suggestion for “%s”."
+msgstr "Aucune suggestion pour « %s »."
+
+#: src/Suggest/Suggest.php:88
+msgid "Suggestions are not available right now. Press Enter to search."
+msgstr "Les suggestions ne sont pas disponibles pour le moment. Appuyez sur Entrée pour lancer la recherche."

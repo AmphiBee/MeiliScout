@@ -1,6 +1,6 @@
 # Search fields with suggestions
 
-> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). What exists today is the declaration of a field, its key and its token; the field itself (markup, client, templates) comes next.
+> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). Built: the declaration of a field, its key and token, the field itself on a desktop (markup, client, default suggestion). Next: the mobile sheet and recent searches, then the template engines.
 
 A search field with suggestions asks Meilisearch **directly from the browser**, with a token that carries what the field may read. WordPress is not involved while the visitor types. It does not depend on the [front listings](LISTINGS.md) module.
 
@@ -38,6 +38,38 @@ A source:
 | `limit` | `5` for posts, `3` for terms | 1 to 20 |
 | `label` | | The group's heading |
 | `template` | the default one | A template reference or a callable (see the design) |
+
+## Printing a field
+
+```php
+meiliscout_suggest('site', ['placeholder' => 'Search the site…']);   // prints
+$html = meiliscout_get_suggest('site');                              // returns
+```
+
+Arguments: `placeholder`, `label` (the field's accessible name), `value` (the first value, the current search by default) and `class`. A shortcode or a block is up to the theme for now.
+
+The field is a **real search form**: `GET` to `results_url` (the site's search page by default) with the query in `search_param`, so it works without JavaScript, and a visitor who presses Enter without choosing a suggestion gets the results page. With JavaScript it becomes a combobox (ARIA 1.2): the focus stays in the input, the arrows walk the suggestions (`aria-activedescendant`), Enter follows the active one, Escape closes, and a polite live region announces the count.
+
+What the client does to be quick: one multi-search per keystroke (one search per source), a short debounce, the previous request aborted, the previous suggestions kept on screen until the new ones come, the last 20 answers remembered, the connection opened when the field takes the focus, and only the fields the template reads asked for.
+
+### A suggestion's markup
+
+The default suggestion is an image, the title with what was typed in bold, and the type's label. It is bound to `context.hit` with the Interactivity API's directives and cloned for each result: it is compiled once, when the page is rendered, and no PHP runs while the visitor types. `meiliscout/suggest/template` replaces it per source (`['markup' => …, 'fields' => […]]`; the engines — Blade, Twig, PHP callables, JS — come next). What a template may bind:
+
+| `context.hit.` | |
+|---|---|
+| `title`, `titleParts` | The title as text, and cut in `{text, match}` (`match` is what was typed) |
+| `url`, `meta` | Its address, the type's label |
+| `image`, `imageAlt` | The featured image (the `thumbnail` field of the index) |
+| `count` | A term's number of posts |
+| `excerpt` | When the template asks for `post_excerpt` |
+| `metas.<key>` | A key of `public_metas` |
+
+Everything is text: bind it with `data-wp-text`, never as HTML.
+
+### Look
+
+`build/suggest/style.css` uses the front listings' UI kit tokens (the theme's presets, `--meiliscout-*`), under `:where()`: any rule of the theme wins. `meiliscout/suggest/load_styles` turns it off.
 
 ## Key and token
 
