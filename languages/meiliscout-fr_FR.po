@@ -896,8 +896,8 @@ msgid "The last indexation completed."
 msgstr "La dernière indexation s'est terminée."
 
 #: src/Listings/Render/Renderer.php:271
-#: src/Suggest/Render/Field.php:37
-#: src/Suggest/Render/Field.php:110
+#: src/Suggest/Render/Field.php:42
+#: src/Suggest/Render/Field.php:140
 #: build/app.js:38
 #: build/listings/editor.js:3
 msgid "Search"
@@ -2792,7 +2792,7 @@ msgid "Search in %s"
 msgstr "Rechercher dans %s"
 
 #: src/Listings/Render/Renderer.php:320
-#: src/Suggest/Render/Field.php:38
+#: src/Suggest/Render/Field.php:43
 msgid "Search…"
 msgstr "Rechercher…"
 
@@ -2830,6 +2830,7 @@ msgid "A filter of the listing: a taxonomy's terms, a field's values, the author
 msgstr "Un filtre du listing : les termes d’une taxonomie, les valeurs d’un champ, les auteurs, une plage de nombres, un oui/non."
 
 #: src/Listings/Render/Renderer.php:570
+#: src/Suggest/Render/Field.php:144
 msgid "Close"
 msgstr "Fermer"
 
@@ -3789,11 +3790,11 @@ msgstr "Assistant d’installation"
 msgid "The %d most used are suggested. Add the others later in MeiliScout › Content."
 msgstr "Les %d plus utilisés sont suggérés. Ajoutez les autres plus tard dans MeiliScout › Contenus."
 
-#: src/Suggest/Render/Field.php:111
+#: src/Suggest/Render/Field.php:141
 msgid "Suggestions"
 msgstr "Suggestions"
 
-#: src/Suggest/Render/Field.php:113
+#: src/Suggest/Render/Field.php:143
 msgid "See all results"
 msgstr "Voir tous les résultats"
 
@@ -3806,3 +3807,11 @@ msgstr "Aucune suggestion pour « %s »."
 #: src/Suggest/Suggest.php:88
 msgid "Suggestions are not available right now. Press Enter to search."
 msgstr "Les suggestions ne sont pas disponibles pour le moment. Appuyez sur Entrée pour lancer la recherche."
+
+#: src/Suggest/Render/Field.php:102
+msgid "Recent searches"
+msgstr "Recherches récentes"
+
+#: src/Suggest/Render/Field.php:106
+msgid "Clear recent searches"
+msgstr "Effacer les recherches récentes"

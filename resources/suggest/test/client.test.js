@@ -5,6 +5,8 @@ import {
 	allUrl,
 	announce,
 	buildSearches,
+	limitAnswer,
+	recentSuggestions,
 	normalize,
 	readAnswers,
 	step,
@@ -238,4 +240,36 @@ test( 'the memory forgets the least recently read answer', () => {
 	expect( memory.get( 'b' ) ).toBeUndefined();
 	expect( memory.get( 'a' ) ).toBe( 1 );
 	expect( memory.get( 'c' ) ).toBe( 3 );
+} );
+
+test( 'a shorter answer keeps the first suggestions of each group and the keyboard order', () => {
+	const hit = ( n ) => ( { optionId: `f-0-${ n }`, url: `/${ n }` } );
+	const answer = {
+		groups: [
+			{ key: 'a', hits: [ hit( 1 ), hit( 2 ), hit( 3 ) ], hasHits: true },
+			{ key: 'b', hits: [], hasHits: false },
+		],
+		options: [],
+		total: 3,
+	};
+
+	const short = limitAnswer( answer, 2 );
+
+	expect( short.groups[ 0 ].hits ).toHaveLength( 2 );
+	expect( short.options.map( ( o ) => o.id ) ).toEqual( [
+		'f-0-1',
+		'f-0-2',
+	] );
+	expect( short.total ).toBe( 2 );
+	// The remembered answer is left whole
+	expect( answer.groups[ 0 ].hits ).toHaveLength( 3 );
+} );
+
+test( 'recent searches are suggestions leading to the results page', () => {
+	expect(
+		recentSuggestions( [ 'web', 'seo' ], 'f', ( q ) => `/?s=${ q }` )
+	).toEqual( [
+		{ optionId: 'f-r-0', title: 'web', query: 'web', url: '/?s=web' },
+		{ optionId: 'f-r-1', title: 'seo', query: 'seo', url: '/?s=seo' },
+	] );
 } );

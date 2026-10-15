@@ -18,17 +18,31 @@ import {
 	allUrl,
 	announce,
 	buildSearches,
+	limitAnswer,
 	normalize,
 	readAnswers,
+	recentSuggestions,
 	step,
 } from './client';
+import { add, browserStorage, clear, load } from './recent';
 
 const NAMESPACE = 'meiliscout/suggest';
+
+/** The listings' breakpoint: below it, the field opens as a full-screen sheet. */
+const MOBILE = '(max-width: 781.98px)';
+
+/** On the page's root while a sheet is open: the page behind does not scroll. */
+const LOCKED = 'meiliscout-suggest-locked';
+
+const storage = browserStorage();
 
 /** The plan's contract this client reads (Suggest\Render\Plan::VERSION). */
 const CONTRACT = 1;
 
-/** What lives apart from the reactive context, by field: request, timer, memory. */
+/**
+ * What lives apart from the reactive context, by field: its request, timer,
+ * memory, and the sheet's history entry and viewport listener.
+ */
 const runtime = new Map();
 
 const { state } = store( NAMESPACE, {
@@ -53,20 +67,26 @@ const { state } = store( NAMESPACE, {
 		focus() {
 			const context = getContext();
 			context.focused = true;
+			if ( ! usable( context ) ) {
+				return;
+			}
 			warmUp( context );
-			// Back in the field: the suggestions of what it holds, if any
-			if (
-				usable( context ) &&
-				normalize( context.query ).length >= context.minChars
+
+			// On a phone the field opens as a sheet, of its own accord
+			if ( ! context.sheet && window.matchMedia( MOBILE ).matches ) {
+				openSheet( context );
+			}
+
+			if ( normalize( context.query ).length < context.minChars ) {
+				showRecent( context );
+			} else if (
+				context.groups.some( ( group ) => group.hasHits ) ||
+				context.empty
 			) {
-				if (
-					context.groups.some( ( group ) => group.hasHits ) ||
-					context.empty
-				) {
-					context.open = true;
-				} else {
-					schedule( context, 0 );
-				}
+				// Back in the field: the suggestions of what it holds
+				context.open = true;
+			} else {
+				schedule( context, 0 );
 			}
 		},
 
@@ -84,6 +104,8 @@ const { state } = store( NAMESPACE, {
 					if ( ! context.open ) {
 						if ( context.options.length ) {
 							context.open = true;
+						} else {
+							showRecent( context );
 						}
 						return;
 					}
@@ -97,12 +119,16 @@ const { state } = store( NAMESPACE, {
 						);
 						if ( option?.url ) {
 							event.preventDefault();
+							remember( context, option.query ?? context.query );
 							window.location.assign( option.url );
 						}
 					}
 					break;
 				case 'Escape':
-					if ( context.open ) {
+					if ( context.sheet ) {
+						event.preventDefault();
+						closeSheet( context );
+					} else if ( context.open ) {
 						event.preventDefault();
 						close( context );
 					}
@@ -112,8 +138,9 @@ const { state } = store( NAMESPACE, {
 		},
 
 		submit() {
-			// The form submits as any search: nothing to do but not to keep a request going
+			// The form submits as any search: remember it, and stop asking
 			const context = getContext();
+			remember( context, context.query );
 			cancel( context );
 			close( context );
 		},
@@ -122,7 +149,8 @@ const { state } = store( NAMESPACE, {
 			const context = getContext();
 			const { ref } = getElement();
 			context.focused = ref.contains( event.relatedTarget );
-			if ( ! context.focused ) {
+			// A sheet stays open: scrolling its list takes the keyboard away, not the sheet
+			if ( ! context.focused && ! context.sheet ) {
 				close( context );
 			}
 		},
@@ -130,17 +158,67 @@ const { state } = store( NAMESPACE, {
 		clickOutside( event ) {
 			const context = getContext();
 			const { ref } = getElement();
-			if ( context.open && ! ref.contains( event.target ) ) {
+			if (
+				context.open &&
+				! context.sheet &&
+				! ref.contains( event.target )
+			) {
 				close( context );
 			}
 		},
 
 		/**
 		 * A press in the panel must not take the focus from the field.
+		 *
 		 * @param {Event} event
 		 */
 		keepFocus( event ) {
 			event.preventDefault();
+		},
+
+		/**
+		 * A suggestion followed: its search is remembered.
+		 *
+		 * @param {Event} event
+		 */
+		panelClick( event ) {
+			const context = getContext();
+			const link = event.target.closest?.( 'a[role="option"]' );
+			if ( link ) {
+				remember(
+					context,
+					link.classList.contains(
+						'meiliscout-suggest__option--recent'
+					)
+						? link.textContent
+						: context.query
+				);
+			}
+		},
+
+		/** Scrolling the sheet's list puts the keyboard away. */
+		touchScroll() {
+			const context = getContext();
+			const input = document.getElementById( `${ context.id }-input` );
+			if (
+				context.sheet &&
+				input.ownerDocument.activeElement === input
+			) {
+				input.blur();
+			}
+		},
+
+		closeSheet() {
+			closeSheet( getContext() );
+		},
+
+		forget() {
+			const context = getContext();
+			clear( storage, context.field );
+			context.recent = [];
+			context.options = [];
+			context.activeId = '';
+			context.open = context.sheet;
 		},
 	},
 
@@ -149,13 +227,30 @@ const { state } = store( NAMESPACE, {
 			const context = getContext();
 			context.focused = false;
 			runtime.set( context.id, {
+				context,
 				memory: new Memory(),
 				controller: null,
 				timer: 0,
 				warmed: false,
+				pushed: false,
+				ignorePop: false,
+				viewport: null,
 			} );
 		},
 	},
+} );
+
+/**
+ * The back button closes a sheet, as it closes a page's panel.
+ */
+window.addEventListener( 'popstate', () => {
+	for ( const run of runtime.values() ) {
+		if ( run.ignorePop ) {
+			run.ignorePop = false;
+		} else if ( run.context.sheet ) {
+			closeSheet( run.context, true );
+		}
+	}
 } );
 
 /**
@@ -177,7 +272,7 @@ function usable( context ) {
  */
 function warmUp( context ) {
 	const run = runtime.get( context.id );
-	if ( ! run || run.warmed || ! usable( context ) ) {
+	if ( ! run || run.warmed ) {
 		return;
 	}
 	run.warmed = true;
@@ -189,7 +284,7 @@ function warmUp( context ) {
 }
 
 /**
- * Searches after the debounce; the first letter past the minimum goes at once.
+ * Searches after the debounce; an answer already known comes at once.
  *
  * @param {Object} context
  * @param {number} [delay] Milliseconds, the field's debounce by default.
@@ -205,8 +300,8 @@ function schedule( context, delay ) {
 
 	if ( query.length < context.minChars ) {
 		cancel( context );
-		close( context );
 		reset( context );
+		showRecent( context );
 		return;
 	}
 
@@ -266,13 +361,19 @@ async function search( context, query ) {
 }
 
 /**
- * Puts an answer on screen, when the visitor is still in the field.
+ * Puts an answer on screen, when the visitor is still in the field. The
+ * phone's sheet shows fewer suggestions per group.
  *
  * @param {Object} context
  * @param {string} query
- * @param {Object} answer
+ * @param {Object} full    The answer, as remembered.
  */
-function show( context, query, answer ) {
+function show( context, query, full ) {
+	const answer = context.sheet
+		? limitAnswer( full, context.mobileLimit )
+		: full;
+
+	context.recent = [];
 	context.groups = answer.groups;
 	context.options = answer.options;
 	context.total = answer.total;
@@ -286,7 +387,7 @@ function show( context, query, answer ) {
 		answer.total === 0
 			? context.emptyText
 			: announce( state.i18n.results, answer.total );
-	context.open = context.focused;
+	context.open = context.focused || context.sheet;
 }
 
 /**
@@ -310,6 +411,39 @@ function reset( context ) {
 }
 
 /**
+ * Shows the recent searches in place of suggestions, when the field is empty.
+ *
+ * @param {Object} context
+ */
+function showRecent( context ) {
+	const list = context.recentEnabled ? load( storage, context.field ) : [];
+
+	context.recent = recentSuggestions( list, context.id, ( query ) =>
+		allUrl( context.action, context.param, query )
+	);
+	context.options = context.recent.map( ( item ) => ( {
+		id: item.optionId,
+		url: item.url,
+		query: item.query,
+	} ) );
+	context.activeId = '';
+	context.open = context.sheet || context.recent.length > 0;
+}
+
+/**
+ * Remembers a search the visitor made or followed.
+ *
+ * @param {Object} context
+ * @param {string} query
+ */
+function remember( context, query ) {
+	const text = normalize( query );
+	if ( context.recentEnabled && text.length >= context.minChars ) {
+		add( storage, context.field, text );
+	}
+}
+
+/**
  * Moves the active suggestion, scrolling it into view.
  *
  * @param {Object} context
@@ -329,15 +463,98 @@ function move( context, by ) {
 	}
 }
 
+/**
+ * Closes the panel: a sheet closes only by its own means.
+ *
+ * @param {Object} context
+ */
 function close( context ) {
-	context.open = false;
 	context.activeId = '';
+	if ( ! context.sheet ) {
+		context.open = false;
+	}
 }
 
 function cancel( context ) {
 	const run = runtime.get( context.id );
 	run?.controller?.abort();
 	context.busy = false;
+}
+
+/**
+ * Opens the full-screen sheet: the field takes the screen, the page behind
+ * stays where it was, the back button closes it, and its height follows the
+ * visual viewport so that the keyboard never covers the suggestions.
+ *
+ * @param {Object} context
+ */
+function openSheet( context ) {
+	const run = runtime.get( context.id );
+	const root = document.getElementById( context.id );
+	const layer = root.querySelector( '.meiliscout-suggest__layer' );
+
+	// The field leaves its place: its height stays, the page does not jump
+	root.style.minHeight = `${ root.offsetHeight }px`;
+	document.documentElement.classList.add( LOCKED );
+	context.sheet = true;
+	context.open = true;
+
+	const fit = () => {
+		const viewport = window.visualViewport;
+		if ( viewport ) {
+			layer.style.setProperty(
+				'--meiliscout-suggest-height',
+				`${ viewport.height }px`
+			);
+			layer.style.setProperty(
+				'--meiliscout-suggest-top',
+				`${ viewport.offsetTop }px`
+			);
+		}
+	};
+	fit();
+	window.visualViewport?.addEventListener( 'resize', fit );
+	window.visualViewport?.addEventListener( 'scroll', fit );
+	run.viewport = fit;
+
+	window.history.pushState( { meiliscoutSuggest: context.id }, '' );
+	run.pushed = true;
+}
+
+/**
+ * Closes the sheet.
+ *
+ * @param {Object}  context
+ * @param {boolean} popped  The back button closed it: its history entry is gone.
+ */
+function closeSheet( context, popped = false ) {
+	if ( ! context.sheet ) {
+		return;
+	}
+
+	const run = runtime.get( context.id );
+	const root = document.getElementById( context.id );
+	const layer = root.querySelector( '.meiliscout-suggest__layer' );
+
+	context.sheet = false;
+	context.open = false;
+	context.activeId = '';
+	context.focused = false;
+	cancel( context );
+	document.documentElement.classList.remove( LOCKED );
+	root.style.minHeight = '';
+	layer.style.removeProperty( '--meiliscout-suggest-height' );
+	layer.style.removeProperty( '--meiliscout-suggest-top' );
+	window.visualViewport?.removeEventListener( 'resize', run.viewport );
+	window.visualViewport?.removeEventListener( 'scroll', run.viewport );
+	document.getElementById( `${ context.id }-input` )?.blur();
+
+	// Its history entry goes with it, unless the back button already took it
+	if ( run.pushed && ! popped ) {
+		run.ignorePop = true;
+		window.history.back();
+	}
+	run.pushed = false;
 }
 
 /**

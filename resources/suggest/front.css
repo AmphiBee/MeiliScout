@@ -86,7 +86,7 @@
 	min-height: var(--meiliscout-control);
 	padding-inline: var(--meiliscout-gap-small);
 	font: inherit;
-	font-size: var(--meiliscout-control-font);
+	font-size: max(16px, var(--meiliscout-control-font));
 	color: inherit;
 	background: var(--meiliscout-surface);
 	border: 1px solid var(--meiliscout-border);
@@ -199,6 +199,106 @@
 :where(.meiliscout-suggest__all:focus-visible) {
 	outline: 2px solid var(--meiliscout-focus);
 	outline-offset: -2px;
+}
+
+/* Recent searches and the form's other buttons */
+
+.meiliscout-suggest__recent-icon {
+	flex: none;
+}
+
+.meiliscout-suggest__forget {
+	display: block;
+	width: 100%;
+}
+
+:where(.meiliscout-suggest__recent-icon) {
+	color: var(--meiliscout-muted);
+}
+
+:where(.meiliscout-suggest__forget) {
+	padding: var(--meiliscout-gap-small);
+	font: inherit;
+	font-size: var(--meiliscout-small);
+	color: var(--meiliscout-muted);
+	text-align: center;
+	background: none;
+	border: 0;
+	border-block-start: 1px solid var(--meiliscout-border);
+	cursor: pointer;
+}
+
+:where(.meiliscout-suggest__forget:hover) {
+	background: var(--meiliscout-tint);
+}
+
+.meiliscout-suggest__close[hidden],
+.meiliscout-suggest__forget[hidden],
+.meiliscout-suggest__group--recent[hidden] {
+	display: none;
+}
+
+:where(.meiliscout-suggest__close) {
+	padding-inline: var(--meiliscout-gap-small);
+	font: inherit;
+	color: var(--meiliscout-accent);
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+
+/* The phone's sheet: the field takes the screen. Its height and offset follow
+   the visual viewport (view.js), so that the keyboard never covers the list;
+   the page behind does not scroll. A 16px input does not make iOS zoom. */
+
+html.meiliscout-suggest-locked {
+	overflow: hidden;
+}
+
+.meiliscout-suggest__layer.is-sheet {
+	position: fixed;
+	inset-inline: 0;
+	inset-block-start: var(--meiliscout-suggest-top, 0);
+	z-index: 100000;
+	display: flex;
+	flex-direction: column;
+	height: var(--meiliscout-suggest-height, 100dvh);
+}
+
+.meiliscout-suggest__layer.is-sheet .meiliscout-suggest__panel {
+	position: static;
+	flex: 1 1 auto;
+	max-height: none;
+}
+
+:where(.meiliscout-suggest__layer.is-sheet) {
+	padding: var(--meiliscout-gap-small);
+	color: var(--meiliscout-surface-text);
+	background: var(--meiliscout-surface);
+}
+
+:where(.meiliscout-suggest__layer.is-sheet .meiliscout-suggest__panel) {
+	margin: var(--meiliscout-gap-small) calc(var(--meiliscout-gap-small) * -1) 0;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+:where(.meiliscout-suggest__layer.is-sheet .meiliscout-suggest__input) {
+	font-size: max(16px, var(--meiliscout-control-font));
+}
+
+:where(.meiliscout-suggest__layer.is-sheet .meiliscout-suggest__option) {
+	min-height: 3rem;
+}
+
+/* A phone's title may take two lines rather than be cut */
+:where(.meiliscout-suggest__layer.is-sheet .meiliscout-suggest__title) {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	white-space: normal;
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -41,6 +41,25 @@ test('a field is a search form with a combobox over a list box', function () {
         ->toContain('Posts')->toContain('Topics');
 });
 
+test('a field has a phone sheet, and recent searches unless it turns them off', function () {
+    $html = Suggest::render('field-test');
+
+    expect($html)->toContain('meiliscout-suggest__layer')
+        ->toContain('data-wp-class--is-sheet="context.sheet"')
+        ->toContain('actions.closeSheet')
+        ->toContain('meiliscout-suggest__group--recent')
+        ->toContain('actions.forget')
+        ->toContain('"mobileLimit":3')
+        ->toContain('"recentEnabled":true');
+
+    SuggestRegistry::declare('field-test', ['sources' => ['posts' => ['post_types' => ['post']]], 'recent' => false]);
+    $off = Suggest::render('field-test');
+
+    expect($off)->not->toContain('meiliscout-suggest__group--recent')
+        ->not->toContain('actions.forget')
+        ->toContain('"recentEnabled":false');
+});
+
 test('the plan carries one search per source, with a filter of its own', function () {
     $plan = Plan::forDefinition(SuggestRegistry::get('field-test'));
 
