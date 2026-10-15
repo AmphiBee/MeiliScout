@@ -111,11 +111,13 @@ Demo site (DDEV, 70 réalisations + ~180 posts), requests from the host through 
 
 Decision: **A1 by default, A2 as an opt-in fallback**, as proposed.
 
-## Open questions
+## Decisions (owner, 2026-10-15)
 
-1. **Scope v1** — posts only, or posts + terms? Opt-in per field/block (recommended) or replace the site search form globally?
-2. **Independence** — works without the Front listings module, with its own key (recommended)?
-3. **Engines for v1** — which of JS template, PHP, Blade, Twig are mandatory? (Recommended: default + JS + PHP first; Blade and Twig in phase 3, they only emit the shared markup.)
-4. **Thumbnails** — OK to add a `thumbnail` field to the posts documents (a schema bump, full reindex for sites that want images)?
-5. **Recent searches / popular queries / analytics** — recent in `localStorage` only (recommended); anything server-side?
-6. **Private Meilisearch** — support the REST fallback (A2) in v1, or require a public host?
+1. **Scope v1:** posts + terms; opt-in per field or block (no global replacement of the site's search form).
+2. **Independence:** the autosuggest has **its own Meilisearch API key** (search only, posts and taxonomies indexes), distinct from the listings key, for security: rotating or leaking one never touches the other. Works without the Front listings module.
+3. **Templates:** **every engine in v1**: default, JS, PHP, Blade and Twig (all emit the one binding markup).
+4. **Thumbnails:** required, and first: a `thumbnail` field in the posts documents (schema 6, read path for 5 without images), exposed as a public field. It is also useful to the listings' cards.
+5. **Recent searches:** browser `localStorage` only; no server-side analytics.
+6. **Private Meilisearch:** v1 requires a public host; the REST fallback (A2) stays for phase 4.
+
+Phase order after these answers: 0 (done) → **1 thumbnail field + schema 6** → 2 key, token and definition → 3 client and default template (desktop) → 4 mobile sheet and recent searches → 5 template engines (JS, PHP, Blade, Twig) → 6 terms group, block, core Search block → 7 admin screen, CLI, docs, FR, release. The REST fallback joins phase 6 if time allows.
