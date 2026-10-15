@@ -157,6 +157,42 @@ export const readAnswers = ( plan, results, labels, dom ) => {
 };
 
 /**
+ * An answer with at most so many suggestions per group: the phone shows
+ * fewer. The options follow, in the same order.
+ *
+ * @param {{groups: Object[], options: Object[], total: number}} answer
+ * @param {number}                                               perGroup How many each group keeps.
+ * @return {{groups: Object[], options: Object[], total: number}} The shorter answer.
+ */
+export const limitAnswer = ( answer, perGroup ) => {
+	const groups = answer.groups.map( ( group ) => {
+		const hits = group.hits.slice( 0, perGroup );
+		return { ...group, hits, hasHits: hits.length > 0 };
+	} );
+	const options = groups.flatMap( ( group ) =>
+		group.hits.map( ( hit ) => ( { id: hit.optionId, url: hit.url } ) )
+	);
+
+	return { groups, options, total: options.length };
+};
+
+/**
+ * Recent searches as suggestions the field's list shows and the keyboard walks.
+ *
+ * @param {string[]} queries The recent searches.
+ * @param {string}   dom     The field's DOM id.
+ * @param {Function} urlOf   A query's results page.
+ * @return {Object[]} The recent suggestions.
+ */
+export const recentSuggestions = ( queries, dom, urlOf ) =>
+	queries.map( ( query, i ) => ( {
+		optionId: `${ dom }-r-${ i }`,
+		title: query,
+		query,
+		url: urlOf( query ),
+	} ) );
+
+/**
  * Where "all results" leads: the results page with the query.
  *
  * @param {string} action The results page.

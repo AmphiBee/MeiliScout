@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-15T10:08:58+02:00\n"
+"POT-Creation-Date: 2026-10-15T10:14:53+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: meiliscout\n"
@@ -657,8 +657,8 @@ msgid "Reset"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:271
-#: src/Suggest/Render/Field.php:37
-#: src/Suggest/Render/Field.php:110
+#: src/Suggest/Render/Field.php:42
+#: src/Suggest/Render/Field.php:140
 #: build/app.js:38
 #: build/listings/editor.js:3
 msgid "Search"
@@ -671,7 +671,7 @@ msgid "Search in %s"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:320
-#: src/Suggest/Render/Field.php:38
+#: src/Suggest/Render/Field.php:43
 msgid "Search…"
 msgstr ""
 
@@ -724,6 +724,7 @@ msgid "Next"
 msgstr ""
 
 #: src/Listings/Render/Renderer.php:570
+#: src/Suggest/Render/Field.php:144
 msgid "Close"
 msgstr ""
 
@@ -1018,11 +1019,19 @@ msgstr ""
 msgid "Delete the previous indexes"
 msgstr ""
 
-#: src/Suggest/Render/Field.php:111
+#: src/Suggest/Render/Field.php:102
+msgid "Recent searches"
+msgstr ""
+
+#: src/Suggest/Render/Field.php:106
+msgid "Clear recent searches"
+msgstr ""
+
+#: src/Suggest/Render/Field.php:141
 msgid "Suggestions"
 msgstr ""
 
-#: src/Suggest/Render/Field.php:113
+#: src/Suggest/Render/Field.php:143
 msgid "See all results"
 msgstr ""
 

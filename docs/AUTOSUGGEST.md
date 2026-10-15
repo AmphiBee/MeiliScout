@@ -1,6 +1,6 @@
 # Search fields with suggestions
 
-> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). Built: the declaration of a field, its key and token, the field itself on a desktop (markup, client, default suggestion). Next: the mobile sheet and recent searches, then the template engines.
+> **In progress** (design: [plans/2026-10-autosuggest.md](plans/2026-10-autosuggest.md)). Built: the declaration of a field, its key and token, the field itself on a desktop (markup, client, default suggestion). The phone's sheet and recent searches are built. Next: the template engines.
 
 A search field with suggestions asks Meilisearch **directly from the browser**, with a token that carries what the field may read. WordPress is not involved while the visitor types. It does not depend on the [front listings](LISTINGS.md) module.
 
@@ -51,6 +51,19 @@ Arguments: `placeholder`, `label` (the field's accessible name), `value` (the fi
 The field is a **real search form**: `GET` to `results_url` (the site's search page by default) with the query in `search_param`, so it works without JavaScript, and a visitor who presses Enter without choosing a suggestion gets the results page. With JavaScript it becomes a combobox (ARIA 1.2): the focus stays in the input, the arrows walk the suggestions (`aria-activedescendant`), Enter follows the active one, Escape closes, and a polite live region announces the count.
 
 What the client does to be quick: one multi-search per keystroke (one search per source), a short debounce, the previous request aborted, the previous suggestions kept on screen until the new ones come, the last 20 answers remembered, the connection opened when the field takes the focus, and only the fields the template reads asked for.
+
+### On a phone
+
+Under 782 px (the listings' breakpoint) a tap on the field opens it as a **full-screen sheet**: the field at the top with a *Close* button, the suggestions filling the rest and scrolling, the page behind locked. It is the same input (the keyboard never closes while it opens), and the sheet:
+
+- follows the **visual viewport**, so the keyboard never covers the suggestions;
+- is closed by *Close*, Escape, or the **back button** (it pushes a history entry and takes it back);
+- shows **3 suggestions per group** (`Field::MOBILE_LIMIT`), titles on two lines, 48 px targets and a 16 px input (iOS does not zoom);
+- stays open when scrolling its list takes the keyboard away (the field is blurred on touch scroll, the sheet is not closed by it).
+
+### Recent searches
+
+Kept in the visitor's browser (`localStorage`, `meiliscout-suggest-recent:<id>`), five per field, last one first. A search is remembered when the form is submitted or a suggestion followed. They show when the field is empty (above the suggestions on a phone, under the field on a desktop), with *Clear recent searches*. Nothing is sent anywhere. `'recent' => false` turns them off; without storage (a private window) the field simply has none.
 
 ### A suggestion's markup
 
