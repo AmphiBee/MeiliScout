@@ -12,6 +12,7 @@ import SearchPreview from './screens/SearchPreview';
 import Settings from './screens/Settings';
 import Listings from './screens/Listings';
 import SeoRules from './screens/SeoRules';
+import Setup from './setup/Setup';
 
 const boot = window.meiliscoutAdmin ?? {};
 
@@ -128,6 +129,9 @@ const Header = ( { connection, current } ) => (
 							) }
 						</span>
 					) }
+					<a href={ href( 'setup' ) }>
+						{ __( 'Setup assistant', 'meiliscout' ) }
+					</a>
 					<a href={ boot.docsUrl } target="_blank" rel="noreferrer">
 						{ __( 'Documentation', 'meiliscout' ) }
 					</a>
@@ -157,7 +161,16 @@ const Header = ( { connection, current } ) => (
 const App = () => {
 	const route = useRoute();
 	const overview = useResource( '/overview' );
+	const setup = useResource( '/setup' );
 	const connection = overview.data?.connection;
+
+	// The assistant opens by itself while nothing is connected, until it is finished or dismissed
+	const wantsSetup =
+		route.path === 'setup' ||
+		( connection &&
+			! connection.configured &&
+			setup.data?.state === null &&
+			route.path === '' );
 
 	// Nothing works before the connection is set: start there
 	const path =
@@ -194,6 +207,19 @@ const App = () => {
 	}, [ route ] );
 
 	const { Screen } = screen;
+
+	if ( wantsSetup ) {
+		return (
+			<Setup
+				overview={ overview }
+				refreshOverview={ overview.reload }
+				onExit={ ( hash ) => {
+					setup.reload();
+					window.location.hash = hash;
+				} }
+			/>
+		);
+	}
 
 	return (
 		<>

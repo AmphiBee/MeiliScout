@@ -11,6 +11,7 @@ use Pollora\MeiliScout\Admin\Rest\IndexationController;
 use Pollora\MeiliScout\Admin\Rest\OverviewController;
 use Pollora\MeiliScout\Admin\Rest\SearchPreviewController;
 use Pollora\MeiliScout\Admin\Rest\SettingsController;
+use Pollora\MeiliScout\Admin\Rest\SetupController;
 use Pollora\MeiliScout\Listings\Admin\ListingsController;
 use Pollora\MeiliScout\Listings\Admin\SeoRulesController;
 use Pollora\MeiliScout\Listings\ListingsServiceProvider;
@@ -49,6 +50,7 @@ class AdminServiceProvider extends ServiceProvider
         SearchPreviewController::class,
         SettingsController::class,
         ConfigController::class,
+        SetupController::class,
         ListingsController::class,
         SeoRulesController::class,
     ];
