@@ -54,7 +54,7 @@ final class Listings
     /**
      * The elements the UI kit declares its tokens on (resources/listings/ui/tokens.css).
      */
-    public const KIT_SCOPE = '.meiliscout-listing,.meiliscout-part,.meiliscout-listing__filters,.meiliscout-panel,.meiliscout-kit';
+    public const KIT_SCOPE = '.meiliscout-listing,.meiliscout-part,.meiliscout-listing__filters,.meiliscout-panel,.meiliscout-kit,.meiliscout-suggest';
 
     /**
      * The tokens a palette slug sets, when the theme's palette has it, by order of preference.

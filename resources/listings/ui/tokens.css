@@ -28,7 +28,7 @@
 	initial-value: CanvasText;
 }
 
-:where(.meiliscout-listing, .meiliscout-part, .meiliscout-listing__filters, .meiliscout-panel, .meiliscout-kit) {
+:where(.meiliscout-listing, .meiliscout-part, .meiliscout-listing__filters, .meiliscout-panel, .meiliscout-kit, .meiliscout-suggest) {
 
 	/* Colors */
 	--meiliscout-accent: var(--meiliscout-color-accent, var(--meiliscout-palette-accent, var(--wp--preset--color--primary, currentColor)));

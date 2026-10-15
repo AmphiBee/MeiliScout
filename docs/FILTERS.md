@@ -66,6 +66,18 @@ add_filter('meiliscout/register_async_queue_processor', '__return_false');
 
 The featured image indexed in each post's `thumbnail` field (schema 6). `meiliscout/post/thumbnail_size` (default `'thumbnail'`) is the registered size read for it; `meiliscout/post/thumbnail` receives the document `['url' => …, 'width' => …, 'height' => …, 'alt' => …]` (or null) and the `WP_Post`, and returns the same shape, or null for none. A change needs a new indexation.
 
+### meiliscout/suggest/template, meiliscout/suggest/load_styles
+
+`meiliscout/suggest/template` receives a source's template `['markup' => …, 'fields' => […]]` and the `SuggestSource`, and returns another: the markup of one suggestion (one root element, bound to `context.hit`) and the index fields it reads. `meiliscout/suggest/load_styles` (default true) says whether the default look is loaded.
+
+### meiliscout/suggest/token_lifetime
+
+How long a search field's tenant token lasts, in seconds (default a day, at least an hour). Receives the `SuggestDefinition`.
+
+### meiliscout/term/displayed_attributes
+
+The fields the taxonomies index returns (default `['*']`; while browsers search it, a term's own fields, never its metas).
+
 ### meiliscout/post/displayed_attributes
 Restrict which fields Meilisearch may return. Defaults to `['*']`; while front
 listings are on, to their public fields ([LISTINGS.md](LISTINGS.md#public-fields)).

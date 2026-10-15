@@ -1,0 +1,209 @@
+/**
+ * The suggest fields' default look: the listings' UI kit tokens (theme
+ * presets, a few public --meiliscout-* a site sets), the look under :where()
+ * so that any rule of the theme wins, the structure with one class.
+ *
+ * Off with the meiliscout/suggest/load_styles filter: the markup stays the same.
+ */
+
+@import "../listings/ui/tokens.css";
+
+/* Structure */
+
+.meiliscout-suggest {
+	position: relative;
+	box-sizing: border-box;
+}
+
+.meiliscout-suggest *,
+.meiliscout-suggest *::before,
+.meiliscout-suggest *::after {
+	box-sizing: border-box;
+}
+
+.meiliscout-suggest__form {
+	display: flex;
+	align-items: stretch;
+	margin: 0;
+}
+
+.meiliscout-suggest__input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.meiliscout-suggest__panel {
+	position: absolute;
+	inset-block-start: 100%;
+	inset-inline: 0;
+	z-index: 100;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.meiliscout-suggest__panel[hidden],
+.meiliscout-suggest__empty[hidden],
+.meiliscout-suggest__all[hidden],
+.meiliscout-suggest__group[hidden],
+.meiliscout-suggest__thumb[hidden] {
+	display: none;
+}
+
+.meiliscout-suggest__option {
+	display: flex;
+	align-items: center;
+	text-decoration: none;
+}
+
+.meiliscout-suggest__thumb {
+	flex: none;
+	overflow: hidden;
+}
+
+.meiliscout-suggest__thumb img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.meiliscout-suggest__body {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.meiliscout-suggest__all {
+	position: sticky;
+	inset-block-end: 0;
+	display: block;
+	background: var(--meiliscout-surface);
+}
+
+/* Look */
+
+:where(.meiliscout-suggest__input) {
+	min-height: var(--meiliscout-control);
+	padding-inline: var(--meiliscout-gap-small);
+	font: inherit;
+	font-size: var(--meiliscout-control-font);
+	color: inherit;
+	background: var(--meiliscout-surface);
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-radius) 0 0 var(--meiliscout-radius);
+}
+
+:where(.meiliscout-suggest__input:focus-visible) {
+	outline: 2px solid var(--meiliscout-focus);
+	outline-offset: -1px;
+}
+
+:where(.meiliscout-suggest__submit) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: var(--meiliscout-control);
+	padding: 0;
+	color: var(--meiliscout-accent-contrast);
+	background: var(--meiliscout-accent);
+	border: 1px solid var(--meiliscout-accent);
+	border-radius: 0 var(--meiliscout-radius) var(--meiliscout-radius) 0;
+	cursor: pointer;
+}
+
+:where(.meiliscout-suggest__submit:focus-visible) {
+	outline: 2px solid var(--meiliscout-focus);
+	outline-offset: 2px;
+}
+
+:where(.meiliscout-suggest__panel) {
+	max-height: min(70vh, 28rem);
+	margin-block-start: 0.25rem;
+	color: var(--meiliscout-surface-text);
+	background: var(--meiliscout-surface);
+	border: 1px solid var(--meiliscout-border);
+	border-radius: var(--meiliscout-radius);
+	box-shadow: var(--meiliscout-elevation);
+}
+
+:where(.meiliscout-suggest__heading) {
+	padding: var(--meiliscout-gap-small) var(--meiliscout-gap-small) 0.25rem;
+	font-size: var(--meiliscout-small);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--meiliscout-muted);
+}
+
+:where(.meiliscout-suggest__option) {
+	gap: var(--meiliscout-gap-small);
+	min-height: 2.75rem;
+	padding: 0.375rem var(--meiliscout-gap-small);
+	color: inherit;
+}
+
+:where(.meiliscout-suggest__option:hover, .meiliscout-suggest__option.is-active) {
+	background: var(--meiliscout-tint);
+}
+
+:where(.meiliscout-suggest__option.is-active) {
+	box-shadow: inset 3px 0 0 var(--meiliscout-accent);
+}
+
+:where(.meiliscout-suggest__option:focus-visible) {
+	outline: 2px solid var(--meiliscout-focus);
+	outline-offset: -2px;
+}
+
+:where(.meiliscout-suggest__thumb) {
+	width: 2.5rem;
+	height: 2.5rem;
+	background: var(--meiliscout-tint);
+	border-radius: calc(var(--meiliscout-radius) / 1.5);
+}
+
+:where(.meiliscout-suggest__title) {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+:where(.meiliscout-suggest__match) {
+	font-weight: 700;
+}
+
+:where(.meiliscout-suggest__meta) {
+	font-size: var(--meiliscout-small);
+	color: var(--meiliscout-muted);
+}
+
+:where(.meiliscout-suggest__empty) {
+	margin: 0;
+	padding: var(--meiliscout-gap-small);
+	color: var(--meiliscout-muted);
+}
+
+:where(.meiliscout-suggest__all) {
+	padding: var(--meiliscout-gap-small);
+	font-weight: 600;
+	color: var(--meiliscout-accent);
+	text-align: center;
+	text-decoration: none;
+	border-block-start: 1px solid var(--meiliscout-border);
+}
+
+:where(.meiliscout-suggest__all:hover) {
+	background: var(--meiliscout-tint);
+}
+
+:where(.meiliscout-suggest__all:focus-visible) {
+	outline: 2px solid var(--meiliscout-focus);
+	outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+
+	:where(.meiliscout-suggest__option) {
+		transition: background-color 0.1s;
+	}
+}
