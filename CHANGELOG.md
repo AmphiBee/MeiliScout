@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [2.4.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.4.0) - 2026-10-15
 
 ### Admin
 
