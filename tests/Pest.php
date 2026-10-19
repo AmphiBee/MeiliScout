@@ -155,6 +155,11 @@ if (! function_exists('add_action')) {
     function add_action($hook, $callback, $priority = 10, $args = 1) { $GLOBALS['actions'][$hook][] = ['callback' => $callback, 'priority' => $priority]; return true; }
 }
 
+// The hook WordPress is running, as a test sets it
+if (! function_exists('doing_action')) {
+    function doing_action($hook = null) { return ($GLOBALS['doing_action'] ?? null) === $hook; }
+}
+
 if (! function_exists('current_time')) {
     function current_time($type, $gmt = 0) { return $type === 'mysql' ? gmdate('Y-m-d H:i:s') : time(); }
 }
