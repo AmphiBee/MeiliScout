@@ -155,8 +155,10 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 	const isDate = attributes.source.startsWith( 'date' );
 	let label = attributes.label || taxonomy?.label;
 	if ( ! label ) {
+		// A named field's short name (the group is left out), as the front prints it
+		const named = config?.metaLabels?.[ attributes.source.slice( 5 ) ];
 		label = isMeta
-			? attributes.source.slice( 5 )
+			? named?.split( ' › ' ).pop() ?? attributes.source.slice( 5 )
 			: __( 'Facet', 'meiliscout' );
 		if ( isAuthor ) {
 			label = __( 'Author', 'meiliscout' );
@@ -183,8 +185,11 @@ export default function FacetEdit( { attributes, setAttributes, clientId } ) {
 		},
 		...( config?.metaKeys || [] ).map( ( key ) => ( {
 			value: 'meta:' + key,
-			/* translators: %s: a meta key */
-			label: sprintf( __( 'Field: %s', 'meiliscout' ), key ),
+			label: sprintf(
+				/* translators: %s: a field's name, or its meta key */
+				__( 'Field: %s', 'meiliscout' ),
+				config?.metaLabels?.[ key ] ?? key
+			),
 		} ) ),
 	];
 

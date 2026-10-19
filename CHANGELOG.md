@@ -10,6 +10,7 @@
 
 - **ACF, Meta Box and WooCommerce fields are shown by their name** (“Project › Client sector”, “WooCommerce › Price”) with the meta key under it, instead of the raw key alone: in Content › Custom fields, in Relevance, and in the Listings screen. Nothing about indexing changes: a field is still indexed and used under its meta key.
 - **Add a field** searches **by name or key**: the named fields come first, grouped by source (with chips to narrow to one), then the raw keys of the content. At most 20 are listed whatever the number of keys, and WordPress's own bookkeeping keys and ACF's `_field` references are not suggested.
+- The **listing blocks** show field names too: the facet's *Filters on* and the sorts' *Field* (*Field: Project › Budget*), and a facet on a named field takes its short name as title in the editor, as on the front.
 - The type shown is the one the declaring plugin knows (a flag stored as 0 and 1 is a yes / no), else guessed from the values.
 - A listing facet on a named field is labelled with the field's short name when the definition gives no `label` (it was the facet's key).
 - Declare names yourself with `meiliscout_register_meta_field()` or the `meiliscout/meta_fields` filter; support another plugin with a `FieldProvider` (`meiliscout/meta_field_providers`). See [docs/FIELDS.md](docs/FIELDS.md). ACF repeaters and flexible content are not offered yet.

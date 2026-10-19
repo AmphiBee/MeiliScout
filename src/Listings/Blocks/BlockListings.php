@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Listings\Blocks;
 
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Fields\FieldRegistry;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
 use Pollora\MeiliScout\Listings\Definition\ListingDefinition;
 use Pollora\MeiliScout\Listings\Definition\InvalidListing;
@@ -141,11 +142,15 @@ final class BlockListings
             ];
         }
 
+        $metaKeys = array_values(array_map('strval', (array) Settings::get('indexed_meta_keys', [])));
+
         return new \WP_REST_Response([
             'unavailable' => ListingsServiceProvider::unavailable(),
             'postTypes' => $types,
             'taxonomies' => $taxonomies,
-            'metaKeys' => array_values(array_map('strval', (array) Settings::get('indexed_meta_keys', []))),
+            'metaKeys' => $metaKeys,
+            // What each key is called (ACF, Meta Box, WooCommerce, meiliscout_register_meta_field()); the key when unnamed
+            'metaLabels' => array_combine($metaKeys, array_map(FieldRegistry::label(...), $metaKeys)),
         ]);
     }
 
