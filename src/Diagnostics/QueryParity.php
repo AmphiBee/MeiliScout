@@ -260,7 +260,7 @@ final class QueryParity
             $case('orderby rand, all on one page', ['orderby' => 'rand', 'post_type' => 'page', 'posts_per_page' => -1], self::MODE_SET),
             $sorted('orderby array', ['orderby' => ['menu_order' => 'ASC', 'title' => 'DESC'], 'post_type' => 'page'], 'menu_order', 'title'),
             $sorted('orderby meta_value_num', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_key' => $num['key'] ?? '', 'orderby' => 'meta_value_num', 'order' => 'ASC']), 'meta:'.($num['key'] ?? '')),
-            $case('orderby meta_value', $when($str !== null, ['post_type' => $str['type'] ?? 'post', 'meta_key' => $str['key'] ?? '', 'orderby' => 'meta_value', 'order' => 'ASC']), self::MODE_SET),
+            $case('orderby meta_value', $when($str !== null, ['post_type' => $str['type'] ?? 'post', 'meta_key' => $str['key'] ?? '', 'orderby' => 'meta_value', 'order' => 'ASC']), self::MODE_SORTED, ['meta:'.($str['key'] ?? '')]),
             $sorted('orderby named meta clause', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => ['num_clause' => ['key' => $num['key'] ?? '', 'compare' => 'EXISTS', 'type' => 'NUMERIC']], 'orderby' => 'num_clause', 'order' => 'DESC']), 'meta:'.($num['key'] ?? '')),
             // Without a type, MySQL sorts numbers as text; Meilisearch sorts them as numbers
             $case('orderby named meta clause, no type', $when($num !== null, ['post_type' => $num['type'] ?? 'post', 'meta_query' => ['num_clause' => ['key' => $num['key'] ?? '', 'compare' => 'EXISTS']], 'orderby' => 'num_clause', 'order' => 'DESC', 'posts_per_page' => -1]), self::MODE_SET),
@@ -442,8 +442,13 @@ final class QueryParity
                 json_encode(array_slice(array_values(array_diff($meili['ids'], $mysql['ids'])), 0, 6))
             );
         } elseif ($mode === self::MODE_ORDER && $mysql['ids'] !== $meili['ids']) {
-            $outcome = self::DIFF;
-            $notes[] = 'same posts, different order';
+            // WordPress orders by date when nothing else is asked, and MySQL does not order posts of the same date
+            $byDate = static fn (array $ids): array => array_map(static fn (int $id): string => self::sortKey($id, ['post_date']), $ids);
+
+            if (! empty($args['orderby']) || $byDate($mysql['ids']) !== $byDate($meili['ids'])) {
+                $outcome = self::DIFF;
+                $notes[] = 'same posts, different order';
+            }
         }
 
         if ($mysql['found'] !== $meili['found']) {

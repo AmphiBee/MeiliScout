@@ -32,6 +32,11 @@ final class SearchableAttributes
      */
     public static function configured(): ?array
     {
+        // Weights decide the fields and their order once they are set
+        if (\Pollora\MeiliScout\Search\SearchWeights::isActive()) {
+            return \Pollora\MeiliScout\Search\SearchWeights::enabledFields() ?: null;
+        }
+
         $attributes = Settings::get(self::SETTING, null);
 
         if (! is_array($attributes) || $attributes === []) {

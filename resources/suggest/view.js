@@ -38,7 +38,7 @@ const LOCKED = 'meiliscout-suggest-locked';
 const storage = browserStorage();
 
 /** The plan's contract this client reads (Suggest\Render\Plan::VERSION). */
-const CONTRACT = 1;
+const CONTRACT = 2;
 
 /**
  * What lives apart from the reactive context, by field: its request, timer,

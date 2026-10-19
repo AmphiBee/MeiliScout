@@ -79,16 +79,27 @@ final class RestController
         $queries = [];
 
         foreach (Plan::forDefinition($definition)['sources'] as $source) {
-            $search = (array) $source['search'];
-            $queries[] = (new SearchQuery)
-                ->setIndexUid((string) $search['indexUid'])
-                ->setQuery($query)
-                ->setFilter(['('.$base[(string) $source['type']].') AND ('.$search['filter'].')'])
-                ->setLimit((int) $search['limit'])
-                ->setAttributesToRetrieve($search['attributesToRetrieve'])
-                ->setAttributesToHighlight($search['attributesToHighlight'])
-                ->setHighlightPreTag(Plan::MARK_OPEN)
-                ->setHighlightPostTag(Plan::MARK_CLOSE);
+            foreach (Plan::searches($source) as $search) {
+                $built = (new SearchQuery)
+                    ->setIndexUid((string) $search['indexUid'])
+                    ->setQuery($query)
+                    ->setFilter(['('.$base[(string) $source['type']].') AND ('.$search['filter'].')'])
+                    ->setLimit((int) $search['limit'])
+                    ->setAttributesToRetrieve($search['attributesToRetrieve'])
+                    ->setAttributesToHighlight($search['attributesToHighlight'])
+                    ->setHighlightPreTag(Plan::MARK_OPEN)
+                    ->setHighlightPostTag(Plan::MARK_CLOSE);
+
+                if (isset($search['attributesToSearchOn'])) {
+                    $built->setAttributesToSearchOn($search['attributesToSearchOn']);
+                }
+
+                if (! empty($search['showRankingScore'])) {
+                    $built->setShowRankingScore(true);
+                }
+
+                $queries[] = $built;
+            }
         }
 
         try {

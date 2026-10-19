@@ -497,6 +497,14 @@ const ListingCard = ( { listing, languages } ) => {
 										</td>
 										<td>
 											<code>{ facet.source }</code>
+											{ facet.field && (
+												<>
+													<br />
+													<span className="ms-table__muted">
+														{ facet.field }
+													</span>
+												</>
+											) }
 										</td>
 										<td>
 											{ facetType( facet ) }

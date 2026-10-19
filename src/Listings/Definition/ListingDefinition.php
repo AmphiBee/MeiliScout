@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Listings\Definition;
 
+use Pollora\MeiliScout\Fields\FieldRegistry;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Listings\Render\Cards;
 use Pollora\MeiliScout\Listings\State\ReservedParameters;
@@ -375,6 +376,8 @@ final class ListingDefinition
             $source === 'author' => __('Author', 'meiliscout'),
             $source === 'date' && $type === FacetDefinition::RANGE => $name === 'post_modified' ? __('Date modified', 'meiliscout') : __('Date', 'meiliscout'),
             $source === 'date' => $name === 'post_modified' ? __('Year modified', 'meiliscout') : __('Year', 'meiliscout'),
+            // A custom field a plugin named ("Budget"), rather than the facet's key
+            $source === 'meta' && FieldRegistry::get($name) !== null => FieldRegistry::get($name)->shortLabel(),
             default => $key,
         });
 

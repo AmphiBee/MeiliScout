@@ -8,16 +8,10 @@ import {
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import { get, post, errorMessage } from '../api';
-import {
-	Banner,
-	Icon,
-	Skeleton,
-	Switch,
-	useResource,
-	useToast,
-} from '../components';
+import { Banner, Skeleton, Switch, useResource, useToast } from '../components';
 import { number } from '../format';
 import { href } from '../routes';
+import Weights from './Weights';
 
 const TYPE_LABELS = {
 	number: __( 'Number', 'meiliscout' ),
@@ -28,23 +22,6 @@ const TYPE_LABELS = {
 	empty: __( 'Always empty', 'meiliscout' ),
 };
 
-const FIELD_LABELS = {
-	post_title: __( 'Title', 'meiliscout' ),
-	'terms.name': __( 'Terms', 'meiliscout' ),
-	post_excerpt: __( 'Excerpt', 'meiliscout' ),
-	content_text: __( 'Content, without markup', 'meiliscout' ),
-	post_content: __( 'Content, raw HTML', 'meiliscout' ),
-	post_name: __( 'Slug', 'meiliscout' ),
-};
-
-const fieldLabel = ( field ) =>
-	FIELD_LABELS[ field ] ??
-	sprintf(
-		/* translators: %s: a meta key */
-		__( 'Field %s', 'meiliscout' ),
-		field.replace( /^metas\./, '' )
-	);
-
 const fromData = ( data ) => ( {
 	post_types: data.post_types
 		.filter( ( type ) => type.selected )
@@ -54,7 +31,7 @@ const fromData = ( data ) => ( {
 		.map( ( taxonomy ) => taxonomy.name ),
 	meta_keys: data.meta_keys,
 	term_meta_keys: data.term_meta_keys,
-	searchable: data.searchable.configured,
+	weights: data.weights.types,
 	index_private: data.index_private,
 } );
 
@@ -119,21 +96,34 @@ const SwitchList = ( { items, selected, onToggle, meta } ) =>
 	} );
 
 /**
- * A search field listing the meta keys of the selected post types, or taxonomies.
+ * A search field for the fields to index: the named ones first (ACF, Meta Box,
+ * WooCommerce, declared ones), grouped by where they come from, then the raw
+ * meta keys of the content. A few are listed, never all: the admin searches.
  *
  * @param {Object}   props
  * @param {string}   props.kind    'post' or 'term'.
- * @param {string[]} props.scope   Post types, or taxonomies, whose keys are listed.
+ * @param {string[]} props.scope   Post types, or taxonomies, whose keys are searched.
  * @param {string[]} props.exclude Keys already selected.
  * @param {number}   props.total   Number of keys in all.
+ * @param {Object[]} props.sources Where named fields come from, with their count.
  * @param {Object}   props.labels  Post type or taxonomy labels by name.
  * @param {Function} props.onAdd   Called with the key picked.
  * @return {Element} The field.
  */
-const MetaKeyPicker = ( { kind, scope, exclude, total, labels, onAdd } ) => {
+const MetaKeyPicker = ( {
+	kind,
+	scope,
+	exclude,
+	total,
+	sources,
+	labels,
+	onAdd,
+} ) => {
 	const [ query, setQuery ] = useState( '' );
+	const [ source, setSource ] = useState( '' );
 	const [ open, setOpen ] = useState( false );
 	const [ results, setResults ] = useState( [] );
+	const [ matches, setMatches ] = useState( 0 );
 	const [ active, setActive ] = useState( 0 );
 	const inputId = 'ms-' + kind + '-meta-key';
 	const listId = inputId + '-options';
@@ -148,12 +138,14 @@ const MetaKeyPicker = ( { kind, scope, exclude, total, labels, onAdd } ) => {
 			get( '/meta-keys', {
 				search: query,
 				exclude,
+				source,
 				...( kind === 'term'
 					? { kind, taxonomies: scope }
 					: { post_types: scope } ),
 			} )
 				.then( ( response ) => {
 					setResults( response.keys );
+					setMatches( response.total );
 					setActive( 0 );
 				} )
 				.catch( () => setResults( [] ) );
@@ -161,7 +153,7 @@ const MetaKeyPicker = ( { kind, scope, exclude, total, labels, onAdd } ) => {
 
 		return () => clearTimeout( timer.current );
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ query, open, scope.join(), exclude.join() ] );
+	}, [ query, source, open, scope.join(), exclude.join() ] );
 
 	const add = ( key ) => {
 		onAdd( key );
@@ -192,11 +184,61 @@ const MetaKeyPicker = ( { kind, scope, exclude, total, labels, onAdd } ) => {
 		}
 	};
 
+	// A heading where the fields' origin changes, once some are named
+	const named = results.some( ( result ) => result.registered );
+	const rows = [];
+	let heading = null;
+	results.forEach( ( result, index ) => {
+		const group = result.registered ? result.group : null;
+		if ( named && ( rows.length === 0 || group !== heading ) ) {
+			rows.push( {
+				heading:
+					group ?? __( 'Other keys in your content', 'meiliscout' ),
+			} );
+			heading = group;
+		}
+		rows.push( { result, index } );
+	} );
+
 	return (
 		<div className="ms-add">
 			<label htmlFor={ inputId } className="ms-field__label">
 				{ __( 'Add a field', 'meiliscout' ) }
 			</label>
+			{ sources.length > 0 && (
+				<div
+					className="ms-chips"
+					role="group"
+					aria-label={ __(
+						'Where the fields come from',
+						'meiliscout'
+					) }
+				>
+					{ [
+						{
+							source: '',
+							group: __( 'All', 'meiliscout' ),
+							count: null,
+						},
+						...sources,
+					].map( ( item ) => (
+						<button
+							key={ item.source }
+							type="button"
+							className="ms-chip"
+							aria-pressed={ source === item.source }
+							onClick={ () => {
+								setSource( item.source );
+								setOpen( true );
+							} }
+						>
+							{ item.group }
+							{ item.count !== null &&
+								' · ' + number( item.count ) }
+						</button>
+					) ) }
+				</div>
+			) }
 			<div className="ms-field__row ms-combobox">
 				<div>
 					<input
@@ -229,8 +271,8 @@ const MetaKeyPicker = ( { kind, scope, exclude, total, labels, onAdd } ) => {
 								: sprintf(
 										/* translators: %s: number of meta keys */
 										_n(
-											'Search the %s key of your content',
-											'Search the %s keys of your content',
+											'Search by name or key (%s key in your content)',
+											'Search by name or key (%s keys in your content)',
 											total,
 											'meiliscout'
 										),
@@ -247,36 +289,97 @@ const MetaKeyPicker = ( { kind, scope, exclude, total, labels, onAdd } ) => {
 						}
 						onKeyDown={ onKeyDown }
 					/>
-					{ open && results.length > 0 && (
+					{ open && ( results.length > 0 || typed ) && (
 						<ul
 							className="ms-combobox__list"
 							id={ listId }
 							role="listbox"
-							aria-label={ __( 'Meta keys', 'meiliscout' ) }
+							aria-label={ __( 'Fields', 'meiliscout' ) }
 						>
-							{ results.map( ( result, index ) => (
+							{ rows.map( ( row ) =>
+								row.heading ? (
+									<li
+										key={ 'h-' + row.heading }
+										role="presentation"
+										className="ms-combobox__group"
+									>
+										{ row.heading }
+									</li>
+								) : (
+									<li
+										key={ row.result.key }
+										id={ inputId + '-' + row.index }
+										role="option"
+										aria-selected={ row.index === active }
+										className="ms-combobox__option"
+										onMouseDown={ ( event ) => {
+											event.preventDefault();
+											add( row.result );
+										} }
+									>
+										<span className="ms-combobox__name">
+											{ row.result.label ? (
+												<>
+													<strong>
+														{ row.result.label }
+													</strong>
+													<span className="ms-mono">
+														{ row.result.key }
+													</span>
+												</>
+											) : (
+												<span className="ms-mono">
+													{ row.result.key }
+												</span>
+											) }
+										</span>
+										<small>
+											{ TYPE_LABELS[ row.result.type ] }
+										</small>
+										<small>
+											{ row.result.registered &&
+											! row.result.posts &&
+											kind === 'post'
+												? __(
+														'Not used yet',
+														'meiliscout'
+												  )
+												: presence(
+														row.result,
+														labels
+												  ) }
+										</small>
+									</li>
+								)
+							) }
+							{ results.length === 0 && (
 								<li
-									key={ result.key }
-									id={ inputId + '-' + index }
-									role="option"
-									aria-selected={ index === active }
-									className="ms-combobox__option"
-									onMouseDown={ ( event ) => {
-										event.preventDefault();
-										add( result );
-									} }
+									role="presentation"
+									className="ms-combobox__more"
 								>
-									<span className="ms-mono">
-										{ result.key }
-									</span>
-									<small>
-										{ TYPE_LABELS[ result.type ] }
-									</small>
-									<small>
-										{ presence( result, labels ) }
-									</small>
+									{ __(
+										'No field matches. “Add” adds what you typed as a meta key.',
+										'meiliscout'
+									) }
 								</li>
-							) ) }
+							) }
+							{ matches > results.length && (
+								<li
+									role="presentation"
+									className="ms-combobox__more"
+								>
+									{ sprintf(
+										/* translators: %s: number of fields not listed */
+										_n(
+											'%s more: keep typing to narrow it down',
+											'%s more: keep typing to narrow them down',
+											matches - results.length,
+											'meiliscout'
+										),
+										number( matches - results.length )
+									) }
+								</li>
+							) }
 						</ul>
 					) }
 				</div>
@@ -302,6 +405,7 @@ const MetaKeyPicker = ( { kind, scope, exclude, total, labels, onAdd } ) => {
  * @param {string[]} props.missed    Keys queries asked for, not indexed.
  * @param {string[]} props.scope     Post types, or taxonomies, whose keys can be picked.
  * @param {number}   props.total     Number of keys in all.
+ * @param {Object[]} props.sources   Where named fields come from, with their count.
  * @param {Object}   props.labels    Post type or taxonomy labels by name.
  * @param {Function} props.onAdd     Called with a key to add.
  * @param {Function} props.onRemove  Called with a key name to remove.
@@ -314,6 +418,7 @@ const MetaKeys = ( {
 	missed,
 	scope,
 	total,
+	sources = [],
 	labels,
 	onAdd,
 	onRemove,
@@ -359,7 +464,7 @@ const MetaKeys = ( {
 				<table className="ms-table" style={ { minWidth: 560 } }>
 					<thead>
 						<tr>
-							<th scope="col">{ __( 'Key', 'meiliscout' ) }</th>
+							<th scope="col">{ __( 'Field', 'meiliscout' ) }</th>
 							<th scope="col">
 								{ __( 'Detected type', 'meiliscout' ) }
 							</th>
@@ -376,7 +481,29 @@ const MetaKeys = ( {
 					<tbody>
 						{ keys.map( ( key ) => (
 							<tr key={ key.key }>
-								<td className="ms-mono">{ key.key }</td>
+								<td>
+									{ key.label ? (
+										<>
+											<strong>{ key.label }</strong>
+											<br />
+											<span className="ms-mono ms-table__muted">
+												{ key.key }
+											</span>
+										</>
+									) : (
+										<span className="ms-mono">
+											{ key.key }
+										</span>
+									) }
+									{ key.group && (
+										<span
+											className="ms-pill ms-pill--outline"
+											style={ { marginLeft: 8 } }
+										>
+											{ key.group }
+										</span>
+									) }
+								</td>
 								<td>
 									{ key.type
 										? TYPE_LABELS[ key.type ]
@@ -391,9 +518,9 @@ const MetaKeys = ( {
 										className="ms-button ms-button--small"
 										onClick={ () => onRemove( key.key ) }
 										aria-label={ sprintf(
-											/* translators: %s: a meta key */
+											/* translators: %s: a field name or meta key */
 											__( 'Remove %s', 'meiliscout' ),
-											key.key
+											key.label ?? key.key
 										) }
 									>
 										{ __( 'Remove', 'meiliscout' ) }
@@ -415,172 +542,12 @@ const MetaKeys = ( {
 			scope={ scope }
 			exclude={ keys.map( ( key ) => key.key ) }
 			total={ total }
+			sources={ sources }
 			labels={ labels }
 			onAdd={ onAdd }
 		/>
 	</>
 );
-
-const Relevance = ( { searchable, available, suggested, onChange } ) => {
-	if ( searchable === null ) {
-		const order = suggested.filter( ( field ) =>
-			available.includes( field )
-		);
-
-		return (
-			<div className="ms-card__body">
-				<p className="ms-inline-note">
-					{ createInterpolateElement(
-						__(
-							'Searches look into every field today, <guid /> and the markup of the blocks included, and a match anywhere counts the same.',
-							'meiliscout'
-						),
-						{ guid: <code>guid</code> }
-					) }
-				</p>
-				<ol className="ms-ranking" style={ { padding: 0 } }>
-					{ order.map( ( field, index ) => (
-						<li key={ field } style={ { paddingLeft: 0 } }>
-							<span className="ms-ranking__rank">
-								{ index + 1 }
-							</span>
-							<span className="ms-ranking__label">
-								{ fieldLabel( field ) }
-							</span>
-							<span className="ms-ranking__field">{ field }</span>
-						</li>
-					) ) }
-				</ol>
-				<div>
-					<button
-						type="button"
-						className="ms-button"
-						onClick={ () => onChange( order ) }
-					>
-						{ __( 'Use this order', 'meiliscout' ) }
-					</button>
-				</div>
-			</div>
-		);
-	}
-
-	const move = ( index, offset ) => {
-		const next = [ ...searchable ];
-		[ next[ index ], next[ index + offset ] ] = [
-			next[ index + offset ],
-			next[ index ],
-		];
-		onChange( next );
-	};
-	const unused = available.filter(
-		( field ) => ! searchable.includes( field )
-	);
-
-	return (
-		<>
-			<ol className="ms-ranking">
-				{ searchable.map( ( field, index ) => (
-					<li key={ field }>
-						<span className="ms-ranking__rank">{ index + 1 }</span>
-						<span className="ms-ranking__label">
-							{ fieldLabel( field ) }
-						</span>
-						<span className="ms-ranking__field">{ field }</span>
-						<span className="ms-ranking__actions">
-							<button
-								type="button"
-								className="ms-icon-button"
-								disabled={ index === 0 }
-								onClick={ () => move( index, -1 ) }
-								aria-label={ sprintf(
-									/* translators: %s: a field name */
-									__( 'Move %s up', 'meiliscout' ),
-									fieldLabel( field )
-								) }
-							>
-								<Icon name="up" />
-							</button>
-							<button
-								type="button"
-								className="ms-icon-button"
-								disabled={ index === searchable.length - 1 }
-								onClick={ () => move( index, 1 ) }
-								aria-label={ sprintf(
-									/* translators: %s: a field name */
-									__( 'Move %s down', 'meiliscout' ),
-									fieldLabel( field )
-								) }
-							>
-								<Icon name="down" />
-							</button>
-							<button
-								type="button"
-								className="ms-icon-button"
-								disabled={ searchable.length === 1 }
-								onClick={ () =>
-									onChange(
-										searchable.filter(
-											( item ) => item !== field
-										)
-									)
-								}
-								aria-label={ sprintf(
-									/* translators: %s: a field name */
-									__( 'Stop searching %s', 'meiliscout' ),
-									fieldLabel( field )
-								) }
-							>
-								<Icon name="close" />
-							</button>
-						</span>
-					</li>
-				) ) }
-			</ol>
-			<div
-				className="ms-add"
-				style={ { flexDirection: 'row', flexWrap: 'wrap', gap: 8 } }
-			>
-				{ unused.length > 0 && (
-					<>
-						<label
-							htmlFor="ms-add-field"
-							className="ms-visually-hidden"
-						>
-							{ __( 'Search one more field', 'meiliscout' ) }
-						</label>
-						<select
-							id="ms-add-field"
-							value=""
-							onChange={ ( event ) =>
-								event.target.value &&
-								onChange( [
-									...searchable,
-									event.target.value,
-								] )
-							}
-						>
-							<option value="">
-								{ __( 'Search one more field…', 'meiliscout' ) }
-							</option>
-							{ unused.map( ( field ) => (
-								<option key={ field } value={ field }>
-									{ fieldLabel( field ) } ({ field })
-								</option>
-							) ) }
-						</select>
-					</>
-				) }
-				<button
-					type="button"
-					className="ms-button ms-button--small"
-					onClick={ () => onChange( null ) }
-				>
-					{ __( 'Search every field again', 'meiliscout' ) }
-				</button>
-			</div>
-		</>
-	);
-};
 
 const Content = ( { refreshOverview } ) => {
 	const resource = useResource( '/content' );
@@ -645,6 +612,13 @@ const Content = ( { refreshOverview } ) => {
 		( key ) => ! selectedTermKeys.includes( key )
 	);
 
+	// What the custom fields are called, where a plugin named them
+	const names = Object.fromEntries(
+		draft.meta_keys
+			.filter( ( key ) => key.label )
+			.map( ( key ) => [ key.key, key.label ] )
+	);
+
 	// The meta keys being added can be searched too
 	const available = [
 		...data.searchable.available.filter(
@@ -684,7 +658,7 @@ const Content = ( { refreshOverview } ) => {
 			taxonomies: draft.taxonomies,
 			meta_keys: selectedKeys,
 			term_meta_keys: selectedTermKeys,
-			searchable: draft.searchable ?? [],
+			weights: draft.weights,
 			index_private: draft.index_private,
 		} )
 			.then( ( result ) => {
@@ -725,7 +699,7 @@ const Content = ( { refreshOverview } ) => {
 						{ __( 'Term fields', 'meiliscout' ) }
 					</a>
 					<a href={ href( 'content', 'relevance' ) }>
-						{ __( 'Relevance', 'meiliscout' ) }
+						{ __( 'Search weights', 'meiliscout' ) }
 					</a>
 				</nav>
 
@@ -929,6 +903,7 @@ const Content = ( { refreshOverview } ) => {
 							missed={ missed }
 							scope={ draft.post_types }
 							total={ data.meta_key_total }
+							sources={ data.field_sources ?? [] }
 							labels={ labels }
 							onAdd={ addKey }
 							onRemove={ removeKey }
@@ -993,22 +968,23 @@ const Content = ( { refreshOverview } ) => {
 					>
 						<div className="ms-card__head">
 							<h2 id="ms-relevance-title">
-								{ __( 'Relevance', 'meiliscout' ) }
+								{ __( 'Search weights', 'meiliscout' ) }
 							</h2>
 							<p>
 								{ __(
-									'The fields a search looks into, from the most to the least important.',
+									'How much each field counts in a search, per post type: a field with a higher weight ranks its matches first, and 0 leaves a field out.',
 									'meiliscout'
 								) }
 							</p>
 						</div>
-						<Relevance
-							searchable={ draft.searchable }
+						<Weights
+							types={ draft.post_types }
+							labels={ labels }
+							weights={ draft.weights }
+							defaults={ data.weights.defaults }
 							available={ available }
-							suggested={ data.searchable.suggested }
-							onChange={ ( searchable ) =>
-								update( { searchable } )
-							}
+							names={ names }
+							onChange={ ( weights ) => update( { weights } ) }
 						/>
 					</section>
 				</div>

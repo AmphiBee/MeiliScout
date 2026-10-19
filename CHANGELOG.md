@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Search weights
+
+- **Weights per field and per post type** (Content › Search weights, replacing *Relevance*): a switch and a 0–10 slider for the title, terms, excerpt, content and indexed custom fields, presets, and **Try a search**, which ranks real results with the weights on screen and says what ranked each. Real weights, made with Meilisearch's federated search (one query per weight tier, scaled by its weight, merged in one call; no duplicates); only a search by relevance is weighted, a field at 0 is left out of the hits and of their count, and a failing weighted search falls back to an ordinary one. Not set: every type keeps the defaults (title 4, terms 2, excerpt 1.5, content 1). Filter `meiliscout/search_weights`, `$query->meiliscout['weighted']`, `search_weights` in the configuration export. `POST /meiliscout/v1/content/weights/preview`. A [step-by-step guide](docs/WEIGHTS_GUIDE.md). See [docs/WEIGHTS.md](docs/WEIGHTS.md). The **suggestion fields** are weighted too: a posts source sends one search per weight in the same multi-search and the browser merges them (suggest plan version 2). Front listings are sorted by their own sorts, so weights do not rank them.
+
+### Custom fields by name
+
+- **ACF, Meta Box and WooCommerce fields are shown by their name** (“Project › Client sector”, “WooCommerce › Price”) with the meta key under it, instead of the raw key alone: in Content › Custom fields, in Relevance, and in the Listings screen. Nothing about indexing changes: a field is still indexed and used under its meta key.
+- **Add a field** searches **by name or key**: the named fields come first, grouped by source (with chips to narrow to one), then the raw keys of the content. At most 20 are listed whatever the number of keys, and WordPress's own bookkeeping keys and ACF's `_field` references are not suggested.
+- The type shown is the one the declaring plugin knows (a flag stored as 0 and 1 is a yes / no), else guessed from the values.
+- A listing facet on a named field is labelled with the field's short name when the definition gives no `label` (it was the facet's key).
+- Declare names yourself with `meiliscout_register_meta_field()` or the `meiliscout/meta_fields` filter; support another plugin with a `FieldProvider` (`meiliscout/meta_field_providers`). See [docs/FIELDS.md](docs/FIELDS.md). ACF repeaters and flexible content are not offered yet.
+
 ## [2.5.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.5.0) - 2026-10-15
 
 **Run a full indexation after updating**: the posts index moves to format 6 (featured images). Until then everything works, without images in suggestions.

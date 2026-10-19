@@ -110,6 +110,7 @@ Turn the module on in *MeiliScout › Settings › Listings*. Build your first l
 |---|---|
 | [Configuration](docs/CONFIGURATION.md) | Connect, index, serve queries, listings settings, export and import the configuration, deploy to another server |
 | [Listings guide](docs/LISTINGS_GUIDE.md) | A listing step by step, in blocks and in code (PHP, Blade, Twig), with screenshots |
+| [Search weights guide](docs/WEIGHTS_GUIDE.md) | Tune what a search finds first, per post type, with named custom fields and a live test, with screenshots |
 | [Suggestions guide](docs/AUTOSUGGEST_GUIDE.md) | A search field with suggestions step by step, in the editor and in code, with screenshots |
 | [Suggestions reference](docs/AUTOSUGGEST.md) | Every option, the templates, the key and token, the transports |
 | [Listings reference](docs/LISTINGS.md) | Every option: facets, transports, URLs, SEO, languages, markup, UI kit |

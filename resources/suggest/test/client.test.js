@@ -8,6 +8,7 @@ import {
 	html,
 	optionFrom,
 	limitAnswer,
+	mergeHits,
 	recentSuggestions,
 	normalize,
 	readAnswers,
@@ -17,7 +18,7 @@ import {
 } from '../client';
 
 const plan = {
-	version: 1,
+	version: 2,
 	sources: [
 		{
 			key: 'posts',
@@ -360,5 +361,88 @@ describe( 'JavaScript templates', () => {
 	test( 'an element is used as it is', () => {
 		const li = document.createElement( 'li' );
 		expect( optionFrom( () => li, hit, '', document ) ).toBe( li );
+	} );
+} );
+
+describe( 'weights', () => {
+	const weighted = {
+		version: 2,
+		sources: [
+			{
+				key: 'posts',
+				type: 'posts',
+				limit: 2,
+				search: { indexUid: 'p', filter: 'x', limit: 2 },
+				searches: [
+					{
+						weight: 4,
+						search: { indexUid: 'p', filter: 'a', limit: 2 },
+					},
+					{
+						weight: 1,
+						search: { indexUid: 'p', filter: 'b', limit: 2 },
+					},
+				],
+			},
+			{
+				key: 'topics',
+				type: 'terms',
+				limit: 3,
+				search: { indexUid: 't', filter: 'taxonomy', limit: 3 },
+			},
+		],
+	};
+
+	test( 'a weighted source sends one search per weight, the others one', () => {
+		const searches = buildSearches( weighted, 'web' );
+
+		expect( searches.map( ( s ) => s.filter ) ).toEqual( [
+			'a',
+			'b',
+			'taxonomy',
+		] );
+	} );
+
+	test( 'a post found twice counts once, for its best weighted score, and the source keeps its limit', () => {
+		const searches = weighted.sources[ 0 ].searches;
+		const hits = mergeHits(
+			searches,
+			[
+				{
+					hits: [
+						{ ID: 1, _rankingScore: 0.5 },
+						{ ID: 2, _rankingScore: 0.4 },
+					],
+				},
+				{
+					hits: [
+						{ ID: 3, _rankingScore: 0.99 },
+						{ ID: 1, _rankingScore: 0.9 },
+					],
+				},
+			],
+			2
+		);
+
+		// 1: 4 × 0.5 = 2, 3: 0.99, 2: 1.6 → 1, 2
+		expect( hits.map( ( hit ) => hit.ID ) ).toEqual( [ 1, 2 ] );
+	} );
+
+	test( 'each source reads its own answers when one has several searches', () => {
+		const answer = readAnswers(
+			weighted,
+			[
+				{ hits: [ { ID: 1, post_title: 'One', _rankingScore: 1 } ] },
+				{ hits: [ { ID: 2, post_title: 'Two', _rankingScore: 1 } ] },
+				{ hits: [ { term_id: 9, name: 'Cat', count: 3 } ] },
+			],
+			labels,
+			'f'
+		);
+
+		expect( answer.groups[ 0 ].hits.map( ( h ) => h.id ) ).toEqual( [
+			1, 2,
+		] );
+		expect( answer.groups[ 1 ].hits.map( ( h ) => h.id ) ).toEqual( [ 9 ] );
 	} );
 } );
