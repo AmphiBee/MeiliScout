@@ -25,6 +25,46 @@ export const normalize = ( query ) =>
 		.trim();
 
 /**
+ * A source's searches: one, or one per weight (Suggest\Render\Plan::searches()).
+ *
+ * @param {{search: Object, searches?: Array<{weight: number, search: Object}>}} source A source of the plan.
+ * @return {Array<{weight: number, search: Object}>} The searches, in the order their answers come back.
+ */
+const searchesOf = ( source ) =>
+	source.searches ?? [ { weight: 1, search: source.search } ];
+
+/**
+ * The hits of a source from the answers of its searches: with weights, each
+ * hit counts for its best search (ranking score × weight), once.
+ *
+ * @param {Array<{weight: number}>} searches The source's searches.
+ * @param {Object[]}                answers  Their answers, in the same order.
+ * @param {number}                  limit    How many hits the source keeps.
+ * @return {Object[]} The hits.
+ */
+export const mergeHits = ( searches, answers, limit ) => {
+	if ( searches.length < 2 ) {
+		return answers[ 0 ]?.hits || [];
+	}
+
+	const best = new Map();
+	searches.forEach( ( { weight }, i ) => {
+		( answers[ i ]?.hits || [] ).forEach( ( hit ) => {
+			const score = weight * Number( hit._rankingScore ?? 0 );
+			const key = hit.ID ?? hit.term_id;
+			if ( ! best.has( key ) || best.get( key ).score < score ) {
+				best.set( key, { hit, score } );
+			}
+		} );
+	} );
+
+	return [ ...best.values() ]
+		.sort( ( a, b ) => b.score - a.score )
+		.slice( 0, limit )
+		.map( ( { hit } ) => hit );
+};
+
+/**
  * The searches of a query: one per source, Meilisearch's multi-search body.
  *
  * @param {{sources: Array<{search: Object}>}} plan  Suggest\Render\Plan.
@@ -32,12 +72,14 @@ export const normalize = ( query ) =>
  * @return {Object[]} The queries.
  */
 export const buildSearches = ( plan, query ) =>
-	plan.sources.map( ( source ) => ( {
-		...source.search,
-		q: query,
-		highlightPreTag: MARK_OPEN,
-		highlightPostTag: MARK_CLOSE,
-	} ) );
+	plan.sources.flatMap( ( source ) =>
+		searchesOf( source ).map( ( { search } ) => ( {
+			...search,
+			q: query,
+			highlightPreTag: MARK_OPEN,
+			highlightPostTag: MARK_CLOSE,
+		} ) )
+	);
 
 /**
  * A highlighted title, cut in the parts a template binds: text, and whether it
@@ -141,14 +183,21 @@ export const readAnswers = ( plan, results, labels, dom ) => {
 	const groups = [];
 	const options = [];
 
+	let cursor = 0;
+
 	plan.sources.forEach( ( source, position ) => {
-		const hits = ( results[ position ]?.hits || [] ).map( ( doc ) =>
-			suggestionFromDocument(
-				source,
-				doc,
-				labels,
-				`${ dom }-${ position }`
-			)
+		const searches = searchesOf( source );
+		const answers = results.slice( cursor, cursor + searches.length );
+		cursor += searches.length;
+
+		const hits = mergeHits( searches, answers, source.limit ).map(
+			( doc ) =>
+				suggestionFromDocument(
+					source,
+					doc,
+					labels,
+					`${ dom }-${ position }`
+				)
 		);
 		hits.forEach( ( hit ) =>
 			options.push( { id: hit.optionId, url: hit.url } )

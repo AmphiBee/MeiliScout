@@ -9,6 +9,7 @@ use Pollora\MeiliScout\Config\Portability\Section;
 use Pollora\MeiliScout\Config\Portability\SectionPlan;
 use Pollora\MeiliScout\Config\RealtimeIndexing;
 use Pollora\MeiliScout\Config\SearchableAttributes;
+use Pollora\MeiliScout\Search\SearchWeights;
 use Pollora\MeiliScout\Config\Settings;
 use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
@@ -69,7 +70,9 @@ final class IndexingSection implements Section
             'meta_keys' => $metaKeys,
             'term_meta_keys' => $this->strings(Settings::get(TaxonomyIndexable::META_KEYS_SETTING, [])),
             'index_private' => (bool) Settings::get(PostIndexable::INDEX_PRIVATE, false),
-            'searchable_attributes' => SearchableAttributes::configured() ?? [],
+            // With weights set, the fields searched follow from them: the setting an older version saved is what stays
+            'searchable_attributes' => SearchWeights::isActive() ? $this->strings(Settings::get('searchable_attributes', [])) : (SearchableAttributes::configured() ?? []),
+            'search_weights' => SearchWeights::configured() ?? [],
             'realtime_indexing' => RealtimeIndexing::mode(),
             'posts_per_page' => (int) Settings::get('indexing.posts_per_page', 200),
             'batch_size' => (int) Settings::get('bulk_batch_size', 500),
@@ -229,6 +232,10 @@ final class IndexingSection implements Section
 
         if (array_key_exists('searchable_attributes', $data)) {
             SearchableAttributes::save($data['searchable_attributes']);
+        }
+
+        if (array_key_exists('search_weights', $data) && is_array($data['search_weights'])) {
+            $data['search_weights'] === [] ? delete_option('meiliscout/'.SearchWeights::SETTING) : SearchWeights::save($data['search_weights']);
         }
 
         if (array_key_exists('realtime_indexing', $data)) {

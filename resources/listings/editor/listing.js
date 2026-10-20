@@ -118,7 +118,7 @@ const allowsClientNavigation = ( name ) => {
 	return interactivity === true || Boolean( interactivity?.clientNavigation );
 };
 
-const SortsPanel = ( { attributes, setAttributes, metaKeys } ) => {
+const SortsPanel = ( { attributes, setAttributes, metaKeys, metaLabels } ) => {
 	const sorts = attributes.sorts.length
 		? attributes.sorts
 		: [
@@ -168,7 +168,7 @@ const SortsPanel = ( { attributes, setAttributes, metaKeys } ) => {
 								{ value: '', label: '—' },
 								...metaKeys.map( ( key ) => ( {
 									value: key,
-									label: key,
+									label: metaLabels?.[ key ] ?? key,
 								} ) ),
 							] }
 							onChange={ ( metaKey ) =>
@@ -449,6 +449,7 @@ export default function ListingEdit( { attributes, setAttributes, clientId } ) {
 					attributes={ attributes }
 					setAttributes={ setAttributes }
 					metaKeys={ config?.metaKeys || [] }
+					metaLabels={ config?.metaLabels }
 				/>
 			</InspectorControls>
 			<div { ...innerBlocksProps }>

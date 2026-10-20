@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Listings\Diagnostics;
 
+use Pollora\MeiliScout\Fields\FieldRegistry;
 use Pollora\MeiliScout\Indexables\PostIndexable;
 use Pollora\MeiliScout\Listings\Blocks\BlockListings;
 use Pollora\MeiliScout\Listings\Definition\DefinitionRegistry;
@@ -235,6 +236,8 @@ final class ListingChecks
             'key' => $facet->key,
             'label' => $facet->label,
             'source' => $facet->isAuthor() ? 'author' : $facet->source.':'.$facet->name,
+            // What a plugin calls the custom field the facet reads
+            'field' => $facet->source === 'meta' ? FieldRegistry::get($facet->name)?->label : null,
             'type' => $facet->type,
             'logic' => $facet->logic,
             'hierarchical' => $facet->hierarchical,

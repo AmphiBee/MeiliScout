@@ -74,6 +74,20 @@ The featured image indexed in each post's `thumbnail` field (schema 6). `meilisc
 
 How long a search field's tenant token lasts, in seconds (default a day, at least an hour). Receives the `SuggestDefinition`.
 
+### meiliscout/meta_fields, meiliscout/meta_field_providers
+
+The custom fields known by name (ACF, Meta Box, WooCommerce, declared ones), and where they come from.
+`meiliscout/meta_fields` filters the list (`MetaField` instances or arrays with `key`, `label`, `group`, `source`, `type`, `post_types`);
+`meiliscout/meta_field_providers` the providers (`FieldProvider` instances). See [FIELDS.md](FIELDS.md).
+
+```php
+add_filter('meiliscout/meta_fields', function (array $fields) {
+    $fields[] = ['key' => 'budget', 'label' => 'Project › Budget', 'group' => 'Studio', 'type' => 'number'];
+
+    return $fields;
+});
+```
+
 ### meiliscout/term/displayed_attributes
 
 The fields the taxonomies index returns (default `['*']`; while browsers search it, a term's own fields, never its metas).

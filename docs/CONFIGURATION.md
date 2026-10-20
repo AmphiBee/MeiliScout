@@ -91,7 +91,7 @@ The terms of the indexed content are always filterable (a facet on categories wo
 
 ![Content: the indexed custom fields, their detected type and where they are found](images/admin/content-fields.jpg)
 
-A custom field (meta key) is indexed **only if you add it**. For each one the screen shows the **type it detected** from the values (number, text, date, list) and how many posts have it; **Remove** takes it out. Add one with *Add a field*: the search offers the keys found in your content.
+A custom field (meta key) is indexed **only if you add it**. For each one the screen shows its **name** when ACF, Meta Box, WooCommerce or your own code gives it one (“Project › Client sector”, with the key under it), the **type** (the one the plugin declares, else detected from the values), and how many posts have it; **Remove** takes it out. Add one with *Add a field*: the search offers the **named fields first**, grouped by where they come from, then the keys found in your content. A few are listed, never all: search by name or by key. See [Custom fields, by name](FIELDS.md).
 
 The purple notice at the top lists keys your `WP_Query` calls used but that are not indexed (`event_location`, `cpf` here): those queries are served by MySQL until the key is added, which is how you find what is worth indexing.
 
@@ -101,11 +101,11 @@ A custom field is what lets you filter (`meta_query`), sort on it, and use it as
 
 The same, for the meta of **terms** (the colour of a category, a position): sent with each term of the indexed taxonomies, usable in a `get_terms()` `meta_query` and for sorting.
 
-### Relevance
+### Search weights
 
-![Content: the fields searched, in order of importance](images/admin/content-relevance.jpg)
+![Content: how much each field counts in a search](images/admin/search-weights.jpg)
 
-The fields searched, from the most to the least important: title first, then terms, excerpt and the text of the content. Move a field up or down, remove one, or add another with *Search in a field too*. A match in a field higher in the list ranks the result higher. **Search all fields again** restores the default.
+How much each field counts in a search, **per post type**: a switch and a slider from 0 to 10 for the title, the terms, the excerpt, the content and the custom fields you index. A match in a field with a higher weight ranks the result higher, and 0 leaves a field out. *Try a search* ranks real results with the weights on screen and tells what ranked each. See [Search weights](WEIGHTS.md).
 
 > Changing what is indexed (post types, taxonomies, custom fields, the fields searched) changes the index's structure: run an indexation afterwards (next section). The Overview and Indexation screens tell you when one is needed.
 

@@ -63,7 +63,7 @@ test('a field has a phone sheet, and recent searches unless it turns them off', 
 test('the plan carries one search per source, with a filter of its own', function () {
     $plan = Plan::forDefinition(SuggestRegistry::get('field-test'));
 
-    expect($plan['version'])->toBe(1)
+    expect($plan['version'])->toBe(Plan::VERSION)
         ->and($plan['sources'])->toHaveCount(2)
         ->and($plan['sources'][0]['search']['filter'])->toBe('post_type IN ["post"]')
         ->and($plan['sources'][0]['search']['attributesToRetrieve'])->toContain('thumbnail')->not->toContain('post_content')

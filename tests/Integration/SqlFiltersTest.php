@@ -15,6 +15,11 @@ function meiliscout_test_only_even_ids(string $where): string
     return $where.' AND ID % 2 = 0';
 }
 
+function meiliscout_test_join(string $join): string
+{
+    return $join.' ';
+}
+
 function meiliscout_test_unchanged(string $where): string
 {
     return $where;
@@ -48,7 +53,8 @@ test('a filter that changes nothing for the query lets Meilisearch serve it', fu
 })->group('integration');
 
 test('a callback declared harmless, by name or by hook, lets Meilisearch serve the query', function () {
-    expect(servedWith('posts_where', 'meiliscout_test_only_even_ids', ['meiliscout_test_only_even_ids'])['served'])->toBeTrue()
+    // By name on a hook no multilingual plugin uses (Polylang's own posts_where callback would still send the query to MySQL)
+    expect(servedWith('posts_join', 'meiliscout_test_join', ['meiliscout_test_join'])['served'])->toBeTrue()
         ->and(servedWith('posts_where', 'meiliscout_test_only_even_ids', ['posts_where'])['served'])->toBeTrue();
 })->group('integration');
 

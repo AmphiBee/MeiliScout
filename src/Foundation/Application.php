@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Foundation;
 
+use Pollora\MeiliScout\Fields\FieldsServiceProvider;
 use Pollora\MeiliScout\Listings\ListingsServiceProvider;
 use Pollora\MeiliScout\Suggest\SuggestServiceProvider;
 use Pollora\MeiliScout\Providers\Admin\AdminServiceProvider;
@@ -34,6 +35,7 @@ class Application
         SingleIndexingServiceProvider::class,
         ListingsServiceProvider::class,
         SuggestServiceProvider::class,
+        FieldsServiceProvider::class,
     ];
 
     /**
