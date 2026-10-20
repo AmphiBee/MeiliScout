@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [2.6.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.6.0) - 2026-10-20
 
 ### Search weights
 
