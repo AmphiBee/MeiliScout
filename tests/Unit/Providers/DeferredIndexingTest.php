@@ -57,6 +57,31 @@ namespace Pollora\MeiliScout\Tests\Unit\Providers {
         $GLOBALS['revisions'] = [];
         $GLOBALS['actions'] = [];
         $GLOBALS['wp_options'] = [];
+        $GLOBALS['doing_action'] = null;
+    });
+
+    test('a post saved during the request is sent before the other shutdown callbacks', function () {
+        $provider = deferring(new OperationsRecorder);
+
+        $provider->handlePostSave(7, $GLOBALS['posts'][7], true);
+
+        expect($GLOBALS['actions']['shutdown'][0]['priority'])->toBe(0);
+    });
+
+    test('a reindex asked by a shutdown callback after the queue ran still runs in that request', function () {
+        $indexer = new OperationsRecorder;
+        $provider = deferring($indexer);
+        $provider->handlePostSave(7, $GLOBALS['posts'][7], true);
+        $GLOBALS['doing_action'] = 'shutdown';
+        $provider->runPendingTasks();
+
+        $provider->handlePostReindex(8);
+
+        $late = end($GLOBALS['actions']['shutdown']);
+        expect($late['priority'])->toBe(PHP_INT_MAX);
+
+        $late['callback']();
+        expect($indexer->operations)->toBe(['index 7', 'index 8']);
     });
 
     test('saving a post indexes it once, at the end of the request', function () {

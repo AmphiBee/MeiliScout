@@ -15,6 +15,12 @@
 - A listing facet on a named field is labelled with the field's short name when the definition gives no `label` (it was the facet's key).
 - Declare names yourself with `meiliscout_register_meta_field()` or the `meiliscout/meta_fields` filter; support another plugin with a `FieldProvider` (`meiliscout/meta_field_providers`). See [docs/FIELDS.md](docs/FIELDS.md). ACF repeaters and flexible content are not offered yet.
 
+## [2.5.1](https://github.com/AmphiBee/MeiliScout/releases/tag/2.5.1) - 2026-10-19
+
+### Indexing
+
+- A reindex asked from a `shutdown` callback, once the request's indexing queue already ran, is sent at the end of that `shutdown` instead of being lost. `meiliscout/reindex_post` fired after WooCommerce syncs a variable product (`shutdown`, priority 10), as MeiliFacets does when a variation changes, reaches the index again. A save made during the request is still sent first, at priority 0.
+
 ## [2.5.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.5.0) - 2026-10-15
 
 **Run a full indexation after updating**: the posts index moves to format 6 (featured images). Until then everything works, without images in suggestions.

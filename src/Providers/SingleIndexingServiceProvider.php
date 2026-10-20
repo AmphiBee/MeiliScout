@@ -40,6 +40,16 @@ class SingleIndexingServiceProvider extends ServiceProvider
     public const EDITED_TERM_PRIORITY = 100;
 
     /**
+     * Before the other shutdown callbacks, so that the request's saves are sent first.
+     */
+    private const SHUTDOWN_PRIORITY = 0;
+
+    /**
+     * A task queued by a shutdown callback, once the queue already ran: still within the request.
+     */
+    private const LATE_SHUTDOWN_PRIORITY = PHP_INT_MAX;
+
+    /**
      * Post single indexer instance.
      *
      * @var PostSingleIndexer|null
@@ -674,7 +684,7 @@ class SingleIndexingServiceProvider extends ServiceProvider
         }
 
         if ($this->pendingTasks === []) {
-            add_action('shutdown', [$this, 'runPendingTasks'], 0);
+            add_action('shutdown', [$this, 'runPendingTasks'], $this->shutdownPriority());
         }
 
         // Re-added at the end: tasks run in the order of their last change
@@ -732,6 +742,14 @@ class SingleIndexingServiceProvider extends ServiceProvider
     private function shouldSkipIndexing(): bool
     {
         return (bool) apply_filters('meiliscout/skip_indexing', false);
+    }
+
+    /**
+     * WordPress runs a callback added to the hook it is running only if its priority is still to come.
+     */
+    private function shutdownPriority(): int
+    {
+        return doing_action('shutdown') ? self::LATE_SHUTDOWN_PRIORITY : self::SHUTDOWN_PRIORITY;
     }
 
     /**
