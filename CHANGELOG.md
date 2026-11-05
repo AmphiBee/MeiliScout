@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.6.1](https://github.com/AmphiBee/MeiliScout/releases/tag/2.6.1) - 2026-11-05
+
+### Indexing
+
+- A selected taxonomy that is not registered on the request no longer empties the taxonomies index. A full indexation fetched every term in one `get_terms()` call, which WordPress refuses whole for one unknown taxonomy: a taxonomy registered only in the admin (Meta Box Views' `mb-views-category`, for instance) left the index without a single term under WP-CLI, and `get_terms()` back on MySQL. It is now left out, and `wp meiliscout index` names it in a `Warning:`; the count of terms to send and the recorded structure leave it out too, so its term queries stay on MySQL. The admin, where it is registered, asks for a reindex until one runs from there.
+
+### Dependencies
+
+- Build tooling updated (#78, #79, #81, #82): `@wordpress/scripts` 37.0.0 (`uuid` no longer needed), `@babel/core` 7.29.7, `markdown-it` 14.3.3, `fast-uri` 3.1.9. The built admin files are unchanged.
+
 ## [2.6.0](https://github.com/AmphiBee/MeiliScout/releases/tag/2.6.0) - 2026-10-20
 
 ### Search weights
