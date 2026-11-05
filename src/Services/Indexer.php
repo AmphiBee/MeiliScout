@@ -554,8 +554,8 @@ class Indexer
     {
         global $wpdb;
 
-        $taxonomies = Settings::get('indexed_taxonomies', []);
-        if (empty($taxonomies)) {
+        $taxonomies = TaxonomyIndexable::indexableTaxonomies();
+        if ($taxonomies === []) {
             return 0;
         }
 
@@ -699,7 +699,7 @@ class Indexer
 
         $structure = [
             'post_types' => Settings::get('indexed_post_types', []),
-            'taxonomies' => Settings::get('indexed_taxonomies', []),
+            'taxonomies' => TaxonomyIndexable::indexableTaxonomies(),
             'meta_keys' => Settings::get('indexed_meta_keys', []),
             'term_meta_keys' => Settings::get(TaxonomyIndexable::META_KEYS_SETTING, []),
             'searchable' => SearchableAttributes::configured(),
@@ -719,7 +719,7 @@ class Indexer
     {
         $currentStructure = [
             'post_types' => Settings::get('indexed_post_types', []),
-            'taxonomies' => Settings::get('indexed_taxonomies', []),
+            'taxonomies' => TaxonomyIndexable::indexableTaxonomies(),
             'meta_keys' => Settings::get('indexed_meta_keys', []),
         ];
 
