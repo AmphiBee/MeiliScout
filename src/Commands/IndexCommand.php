@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Commands;
 
+use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
 use Pollora\MeiliScout\Services\IndexNames;
 use Pollora\MeiliScout\Services\Indexer;
 use WP_CLI;
@@ -60,6 +61,7 @@ class IndexCommand
             }
 
             $clearIndices = isset($assoc_args['clear']) && $assoc_args['clear'];
+            $this->warnOfUnregisteredTaxonomies();
 
             // Check if chunked mode is requested
             if (isset($assoc_args['chunk-size'])) {
@@ -74,6 +76,15 @@ class IndexCommand
             $this->reportLegacyIndexes();
         } catch (\Exception $e) {
             WP_CLI::error('Error: '.$e->getMessage());
+        }
+    }
+
+    private function warnOfUnregisteredTaxonomies(): void
+    {
+        $unregistered = TaxonomyIndexable::unregisteredTaxonomies();
+
+        if ($unregistered !== []) {
+            WP_CLI::warning(sprintf('Not registered on this request, left out of the taxonomies index: %s.', implode(', ', $unregistered)));
         }
     }
 

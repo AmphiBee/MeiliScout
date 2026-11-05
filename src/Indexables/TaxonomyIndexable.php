@@ -20,6 +20,7 @@ use function get_terms;
 use function is_taxonomy_hierarchical;
 use function is_wp_error;
 use function maybe_unserialize;
+use function taxonomy_exists;
 use function update_termmeta_cache;
 use function wp_cache_get;
 
@@ -110,9 +111,27 @@ class TaxonomyIndexable implements Indexable
         ));
     }
 
+    /**
+     * The selected taxonomies registered on this request: get_terms() refuses its whole list for one that is not.
+     *
+     * @return list<string>
+     */
+    public static function indexableTaxonomies(): array
+    {
+        return array_values(array_filter((array) Settings::get('indexed_taxonomies', []), taxonomy_exists(...)));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function unregisteredTaxonomies(): array
+    {
+        return array_values(array_diff((array) Settings::get('indexed_taxonomies', []), self::indexableTaxonomies()));
+    }
+
     public function getItems(?int $offset = null, ?int $limit = null): iterable
     {
-        $taxonomies = array_values((array) Settings::get('indexed_taxonomies', []));
+        $taxonomies = self::indexableTaxonomies();
         $this->metaKeys = self::resolveMetaKeys($taxonomies);
 
         if ($taxonomies === []) {
