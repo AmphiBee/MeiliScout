@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pollora\MeiliScout\Services;
 
 use Meilisearch\Endpoints\Indexes;
+use Pollora\MeiliScout\Embedders\Embedders;
 
 use function apply_filters;
 use function get_option;
@@ -82,8 +83,7 @@ final class IndexSettings
      */
     public static function push(Indexes $index, string $indexName, array $settings): void
     {
-        $index->updateSettings($settings);
-        self::remember($indexName, $settings);
+        self::send($index, $indexName, self::complete($indexName, $settings));
     }
 
     /**
@@ -93,9 +93,27 @@ final class IndexSettings
      */
     public static function remember(string $indexName, array $settings): void
     {
-        update_option(self::OPTION_PREFIX.$indexName, self::fingerprint($settings), false);
-        // Read by queries, hence autoloaded
-        update_option(self::ATTRIBUTES_OPTION_PREFIX.$indexName, array_intersect_key($settings, array_flip(self::RECORDED)), true);
+        self::record($indexName, self::complete($indexName, $settings));
+    }
+
+    /**
+     * An indexable's settings with what is declared for its index: its embedders, and the meiliscout/index_settings filter.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    public static function complete(string $indexName, array $settings): array
+    {
+        $base = IndexNames::baseOf($indexName);
+
+        /**
+         * Filters the settings pushed to an index (searchCutOffMs, a setting an indexable does not set...).
+         *
+         * @param  array<string, mixed>  $settings
+         * @param  string  $base  The index's base name (posts, taxonomies, manual_chunks...)
+         * @param  string  $indexName  The name it is pushed to
+         */
+        return (array) apply_filters('meiliscout/index_settings', Embedders::mergeInto($settings, $base), $base, $indexName);
     }
 
     /**
@@ -169,13 +187,34 @@ final class IndexSettings
      */
     public static function pushIfChanged(Indexes $index, string $indexName, array $settings): bool
     {
+        $settings = self::complete($indexName, $settings);
+
         if (get_option(self::OPTION_PREFIX.$indexName) === self::fingerprint($settings)) {
             return false;
         }
 
-        self::push($index, $indexName, $settings);
+        self::send($index, $indexName, $settings);
 
         return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings  Completed settings
+     */
+    private static function send(Indexes $index, string $indexName, array $settings): void
+    {
+        $index->updateSettings(Embedders::withApiKeys($settings));
+        self::record($indexName, $settings);
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings  Completed settings
+     */
+    private static function record(string $indexName, array $settings): void
+    {
+        update_option(self::OPTION_PREFIX.$indexName, self::fingerprint($settings), false);
+        // Read by queries, hence autoloaded
+        update_option(self::ATTRIBUTES_OPTION_PREFIX.$indexName, array_intersect_key($settings, array_flip(self::RECORDED)), true);
     }
 
     /**
@@ -183,6 +222,7 @@ final class IndexSettings
      */
     private static function fingerprint(array $settings): string
     {
-        return md5((string) json_encode($settings));
+        // A new API key is no reason to push the settings again
+        return md5((string) json_encode(Embedders::withoutApiKeys($settings)));
     }
 }

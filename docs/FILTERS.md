@@ -158,6 +158,26 @@ add_filter('meiliscout/index_prefix', fn () => 'shop');
 Changing the prefix calls for a full indexation: until then, searches keep
 reading the previous indexes (see "Upgrading to 2.0").
 
+### meiliscout/embedders
+Every embedder, by base index name then by name, as `meiliscout_register_embedder()`
+declared them. Their settings are pushed with the index's. See [EMBEDDERS.md](EMBEDDERS.md).
+
+```php
+add_filter('meiliscout/embedders', function (array $embedders) {
+    unset($embedders['posts']['mistral']);
+
+    return $embedders;
+});
+```
+
+### meiliscout/index_settings
+The settings pushed to an index, after its embedders are added: for a setting no
+indexable sets. Receives the settings, the base index name and the name pushed to.
+
+```php
+add_filter('meiliscout/index_settings', fn (array $settings, string $base) => $base === 'posts' ? [...$settings, 'searchCutOffMs' => 1500] : $settings, 10, 2);
+```
+
 ## Queries
 
 How a `WP_Query` is translated, and when it runs on MySQL instead: [WP_QUERY.md](WP_QUERY.md).
@@ -313,6 +333,7 @@ filterable, or stale ones are never deleted.
 |----------|-------------|
 | `use_meilisearch` | Run this `WP_Query` on Meilisearch (`true`), or keep it on MySQL whatever the settings (`false`). What happened is in `$query->meiliscout` |
 | `meilisearch_facets` | Facets to compute, e.g. `['taxonomies.category.slug']`; the distribution lands in `$query->facet_distribution`. None by default: facets cost on every search |
+| `meiliscout_hybrid` | A hybrid search: `['embedder' => 'mistral', 'semanticRatio' => 0.5, 'rankingScoreThreshold' => null]`. Ignored without `s`; by keywords on Meilisearch when the embedder fails. See [EMBEDDERS.md](EMBEDDERS.md) |
 
 ## Admin settings
 

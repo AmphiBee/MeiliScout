@@ -17,7 +17,8 @@ use Pollora\MeiliScout\Services\IndexSettings;
  * list (a post found by several queries appears once, with its best score).
  *
  * Only a search by relevance is weighted: with no search term, an explicit sort,
- * facets or a count, the search stays as it is.
+ * facets, a count or a hybrid search (each tier would embed the term again),
+ * the search stays as it is.
  */
 final class WeightedSearch
 {
@@ -32,6 +33,7 @@ final class WeightedSearch
             && empty($params['sort'])
             && empty($params['facets'])
             && ($params['hitsPerPage'] ?? null) !== 0
+            && ! isset($params['hybrid'])
             && count(self::tiers($types, (string) ($params['index'] ?? ''))) > 1;
     }
 

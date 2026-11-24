@@ -97,9 +97,13 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
 
     use Meilisearch\Client;
     use Meilisearch\Endpoints\Indexes;
+    use Meilisearch\Exceptions\ApiException;
+    use Meilisearch\Exceptions\CommunicationException;
     use Meilisearch\Search\SearchResult;
+    use Nyholm\Psr7\Response;
     use Pollora\MeiliScout\Query\MeiliQueryBuilder;
     use Pollora\MeiliScout\Query\QueryIntegration;
+    use Pollora\MeiliScout\Query\WPQueryAdapter;
     use Pollora\MeiliScout\Services\SearchFallbacks;
 
     function integrationWith(Client $client): QueryIntegration
@@ -208,6 +212,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
             'error' => 1,
             'meta' => 1,
             'reasons' => ['engine_error' => 1, 'unsupported_arg:perm' => 1, 'unindexed_meta:nope' => 1],
+            'hybrid' => 0,
         ]);
     });
 
@@ -480,5 +485,157 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
         $client->expects($this->never())->method('index');
 
         expect(integrationWith($client)->interceptQuery([1], new \WP_Query(['use_meilisearch' => true])))->toBe([1]);
+    });
+
+    function embedderError(string $code): ApiException
+    {
+        return new ApiException(new Response(400), ['message' => 'The embedder failed.', 'code' => $code]);
+    }
+
+    function hybridQuery(array $vars = []): \WP_Query
+    {
+        return new \WP_Query(['use_meilisearch' => true, 's' => 'a light tent for two hikers', 'posts_per_page' => 2, 'meiliscout_hybrid' => ['embedder' => 'mistral', 'semanticRatio' => 0.6], ...$vars]);
+    }
+
+    test('meiliscout_hybrid becomes the hybrid parameter, with the ranking scores', function () {
+        $params = (new MeiliQueryBuilder)->build(new WPQueryAdapter(hybridQuery(['meiliscout_hybrid' => ['embedder' => 'mistral', 'semanticRatio' => 0.6, 'rankingScoreThreshold' => 0.5]])));
+
+        expect($params['hybrid'])->toBe(['embedder' => 'mistral', 'semanticRatio' => 0.6])
+            ->and($params['rankingScoreThreshold'])->toBe(0.5)
+            ->and($params['showRankingScore'])->toBeTrue();
+    });
+
+    test('without a ratio, as much keywords as meaning', function () {
+        $params = (new MeiliQueryBuilder)->build(new WPQueryAdapter(hybridQuery(['meiliscout_hybrid' => ['embedder' => 'mistral']])));
+
+        expect($params['hybrid'])->toBe(['embedder' => 'mistral', 'semanticRatio' => 0.5])
+            ->and($params)->not->toHaveKey('rankingScoreThreshold');
+    });
+
+    test('without a search term, meiliscout_hybrid is ignored', function () {
+        $params = (new MeiliQueryBuilder)->build(new WPQueryAdapter(hybridQuery(['s' => ''])));
+
+        expect($params)->not->toHaveKeys(['hybrid', 'showRankingScore']);
+    });
+
+    test('an invalid meiliscout_hybrid runs the query on MySQL, with the reason', function (mixed $hybrid) {
+        $client = $this->createMock(Client::class);
+        $client->expects($this->never())->method('index');
+        $query = hybridQuery(['meiliscout_hybrid' => $hybrid]);
+
+        expect(integrationWith($client)->interceptQuery(null, $query))->toBeNull()
+            ->and($query->meiliscout['reason'])->toBe('invalid_arg:meiliscout_hybrid');
+    })->with([
+        'no embedder' => [['semanticRatio' => 0.5]],
+        'a ratio above 1' => [['embedder' => 'mistral', 'semanticRatio' => 1.5]],
+        'a threshold below 0' => [['embedder' => 'mistral', 'rankingScoreThreshold' => -0.1]],
+        'not an array' => ['mistral'],
+    ]);
+
+    test('a hybrid search is served by Meilisearch, and exposes the ranking scores', function () {
+        publishedPosts(4, 8);
+        $hits = ['hits' => [['ID' => 8, '_rankingScore' => 0.91], ['ID' => 4, '_rankingScore' => 0.42]], 'semanticHitCount' => 1];
+        $integration = integrationWith(clientReturning(searchResult([8, 4], 2, $hits), $this, $searches));
+        $query = hybridQuery();
+
+        $posts = $integration->interceptQuery(null, $query);
+
+        expect(array_map(fn ($post) => $post->ID, $posts))->toBe([8, 4])
+            ->and($searches[0]['hybrid'])->toBe(['embedder' => 'mistral', 'semanticRatio' => 0.6])
+            ->and($query->meiliscout)->toMatchArray(['served' => true, 'ranking_scores' => [8 => 0.91, 4 => 0.42], 'semantic_hits' => 1])
+            ->and($query->meiliscout)->not->toHaveKey('hybrid_fallback');
+    });
+
+    test('a failing embedder: the search runs again by keywords on Meilisearch, and the fallback is counted apart', function (\Throwable $error, string $reason) {
+        publishedPosts(1, 2);
+        $integration = integrationWith(clientReturning([$error, searchResult([2, 1], 2)], $this, $searches));
+        $query = hybridQuery();
+
+        $posts = $integration->interceptQuery(null, $query);
+        SearchFallbacks::flush();
+
+        expect(array_map(fn ($post) => $post->ID, $posts))->toBe([2, 1])
+            ->and($searches)->toHaveCount(2)
+            ->and($searches[1])->not->toHaveKey('hybrid')
+            ->and($searches[1]['q'])->toBe('a light tent for two hikers')
+            ->and($query->meiliscout)->toMatchArray(['served' => true, 'hybrid_fallback' => $reason])
+            ->and($query->meiliscout['params'])->not->toHaveKey('hybrid')
+            ->and($query->meiliscout)->not->toHaveKey('semantic_hits')
+            ->and(SearchFallbacks::lastDay())->toMatchArray(['total' => 0, 'hybrid' => 1, 'reasons' => []]);
+    })->with([
+        'the embedding API fails' => [embedderError('vector_embedding_error'), 'vector_embedding_error'],
+        'the index has no such embedder' => [embedderError('invalid_search_embedder'), 'invalid_search_embedder'],
+        'the request times out' => [new CommunicationException('Operation timed out'), 'timeout'],
+    ]);
+
+    test('an embedder that failed is not asked again in the same request', function () {
+        publishedPosts(1);
+        $integration = integrationWith(clientReturning([embedderError('vector_embedding_error'), searchResult([1], 1)], $this, $searches));
+
+        $integration->interceptQuery(null, hybridQuery());
+        $second = hybridQuery(['paged' => 2]);
+        $integration->interceptQuery(null, $second);
+
+        expect($searches)->toHaveCount(3)
+            ->and($searches[2])->not->toHaveKey('hybrid')
+            ->and($second->meiliscout['hybrid_fallback'])->toBe('failed_before');
+    });
+
+    test('an error that is not the embedder\'s still falls back to MySQL', function () {
+        $integration = integrationWith(clientReturning(embedderError('invalid_search_filter'), $this, $searches));
+        $query = hybridQuery();
+
+        expect($integration->interceptQuery(null, $query))->toBeNull()
+            ->and($searches)->toHaveCount(1)
+            ->and($query->meiliscout['reason'])->toBe('engine_error');
+    });
+
+    test('a keyword search failing after the embedder still falls back to MySQL', function () {
+        $integration = integrationWith(clientReturning([embedderError('vector_embedding_error'), new \RuntimeException('Meilisearch is down')], $this));
+        $query = hybridQuery();
+
+        expect($integration->interceptQuery(null, $query))->toBeNull()
+            ->and($query->meiliscout['reason'])->toBe('engine_error');
+    });
+
+    test('a search without meiliscout_hybrid is sent and reported as before', function () {
+        publishedPosts(1, 2);
+        $integration = integrationWith(clientReturning(searchResult([1, 2], 2), $this, $searches));
+        $query = new \WP_Query(['use_meilisearch' => true, 's' => 'tent', 'posts_per_page' => 2]);
+
+        $integration->interceptQuery(null, $query);
+
+        expect($searches[0])->not->toHaveKeys(['hybrid', 'showRankingScore', 'rankingScoreThreshold'])
+            ->and($query->meiliscout)->not->toHaveKeys(['ranking_scores', 'semantic_hits', 'hybrid_fallback']);
+    });
+
+    test('a count failing on the embedder is made by keywords, and the query counted once', function () {
+        publishedPosts(1, 2);
+        $integration = integrationWith(clientReturning([
+            new SearchResult(['hits' => [['ID' => 1, '_rankingScore' => 0.8], ['ID' => 2, '_rankingScore' => 0.6]], 'offset' => 4, 'limit' => 2, 'estimatedTotalHits' => 1000, 'semanticHitCount' => 2, 'processingTimeMs' => 1, 'query' => '']),
+            new CommunicationException('Operation timed out'),
+            searchResult([], 9),
+        ], $this, $searches));
+        $query = hybridQuery(['offset' => 4]);
+
+        $integration->interceptQuery(null, $query);
+        SearchFallbacks::flush();
+
+        expect($query->found_posts)->toBe(9)
+            ->and($searches)->toHaveCount(3)
+            ->and($searches[1])->toHaveKey('hybrid')
+            ->and($searches[2])->not->toHaveKey('hybrid')
+            ->and($query->meiliscout)->toMatchArray(['served' => true, 'hybrid_fallback' => 'timeout', 'semantic_hits' => 2])
+            ->and($query->meiliscout['params'])->toHaveKey('hybrid')
+            ->and(SearchFallbacks::lastDay()['hybrid'])->toBe(1);
+    });
+
+    test('a keyword search that fails too is counted as a MySQL fallback only', function () {
+        $integration = integrationWith(clientReturning([embedderError('vector_embedding_error'), new \RuntimeException('Meilisearch is down')], $this));
+
+        $integration->interceptQuery(null, hybridQuery());
+        SearchFallbacks::flush();
+
+        expect(SearchFallbacks::lastDay())->toMatchArray(['total' => 1, 'hybrid' => 0, 'reasons' => ['engine_error' => 1]]);
     });
 }

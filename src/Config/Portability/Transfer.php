@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Config\Portability;
 
+use Pollora\MeiliScout\Config\Portability\Sections\EmbeddersSection;
 use Pollora\MeiliScout\Config\Portability\Sections\IndexingSection;
 use Pollora\MeiliScout\Config\Portability\Sections\ListingsSection;
 use Pollora\MeiliScout\Config\Portability\Sections\QueriesSection;
@@ -42,7 +43,7 @@ final class Transfer
      */
     public static function sections(): array
     {
-        $sections = [new IndexingSection, new QueriesSection, new ListingsSection, new SeoRulesSection];
+        $sections = [new IndexingSection, new QueriesSection, new ListingsSection, new SeoRulesSection, new EmbeddersSection];
 
         /**
          * Filters the sections an export carries: a plugin adds its own.

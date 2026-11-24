@@ -68,7 +68,8 @@ test('a search is weighted only by relevance, with several weights', function ()
         ->and(WeightedSearch::applies([...$q, 'q' => ''], ['post']))->toBeFalse()
         ->and(WeightedSearch::applies([...$q, 'sort' => ['post_date:desc']], ['post']))->toBeFalse()
         ->and(WeightedSearch::applies([...$q, 'facets' => ['post_type']], ['post']))->toBeFalse()
-        ->and(WeightedSearch::applies([...$q, 'hitsPerPage' => 0], ['post']))->toBeFalse();
+        ->and(WeightedSearch::applies([...$q, 'hitsPerPage' => 0], ['post']))->toBeFalse()
+        ->and(WeightedSearch::applies([...$q, 'hybrid' => ['embedder' => 'default', 'semanticRatio' => 0.5]], ['post']))->toBeFalse();
 
     // One weight only: nothing to merge
     Settings::save(SearchWeights::SETTING, ['post' => ['post_title' => 4, 'content_text' => 4]]);

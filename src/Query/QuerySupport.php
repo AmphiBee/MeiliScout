@@ -34,7 +34,7 @@ final class QuerySupport
      */
     private const HANDLED = [
         // MeiliScout's own
-        'use_meilisearch', 'meilisearch_facets',
+        'use_meilisearch', 'meilisearch_facets', 'meiliscout_hybrid',
         // Type and status: checked below
         'post_type', 'post_status',
         // Search, and what WP_Query::parse_search() stores
