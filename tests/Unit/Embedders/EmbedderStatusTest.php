@@ -79,19 +79,34 @@ namespace Pollora\MeiliScout\Tests\Unit\Embedders {
         expect((new EmbedderStatus($client))->rows()[0]['failed tasks'])->toBe(1);
     });
 
+    test('the admin reads each index with its embedders, its vectors and its failures', function () {
+        Embedders::declare('mistral', ['source' => 'rest', 'request' => ['model' => 'mistral-embed']]);
+        $client = statusClient($this, [
+            task(10, 'succeeded', POSTS_INDEX, '2026-11-19T08:00:00Z'),
+            task(11, 'failed', POSTS_INDEX, '2026-11-20T11:05:12Z'),
+        ]);
+
+        expect((new EmbedderStatus($client))->indexes())->toBe([[
+            'base' => 'posts',
+            'index' => POSTS_INDEX,
+            'embedders' => [['name' => 'mistral', 'source' => 'rest', 'model' => 'mistral-embed']],
+            'documents' => 120,
+            'embedded' => 100,
+            'failed' => 1,
+            'last_failure' => '2026-11-20T11:05:12Z',
+        ]]);
+    });
+
     test('an index Meilisearch cannot describe is shown as unknown', function () {
         Embedders::declare('mistral', ['source' => 'rest'], ['manual_chunks']);
 
         $client = $this->createMock(Client::class);
         $client->method('index')->willThrowException(new \RuntimeException('Index not found.'));
 
-        expect((new EmbedderStatus($client))->rows()[0])->toMatchArray([
-            'index' => 'example_test_manual_chunks',
-            'documents' => 'unknown',
-            'without vector' => 'unknown',
-            'failed tasks' => 'unknown',
-            'last failure' => 'unknown',
-        ]);
+        $status = new EmbedderStatus($client);
+
+        expect($status->indexes()[0])->toMatchArray(['index' => 'example_test_manual_chunks', 'documents' => null, 'embedded' => null, 'failed' => null, 'last_failure' => null])
+            ->and($status->rows()[0])->toMatchArray(['documents' => 'unknown', 'without vector' => 'unknown', 'failed tasks' => 'unknown', 'last failure' => 'unknown']);
     });
 
     test('without embedders, nothing is asked of Meilisearch', function () {

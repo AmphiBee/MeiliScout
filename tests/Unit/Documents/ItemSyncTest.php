@@ -232,6 +232,13 @@ namespace Pollora\MeiliScout\Tests\Unit\Documents {
             ->toThrow(\RuntimeException::class);
     });
 
+    test('the indexables are those of meiliscout/indexables, whatever else a plugin returned', function () {
+        $GLOBALS['filters']['meiliscout/indexables'] = [new ManualChunks, 'not an indexable', null];
+
+        expect(ItemSync::indexables())->toHaveCount(1)
+            ->and(ItemSync::indexables()[0])->toBeInstanceOf(ManualChunks::class);
+    });
+
     test('without Meilisearch, a write says so instead of doing nothing', function () {
         expect(fn () => (new ItemSync(null, null))->sync(new ManualChunks, chunks(1, 1)))
             ->toThrow(\RuntimeException::class);

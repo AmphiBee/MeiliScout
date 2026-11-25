@@ -10,6 +10,7 @@
 - `wp meiliscout status` lists the embedders, the documents still without a vector, the failed tasks still to deal with (those after the index's last successful task) and the date of the last failure.
 - The Indexation screen follows Meilisearch once a run has sent its documents (`GET /meiliscout/v1/indexation/backlog`): the site's tasks left and, while vectors are computed, the calls to the embedder; it says the indexation completed only once Meilisearch is done.
 - `meiliscout/index_settings` filters the settings pushed to any index (`searchCutOffMs`...).
+- Admin: **Content › Semantic search** lists the embedders of each index (source, model, documents with their vectors, failed tasks still to deal with, last failure; `GET /meiliscout/v1/content/embedders`, without API keys nor headers). The **Overview** shows the vectors of each index, lists other plugins' indexes (those of `meiliscout/indexables`), and counts the hybrid searches run by keywords.
 
 ### Other plugins' indexes
 

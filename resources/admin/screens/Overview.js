@@ -93,6 +93,58 @@ const IndexState = ( { index, running } ) => {
 	return <Pill tone="success">{ __( 'Up to date', 'meiliscout' ) }</Pill>;
 };
 
+const Vectors = ( { vectors, documents } ) => (
+	<p
+		className={
+			'ms-index__vectors' +
+			( vectors.embedded < documents
+				? ' ms-index__vectors--missing'
+				: '' )
+		}
+	>
+		<span className="ms-stat__label">
+			{ __( 'Vectors', 'meiliscout' ) }
+		</span>
+		<strong>
+			{ sprintf(
+				/* translators: 1: documents with their vectors, 2: documents in all */
+				__( '%1$s of %2$s', 'meiliscout' ),
+				number( vectors.embedded ),
+				number( documents )
+			) }
+		</strong>
+		<code>{ vectors.embedders.join( ', ' ) }</code>
+	</p>
+);
+
+const IndexLinks = ( { index } ) => {
+	if ( index.base === 'posts' ) {
+		return (
+			<>
+				<a href={ href( 'search' ) }>
+					{ __( 'Search preview', 'meiliscout' ) }
+				</a>
+				<a href={ href( 'content', 'types' ) }>
+					{ __( 'Indexed content', 'meiliscout' ) }
+				</a>
+			</>
+		);
+	}
+	if ( index.base === 'taxonomies' ) {
+		return (
+			<a href={ href( 'content', 'taxonomies' ) }>
+				{ __( 'Indexed taxonomies', 'meiliscout' ) }
+			</a>
+		);
+	}
+
+	return (
+		<span className="ms-hint">
+			{ __( 'Written by another plugin', 'meiliscout' ) }
+		</span>
+	);
+};
+
 const IndexCard = ( { index, running } ) => (
 	<article className="ms-card">
 		<div className="ms-index__head">
@@ -103,32 +155,40 @@ const IndexCard = ( { index, running } ) => (
 			<IndexState index={ index } running={ running } />
 		</div>
 		{ index.exists ? (
-			<div className="ms-stats">
-				<div className="ms-stat">
-					<span className="ms-stat__label">
-						{ __( 'Documents', 'meiliscout' ) }
-					</span>
-					<span className="ms-stat__value">
-						{ number( index.documents ) }
-					</span>
+			<>
+				<div className="ms-stats">
+					<div className="ms-stat">
+						<span className="ms-stat__label">
+							{ __( 'Documents', 'meiliscout' ) }
+						</span>
+						<span className="ms-stat__value">
+							{ number( index.documents ) }
+						</span>
+					</div>
+					<div className="ms-stat">
+						<span className="ms-stat__label">
+							{ __( 'Size', 'meiliscout' ) }
+						</span>
+						<span className="ms-stat__value">
+							{ size( index.size ) }
+						</span>
+					</div>
+					<div className="ms-stat">
+						<span className="ms-stat__label">
+							{ __( 'Updated', 'meiliscout' ) }
+						</span>
+						<span className="ms-stat__value ms-stat__value--small">
+							{ agoIso( index.updated_at ) }
+						</span>
+					</div>
 				</div>
-				<div className="ms-stat">
-					<span className="ms-stat__label">
-						{ __( 'Size', 'meiliscout' ) }
-					</span>
-					<span className="ms-stat__value">
-						{ size( index.size ) }
-					</span>
-				</div>
-				<div className="ms-stat">
-					<span className="ms-stat__label">
-						{ __( 'Updated', 'meiliscout' ) }
-					</span>
-					<span className="ms-stat__value ms-stat__value--small">
-						{ agoIso( index.updated_at ) }
-					</span>
-				</div>
-			</div>
+				{ index.vectors && (
+					<Vectors
+						vectors={ index.vectors }
+						documents={ index.documents }
+					/>
+				) }
+			</>
 		) : (
 			<p className="ms-empty">
 				{ index.error ??
@@ -139,18 +199,10 @@ const IndexCard = ( { index, running } ) => (
 			</p>
 		) }
 		<div className="ms-card__foot">
-			{ index.base === 'posts' ? (
-				<>
-					<a href={ href( 'search' ) }>
-						{ __( 'Search preview', 'meiliscout' ) }
-					</a>
-					<a href={ href( 'content', 'types' ) }>
-						{ __( 'Indexed content', 'meiliscout' ) }
-					</a>
-				</>
-			) : (
-				<a href={ href( 'content', 'taxonomies' ) }>
-					{ __( 'Indexed taxonomies', 'meiliscout' ) }
+			<IndexLinks index={ index } />
+			{ index.vectors && (
+				<a href={ href( 'content', 'semantic' ) }>
+					{ __( 'Semantic search', 'meiliscout' ) }
 				</a>
 			) }
 		</div>
@@ -439,6 +491,20 @@ const Overview = ( { overview } ) => {
 						) }
 					</span>
 					<FallbackReasons reasons={ fallbacks.reasons } />
+					{ fallbacks.hybrid > 0 && (
+						<span className="ms-health__detail">
+							{ sprintf(
+								/* translators: %s: number of hybrid searches */
+								_n(
+									'%s hybrid search run by keywords, its embedder failing',
+									'%s hybrid searches run by keywords, their embedder failing',
+									fallbacks.hybrid,
+									'meiliscout'
+								),
+								number( fallbacks.hybrid )
+							) }
+						</span>
+					) }
 					{ fallbacks.meta > 0 ? (
 						<a href={ href( 'content', 'fields' ) }>
 							{ sprintf(

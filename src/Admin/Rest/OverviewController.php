@@ -9,6 +9,9 @@ use Meilisearch\Exceptions\ApiException;
 use Pollora\MeiliScout\Config\Config;
 use Pollora\MeiliScout\Config\RealtimeIndexing;
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Contracts\Indexable;
+use Pollora\MeiliScout\Documents\ItemSync;
+use Pollora\MeiliScout\Embedders\Embedders;
 use Pollora\MeiliScout\Services\ActivityLog;
 use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\Indexer;
@@ -79,7 +82,7 @@ final class OverviewController extends Controller
     }
 
     /**
-     * The indexes searches read, with their size and freshness.
+     * The indexes searches read, other plugins' included, with their size, freshness and vectors.
      *
      * @return list<array<string, mixed>>
      */
@@ -87,7 +90,7 @@ final class OverviewController extends Controller
     {
         $indexes = [];
 
-        foreach (IndexNames::BASES as $base) {
+        foreach ($this->bases() as $base) {
             $name = IndexNames::active($base);
             $index = ['base' => $base, 'name' => $name, 'exists' => false];
 
@@ -103,6 +106,7 @@ final class OverviewController extends Controller
                     'size' => isset($stats['rawDocumentDbSize']) ? (int) $stats['rawDocumentDbSize'] : null,
                     'is_indexing' => (bool) ($stats['isIndexing'] ?? false),
                     'updated_at' => $this->isoDate($endpoint->getUpdatedAt()),
+                    'vectors' => self::vectors($base, $stats),
                 ];
             } catch (ApiException $e) {
                 if ($e->httpStatus !== 404) {
@@ -116,5 +120,40 @@ final class OverviewController extends Controller
         }
 
         return $indexes;
+    }
+
+    /**
+     * Posts and terms, then the indexes of other plugins' indexables.
+     *
+     * @return list<string>
+     */
+    private function bases(): array
+    {
+        $others = array_map(
+            static fn (Indexable $indexable): string => IndexNames::baseOf($indexable->getIndexName()),
+            ItemSync::indexables()
+        );
+
+        return array_values(array_unique([...IndexNames::BASES, ...$others]));
+    }
+
+    /**
+     * The documents of an index that have their vectors, and its embedders; null without embedders.
+     *
+     * @param  array<string, mixed>  $stats
+     * @return array{embedded: int, embedders: list<string>}|null
+     */
+    private static function vectors(string $base, array $stats): ?array
+    {
+        $embedders = Embedders::forIndex($base);
+
+        if ($embedders === []) {
+            return null;
+        }
+
+        return [
+            'embedded' => (int) ($stats['numberOfEmbeddedDocuments'] ?? 0),
+            'embedders' => array_map('strval', array_keys($embedders)),
+        ];
     }
 }

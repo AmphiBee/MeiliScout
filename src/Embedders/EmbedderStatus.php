@@ -29,7 +29,29 @@ final class EmbedderStatus
     public function __construct(private readonly Client $client) {}
 
     /**
-     * One row per embedder of each index searches read.
+     * Each index searches read that has embedders, with their state; null figures when Meilisearch could not tell.
+     *
+     * @return list<array{base: string, index: string, embedders: list<array{name: string, source: string, model: string}>, documents: int|null, embedded: int|null, failed: int|null, last_failure: string|null}>
+     */
+    public function indexes(): array
+    {
+        $indexes = [];
+
+        foreach (Embedders::all() as $base => $embedders) {
+            $indexName = IndexNames::active((string) $base);
+            $indexes[] = [
+                'base' => (string) $base,
+                'index' => $indexName,
+                'embedders' => self::describeEmbedders($embedders),
+                ...$this->state($indexName),
+            ];
+        }
+
+        return $indexes;
+    }
+
+    /**
+     * One row per embedder of each index searches read, as `wp meiliscout status` prints them.
      *
      * @return list<array{index: string, embedder: string, source: string, model: string, documents: int|string, 'without vector': int|string, 'failed tasks': int|string, 'last failure': string}>
      */
@@ -37,17 +59,17 @@ final class EmbedderStatus
     {
         $rows = [];
 
-        foreach (Embedders::all() as $base => $embedders) {
-            $indexName = IndexNames::active((string) $base);
-            $counts = $this->counts($indexName);
-
-            foreach ($embedders as $name => $config) {
+        foreach ($this->indexes() as $index) {
+            foreach ($index['embedders'] as $embedder) {
                 $rows[] = [
-                    'index' => $indexName,
-                    'embedder' => (string) $name,
-                    'source' => (string) ($config['source'] ?? ''),
-                    'model' => Embedders::model($config),
-                    ...$counts,
+                    'index' => $index['index'],
+                    'embedder' => $embedder['name'],
+                    'source' => $embedder['source'],
+                    'model' => $embedder['model'],
+                    'documents' => $index['documents'] ?? self::UNKNOWN,
+                    'without vector' => $index['documents'] === null || $index['embedded'] === null ? self::UNKNOWN : $index['documents'] - $index['embedded'],
+                    'failed tasks' => $index['failed'] ?? self::UNKNOWN,
+                    'last failure' => self::lastFailure($index),
                 ];
             }
         }
@@ -56,25 +78,39 @@ final class EmbedderStatus
     }
 
     /**
-     * @return array{documents: int|string, 'without vector': int|string, 'failed tasks': int|string, 'last failure': string}
+     * @param  array<string, array<string, mixed>>  $embedders
+     * @return list<array{name: string, source: string, model: string}>
      */
-    private function counts(string $indexName): array
+    private static function describeEmbedders(array $embedders): array
+    {
+        $described = [];
+
+        foreach ($embedders as $name => $config) {
+            $described[] = ['name' => (string) $name, 'source' => (string) ($config['source'] ?? ''), 'model' => Embedders::model($config)];
+        }
+
+        return $described;
+    }
+
+    /**
+     * @return array{documents: int|null, embedded: int|null, failed: int|null, last_failure: string|null}
+     */
+    private function state(string $indexName): array
     {
         try {
             $stats = $this->client->index($indexName)->stats();
-            $documents = (int) ($stats['numberOfDocuments'] ?? 0);
             $lastFailure = $this->lastTask($indexName, 'failed');
 
             return [
-                'documents' => $documents,
-                'without vector' => $documents - (int) ($stats['numberOfEmbeddedDocuments'] ?? 0),
-                'failed tasks' => $lastFailure === null ? 0 : $this->failuresSinceLastSuccess($indexName),
-                'last failure' => $lastFailure === null ? self::NONE : self::date($lastFailure),
+                'documents' => (int) ($stats['numberOfDocuments'] ?? 0),
+                'embedded' => (int) ($stats['numberOfEmbeddedDocuments'] ?? 0),
+                'failed' => $lastFailure === null ? 0 : $this->failuresSinceLastSuccess($indexName),
+                'last_failure' => is_string($lastFailure['enqueuedAt'] ?? null) ? $lastFailure['enqueuedAt'] : null,
             ];
         } catch (\Throwable $e) {
             error_log("MeiliScout: could not read the state of the index {$indexName}: ".$e->getMessage());
 
-            return ['documents' => self::UNKNOWN, 'without vector' => self::UNKNOWN, 'failed tasks' => self::UNKNOWN, 'last failure' => self::UNKNOWN];
+            return ['documents' => null, 'embedded' => null, 'failed' => null, 'last_failure' => null];
         }
     }
 
@@ -101,14 +137,22 @@ final class EmbedderStatus
     }
 
     /**
-     * @param  array<string, mixed>  $task
+     * The last failure in the site's time zone: none, or unknown when Meilisearch could not tell.
+     *
+     * @param  array{failed: int|null, last_failure: string|null}  $index
      */
-    private static function date(array $task): string
+    private static function lastFailure(array $index): string
     {
-        $enqueuedAt = $task['enqueuedAt'] ?? null;
+        if ($index['failed'] === null) {
+            return self::UNKNOWN;
+        }
+
+        if ($index['last_failure'] === null) {
+            return self::NONE;
+        }
 
         try {
-            return is_string($enqueuedAt) ? (new \DateTimeImmutable($enqueuedAt))->setTimezone(wp_timezone())->format(self::DATE_FORMAT) : self::UNKNOWN;
+            return (new \DateTimeImmutable($index['last_failure']))->setTimezone(wp_timezone())->format(self::DATE_FORMAT);
         } catch (\Exception) {
             return self::UNKNOWN;
         }

@@ -133,15 +133,25 @@ final class ItemSync
      */
     public static function registered(string $indexName): ?Indexable
     {
-        $indexables = apply_filters('meiliscout/indexables', [new PostIndexable, new TaxonomyIndexable]);
-
-        foreach ((array) $indexables as $indexable) {
-            if ($indexable instanceof Indexable && $indexable->getIndexName() === $indexName) {
+        foreach (self::indexables() as $indexable) {
+            if ($indexable->getIndexName() === $indexName) {
                 return $indexable;
             }
         }
 
         return null;
+    }
+
+    /**
+     * Every indexable of meiliscout/indexables: posts, terms, and other plugins' indexes.
+     *
+     * @return list<Indexable>
+     */
+    public static function indexables(): array
+    {
+        $indexables = apply_filters('meiliscout/indexables', [new PostIndexable, new TaxonomyIndexable]);
+
+        return array_values(array_filter((array) $indexables, static fn ($indexable): bool => $indexable instanceof Indexable));
     }
 
     /**

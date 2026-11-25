@@ -53,6 +53,8 @@ add_filter('meiliscout/index_settings', function (array $settings, string $base)
 
 ### Status
 
+In the admin, **Content › Semantic search** lists each index with embedders: their source and model, the documents with their vectors, the failed tasks still to deal with and the last failure. The **Overview** shows each index's vectors, other plugins' indexes included, and counts the hybrid searches run by keywords in the last 24 hours. Nothing there can be changed: embedders are declared in code.
+
 `wp meiliscout status` lists each embedder of the indexes searches read, with the documents of the index, those still **without a vector** (`numberOfDocuments - numberOfEmbeddedDocuments`), the index's **failed tasks** still to deal with, and the date of its **last failure**. Meilisearch keeps failed tasks forever: only those after the index's last task that succeeded are counted, and warned about; an incident the index got over since only shows its date. `DELETE /tasks?statuses=failed&indexUids=<index>` clears the history.
 
 ## Hybrid search from a WP_Query
