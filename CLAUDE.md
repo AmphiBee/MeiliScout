@@ -120,6 +120,7 @@ Lint: `wp-scripts lint-js --fix` also reformats `webpack.config.js` (Prettier); 
 - `IndexingLogger`: Secure file-based log of the running full indexation, with its progress
 - `ActivityLog`: Last 100 operations (full indexations, real-time tasks), failed tasks kept to retry them
 - `SearchFallbacks`: Queries asking for Meilisearch that MySQL served, per hour, for 24 h
+- `MeilisearchBacklog`: The site's tasks Meilisearch still has to process after a run sent its documents, and the calls to the embedder of the batch in progress (Indexation screen, `GET indexation/backlog`)
 - `MetaKeyCatalog`: Meta keys of the indexable posts, with a type guessed from their values
 
 #### Front listings (`src/Listings/`)

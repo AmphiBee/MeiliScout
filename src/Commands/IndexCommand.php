@@ -208,7 +208,7 @@ class IndexCommand
     }
 
     /**
-     * The embedders of the indexes: documents still without a vector, failed tasks.
+     * The embedders of the indexes: documents still without a vector, failed tasks still to deal with.
      */
     private function reportEmbedders(): void
     {
@@ -224,13 +224,13 @@ class IndexCommand
             return;
         }
 
-        \WP_CLI\Utils\format_items('table', $rows, ['index', 'embedder', 'source', 'model', 'documents', 'without vector', 'failed tasks']);
+        \WP_CLI\Utils\format_items('table', $rows, ['index', 'embedder', 'source', 'model', 'documents', 'without vector', 'failed tasks', 'last failure']);
 
         // One row per embedder: one warning per index
         $failedTasks = array_filter(array_column($rows, 'failed tasks', 'index'), static fn ($count) => is_int($count) && $count > 0);
 
         foreach ($failedTasks as $index => $count) {
-            WP_CLI::warning(sprintf('%s has %d failed tasks: see GET /tasks?statuses=failed&indexUids=%s', $index, $count, $index));
+            WP_CLI::warning(sprintf('%s has %d failed tasks since its last successful one: see GET /tasks?statuses=failed&indexUids=%s', $index, $count, $index));
         }
     }
 

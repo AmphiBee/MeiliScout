@@ -53,7 +53,7 @@ add_filter('meiliscout/index_settings', function (array $settings, string $base)
 
 ### Status
 
-`wp meiliscout status` lists each embedder of the indexes searches read, with the documents of the index, those still **without a vector** (`numberOfDocuments - numberOfEmbeddedDocuments`), and the index's **failed tasks**, with a warning when there are some.
+`wp meiliscout status` lists each embedder of the indexes searches read, with the documents of the index, those still **without a vector** (`numberOfDocuments - numberOfEmbeddedDocuments`), the index's **failed tasks** still to deal with, and the date of its **last failure**. Meilisearch keeps failed tasks forever: only those after the index's last task that succeeded are counted, and warned about; an incident the index got over since only shows its date. `DELETE /tasks?statuses=failed&indexUids=<index>` clears the history.
 
 ## Hybrid search from a WP_Query
 
@@ -112,7 +112,7 @@ meiliscout_delete_items($manualChunks, 'attachment_id = 123');
 
 ## Cost and duration
 
-A full rebuild builds a new index: **every document is embedded again**. An update in place (real-time indexing, `meiliscout_sync_items()`, `wp meiliscout index` without `--clear`) only embeds the documents whose template's text changed.
+A full rebuild builds a new index: **every document is embedded again**. The indexation ends once MeiliScout has sent the documents; Meilisearch then embeds them, which can take minutes, and searches read the previous index until the new one is swapped in. The Indexation screen follows it: the site's tasks left, and, while vectors are computed, the documents of the batch and the calls to the embedder so far (Meilisearch's own percentage stands still meanwhile), with a warning when calls fail. It says the indexation completed once Meilisearch is done. An update in place (real-time indexing, `meiliscout_sync_items()`, `wp meiliscout index` without `--clear`) only embeds the documents whose template's text changed.
 
 While Meilisearch cannot reach a REST embedder, a task adding documents retries with an increasing delay before failing, and the tasks of every index wait behind it. Check `wp meiliscout status` after an indexation, and keep `meiliscout/bulk_batch_size` small for an index with an embedder.
 
