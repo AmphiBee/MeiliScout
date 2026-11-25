@@ -191,7 +191,8 @@ namespace Pollora\MeiliScout\Tests\Unit\Documents {
             ->and($queue[0]['type'])->toBe(ItemSync::TASK_TYPE)
             ->and($queue[0]['extra']['index'])->toBe('example_test_manual_chunks')
             ->and($queue[0]['extra']['documents'][1]['id'])->toBe('m7_p2')
-            ->and($queue[1]['extra']['filter'])->toBe('attachment_id = 3');
+            ->and($queue[1]['extra']['filter'])->toBe('attachment_id = 3')
+            ->and(array_column(array_column($queue, 'extra'), 'label'))->toBe(['example_test_manual_chunks (2)', 'example_test_manual_chunks: attachment_id = 3']);
 
         // What WP-Cron runs
         $writer = new ItemSync(new DocumentWriter(recordingClient($this, true, $sent)), null);

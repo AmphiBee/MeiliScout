@@ -240,6 +240,18 @@ export const describeOperation = ( entry ) => {
 				),
 				label
 			);
+		case 'documents.sync':
+			return sprintf(
+				/* translators: %s: an index name and the number of documents written */
+				__( 'Documents written · %s', 'meiliscout' ),
+				entry.label
+			);
+		case 'documents.delete':
+			return sprintf(
+				/* translators: %s: an index name and the filter of the documents deleted */
+				__( 'Documents deleted · %s', 'meiliscout' ),
+				entry.label
+			);
 		default:
 			return entry.operation;
 	}

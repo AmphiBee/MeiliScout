@@ -69,7 +69,7 @@ final class ItemSync
         $queue = $this->queueFor($indexable);
 
         if ($queue !== null) {
-            $queue->enqueueDocuments(self::SYNC, $indexable->getIndexName(), ['documents' => $documents], sprintf('%s: %d documents', $indexable->getIndexName(), count($documents)));
+            $queue->enqueueDocuments(self::SYNC, $indexable->getIndexName(), ['documents' => $documents], sprintf('%s (%d)', $indexable->getIndexName(), count($documents)));
 
             return count($documents);
         }
