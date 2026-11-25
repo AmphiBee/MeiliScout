@@ -320,8 +320,10 @@ class QueryIntegration
         }
 
         $count = array_diff_key($params, array_flip(['limit', 'offset', 'sort', 'attributesToRetrieve', 'facets']));
+        // With no hit asked for, Meilisearch skips the semantic search and counts by keywords only
+        $hitsPerPage = isset($count['hybrid']) ? 1 : 0;
 
-        return (int) $this->searchOrKeywords($index, [...$count, 'hitsPerPage' => 0, 'page' => 1], $query)->getTotalHits();
+        return (int) $this->searchOrKeywords($index, [...$count, 'hitsPerPage' => $hitsPerPage, 'page' => 1], $query)->getTotalHits();
     }
 
     /**

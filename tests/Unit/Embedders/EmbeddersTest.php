@@ -49,6 +49,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Embedders {
 
     beforeEach(function () {
         $GLOBALS['wp_options'] = [];
+        putenv('MEILI_INDEX_PREFIX');
         putenv(MISTRAL_KEY_ENV.'=first-key');
         $this->errorLog = ini_set('error_log', '/dev/null');
     });

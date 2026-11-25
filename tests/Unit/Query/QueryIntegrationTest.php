@@ -609,6 +609,21 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
             ->and($query->meiliscout)->not->toHaveKeys(['ranking_scores', 'semantic_hits', 'hybrid_fallback']);
     });
 
+    test('a hybrid search paged by offset is counted with its semantic hits', function () {
+        publishedPosts(1, 2);
+        $integration = integrationWith(clientReturning([
+            new SearchResult(['hits' => [['ID' => 1], ['ID' => 2]], 'offset' => 4, 'limit' => 2, 'estimatedTotalHits' => 2134, 'processingTimeMs' => 1, 'query' => '']),
+            searchResult([1], 2134),
+        ], $this, $searches));
+        $query = hybridQuery(['offset' => 4]);
+
+        $integration->interceptQuery(null, $query);
+
+        expect($query->found_posts)->toBe(2134)
+            ->and($searches[1]['hybrid'])->toBe(['embedder' => 'mistral', 'semanticRatio' => 0.6])
+            ->and($searches[1])->toMatchArray(['hitsPerPage' => 1, 'page' => 1]);
+    });
+
     test('a count failing on the embedder is made by keywords, and the query counted once', function () {
         publishedPosts(1, 2);
         $integration = integrationWith(clientReturning([
@@ -624,6 +639,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Query {
         expect($query->found_posts)->toBe(9)
             ->and($searches)->toHaveCount(3)
             ->and($searches[1])->toHaveKey('hybrid')
+            ->and($searches[1]['hitsPerPage'])->toBe(1)
             ->and($searches[2])->not->toHaveKey('hybrid')
             ->and($query->meiliscout)->toMatchArray(['served' => true, 'hybrid_fallback' => 'timeout', 'semantic_hits' => 2])
             ->and($query->meiliscout['params'])->toHaveKey('hybrid')

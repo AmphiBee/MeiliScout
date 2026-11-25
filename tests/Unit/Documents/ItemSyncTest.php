@@ -121,6 +121,7 @@ namespace Pollora\MeiliScout\Tests\Unit\Documents {
     beforeEach(function () {
         $GLOBALS['wp_options'] = [];
         $GLOBALS['cron'] = [];
+        putenv('MEILI_INDEX_PREFIX');
     });
 
     test('items are formatted and sent to a new index, created with the indexable\'s settings first', function () {
