@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Services;
 
+use Pollora\MeiliScout\Documents\ItemSync;
+
 use function add_filter;
 use function apply_filters;
 use function delete_option;
@@ -30,9 +32,12 @@ class AsyncIndexingQueue
 
     private const DEFAULT_DELAY = 300;
 
+    /**
+     * Indexers are needed to process the queue only: adding to it needs none.
+     */
     public function __construct(
-        private readonly PostSingleIndexer $postIndexer,
-        private readonly TaxonomySingleIndexer $taxonomyIndexer,
+        private ?PostSingleIndexer $postIndexer = null,
+        private ?TaxonomySingleIndexer $taxonomyIndexer = null,
     ) {}
 
     /**
@@ -58,6 +63,27 @@ class AsyncIndexingQueue
     }
 
     /**
+     * Adds a write to another plugin's index (see ItemSync): documents formatted already, or a filter of those to delete.
+     *
+     * The same write queued again runs once, in the order of its last addition.
+     *
+     * @param  array<string, mixed>  $payload  documents, or filter
+     */
+    public function enqueueDocuments(string $action, string $indexName, array $payload, string $label): void
+    {
+        $queue = $this->loadQueue();
+        $extra = ['index' => $indexName, ...$payload, 'label' => $label];
+        $key = ItemSync::TASK_TYPE.':'.md5((string) json_encode([$action, $extra]));
+
+        unset($queue[$key]);
+        $queue[$key] = IndexingTask::make(ItemSync::TASK_TYPE, $action, 0, $extra);
+
+        update_option(self::QUEUE_OPTION, $queue, false);
+
+        $this->scheduleIfNeeded();
+    }
+
+    /**
      * Processes all queued indexing operations.
      *
      * The queue is cleared before dispatching to avoid double-processing if
@@ -74,7 +100,7 @@ class AsyncIndexingQueue
         // Clear the queue immediately before processing
         delete_option(self::QUEUE_OPTION);
 
-        $tasks = new IndexingTask($this->postIndexer, $this->taxonomyIndexer);
+        $tasks = new IndexingTask($this->postIndexer ??= new PostSingleIndexer, $this->taxonomyIndexer ??= new TaxonomySingleIndexer);
 
         ObjectCacheIsolation::run(function () use ($queue, $tasks): void {
             foreach ($queue as $item) {

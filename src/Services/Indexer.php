@@ -352,7 +352,7 @@ class Indexer
      */
     private function startRebuild(Indexable $indexable, string $indexName): ?string
     {
-        $rebuildName = $indexName.'__rebuild';
+        $rebuildName = $indexName.IndexNames::REBUILD_SUFFIX;
         IndexNames::redirect($indexName, $rebuildName);
 
         if ($indexable->getIndexName() !== $rebuildName) {

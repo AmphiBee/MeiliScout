@@ -29,6 +29,7 @@ Meilisearch orders the fields of an index but has no weight per field. MeiliScou
 - A field with a weight of **0 is not searched**, in the results and in their count, so the number of results agrees with the list.
 - The index's searchable attributes become the fields some type weighs, heaviest first. A field that is not in the index yet counts after the next indexation (the Content screen says when one is needed).
 - If Meilisearch refuses the weighted search, the query is searched without weights and the error is logged.
+- A **hybrid search** (`meiliscout_hybrid`, see [EMBEDDERS.md](EMBEDDERS.md)) is never weighted: each tier's query would embed the search term again. One hybrid search is sent.
 
 ## In code
 

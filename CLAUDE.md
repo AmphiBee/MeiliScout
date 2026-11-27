@@ -101,6 +101,9 @@ Lint: `wp-scripts lint-js --fix` also reformats `webpack.config.js` (Prettier); 
 #### Search weights (`src/Search/`)
 `SearchWeights` (setting `search_weights`: type → field → 0–10 by halves; defaults title 4, terms 2, excerpt 1.5, content 1; `enabledFields()` becomes the index's `searchableAttributes`, `tiers()` groups fields by weight), `WeightedSearch` (`applies()`: relevance search only, no sort/facets/count and several tiers; `queries()`/`run()`: one federated query per tier on `attributesToSearchOn` with `federationOptions.weight`, paging on the federation; `restrict()`: an ordinary search limited to the weighed fields; `preview()`). Hooked in `QueryIntegration::search()` (falls back to the plain search on error). Admin: `resources/admin/screens/Weights.js`, `ContentController` (`weights`, `POST /content/weights/preview`). Docs `docs/WEIGHTS.md`. Suggest: a posts source's plan carries `searches` (one per weight tier, `Suggest\Render\Plan::searches()`, plan version 2), the client merges them by weight × ranking score (`mergeHits()`). Listings sort explicitly, so they are not weighted.
 
+#### Embedders and hybrid search (`src/Embedders/`, `src/Documents/`)
+`Embedders` (declared by base index name with `meiliscout_register_embedder()`, `meiliscout/embedders` filter; merged into every push by `IndexSettings::complete()`, with `meiliscout/index_settings`; `apiKey` a callable or a constant / env name, read in `withApiKeys()` when sent, left out of the fingerprint and of the export section `Config/Portability/Sections/EmbeddersSection`), `EmbedderStatus` (`wp meiliscout status`: documents without vector, failed tasks). `meiliscout_hybrid` → `Query/Builders/HybridSearchBuilder` (`hybrid`, `showRankingScore`, ignored without `s`); `Query/HybridFallback`: embedder errors run the search again by keywords on Meilisearch (`hybrid_fallback` in `$query->meiliscout` and `SearchFallbacks`, apart from MySQL fallbacks). Other plugins' indexes: `meiliscout_sync_items()` / `meiliscout_delete_items()` → `Documents/ItemSync` (async queue task type `documents`, indexable found again in `meiliscout/indexables`) and `Documents/DocumentWriter`. Docs `docs/EMBEDDERS.md`.
+
 #### Named custom fields (`src/Fields/`)
 `FieldRegistry` (built once per request, read by the admin only): `MetaField` (key, label "Group › Field", group, source, type hint, post types, companion keys), `FieldProvider` (`Providers/AcfProvider`, `MetaBoxProvider`, `WooCommerceProvider`), the `meiliscout/meta_fields` and `meiliscout/meta_field_providers` filters, `meiliscout_register_meta_field()`. `ContentController::metaKeys()` lists named fields first then raw keys (20 at most, WP internal keys and ACF `_field` references hidden); names show in Content, Relevance and Listings. Docs: `docs/FIELDS.md`; plan with the search weights to come: `docs/plans/2026-10-search-weights-and-named-fields.md`.
 
@@ -117,6 +120,7 @@ Lint: `wp-scripts lint-js --fix` also reformats `webpack.config.js` (Prettier); 
 - `IndexingLogger`: Secure file-based log of the running full indexation, with its progress
 - `ActivityLog`: Last 100 operations (full indexations, real-time tasks), failed tasks kept to retry them
 - `SearchFallbacks`: Queries asking for Meilisearch that MySQL served, per hour, for 24 h
+- `MeilisearchBacklog`: The site's tasks Meilisearch still has to process after a run sent its documents, and the calls to the embedder of the batch in progress (Indexation screen, `GET indexation/backlog`)
 - `MetaKeyCatalog`: Meta keys of the indexable posts, with a type guessed from their values
 
 #### Front listings (`src/Listings/`)
@@ -213,6 +217,7 @@ The plugin provides several filters for customization:
 - `meiliscout/listings/load_styles`, `meiliscout/listings/theme_colors`, `meiliscout/listings/ui_kit`: front listings' default look and its specimen
 - `meiliscout/listings/seo_view`, `meiliscout/listings/seo_adapter`, `meiliscout/listings/structured_data`, `meiliscout/listings/seo_locale`: front listings' SEO
 - `meiliscout/listings/sitemap_entries`, `meiliscout/post/max_values_per_facet`: front listings' sitemap, values per facet
+- `meiliscout/embedders`, `meiliscout/index_settings`: embedders and other index settings (`docs/EMBEDDERS.md`)
 - `meiliscout/supported_query_vars`, `meiliscout/ignored_sql_filters`, `meiliscout/ignored_term_sql_filters`, `meiliscout/skip_term_query_integration`, `meiliscout/integrate_term_query`, `meiliscout/term/ranking_rules`, `meiliscout/term/document`, `meiliscout/skip_query_integration`, `meiliscout/integrate_query`, `meiliscout/search_params`, `meiliscout/hydrate_from_documents`, `meiliscout/search_memo`, `meiliscout/max_total_hits`, `meiliscout/php_order_limit`, `meiliscout/post/ranking_rules`, `meiliscout/debug_header`, `meiliscout/indexable_post_statuses`: see `docs/FILTERS.md`
 
 ## Environment Variables

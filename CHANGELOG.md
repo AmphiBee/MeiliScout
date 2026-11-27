@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Embedders and hybrid search
+
+- **Embedders declared in code**: `meiliscout_register_embedder($name, $config, $indexes = ['posts'])` and the `meiliscout/embedders` filter. Their settings go with the index settings whenever these are pushed (full indexation, real-time writes), so a full indexation no longer erases an embedder; an indexable's own `embedders` win. The API key is a callable or a constant / environment variable name, read when the settings are sent (left out when it cannot be read, a failing callable included): never stored in an option, left out of the settings' fingerprint (a new key pushes nothing) and of the configuration export (new `embedders` section: name, source, model, template; an import writes none). See [docs/EMBEDDERS.md](docs/EMBEDDERS.md).
+- **Hybrid search from a `WP_Query`**: the `meiliscout_hybrid` query var (`embedder`, `semanticRatio`, `rankingScoreThreshold`) becomes Meilisearch's `hybrid` parameter; ignored without `s`. Ranking scores in `$query->meiliscout['ranking_scores']`, hits brought by meaning in `$query->meiliscout['semantic_hits']`. A hybrid search is not weighted.
+- **Fallback by keywords**: an embedder error (`vector_embedding_error`, `invalid_search_embedder`, `invalid_search_hybrid_query`) or no answer in time runs the same search by keywords on Meilisearch, not on MySQL; `$query->meiliscout['hybrid_fallback']` says why, and the embedder is not asked again in the request; the count of a query paged by `offset` falls back the same way. Counted once per query as `hybrid_fallback`, apart from the MySQL fallbacks (`SearchFallbacks::lastDay()['hybrid']`).
+- `wp meiliscout status` lists the embedders, the documents still without a vector, the failed tasks still to deal with (those after the index's last successful task) and the date of the last failure.
+- The Indexation screen follows Meilisearch once a run has sent its documents (`GET /meiliscout/v1/indexation/backlog`): the site's tasks left and, while vectors are computed, the calls to the embedder; it says the indexation completed only once Meilisearch is done.
+- `meiliscout/index_settings` filters the settings pushed to any index (`searchCutOffMs`...).
+- Admin: **Content › Semantic search** lists the embedders of each index (source, model, documents with their vectors, failed tasks still to deal with, last failure; `GET /meiliscout/v1/content/embedders`, without API keys nor headers). The **Overview** shows the vectors of each index, lists other plugins' indexes (those of `meiliscout/indexables`), and counts the hybrid searches run by keywords.
+
+### Other plugins' indexes
+
+- `meiliscout_sync_items($indexable, $items)` and `meiliscout_delete_items($indexable, $filter)` write and delete some documents of an indexable's index without a full indexation: the index is created with its settings when missing, documents go in batches, and with the asynchronous queue on they are sent by WP-Cron as posts are (the indexable must be in `meiliscout/indexables`).
+- The activity log names these writes: "Documents written · index (n)", "Documents deleted · index: filter".
+- `IndexNames::active()` reads another plugin's index under its prefixed name on a site indexed before 2.0 too: it used to return the unprefixed base name, where full indexations never write.
+
 ## [2.6.1](https://github.com/AmphiBee/MeiliScout/releases/tag/2.6.1) - 2026-11-05
 
 ### Indexing

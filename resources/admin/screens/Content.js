@@ -11,6 +11,7 @@ import { get, post, errorMessage } from '../api';
 import { Banner, Skeleton, Switch, useResource, useToast } from '../components';
 import { number } from '../format';
 import { href } from '../routes';
+import SemanticSearch from './SemanticSearch';
 import Weights from './Weights';
 
 const TYPE_LABELS = {
@@ -701,6 +702,9 @@ const Content = ( { refreshOverview } ) => {
 					<a href={ href( 'content', 'relevance' ) }>
 						{ __( 'Search weights', 'meiliscout' ) }
 					</a>
+					<a href={ href( 'content', 'semantic' ) }>
+						{ __( 'Semantic search', 'meiliscout' ) }
+					</a>
 				</nav>
 
 				<div className="ms-main">
@@ -987,6 +991,8 @@ const Content = ( { refreshOverview } ) => {
 							onChange={ ( weights ) => update( { weights } ) }
 						/>
 					</section>
+
+					<SemanticSearch />
 				</div>
 			</div>
 

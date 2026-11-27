@@ -6,6 +6,18 @@ export const number = ( value ) =>
 	new Intl.NumberFormat( locale ).format( value ?? 0 );
 
 /**
+ * A percentage, from 0 to 100, as the locale writes it.
+ *
+ * @param {number} value
+ * @return {string} The percentage, rounded.
+ */
+export const percent = ( value ) =>
+	new Intl.NumberFormat( locale, {
+		style: 'percent',
+		maximumFractionDigits: 0,
+	} ).format( ( value ?? 0 ) / 100 );
+
+/**
  * A size in bytes, in the largest unit that keeps it above 1.
  *
  * @param {number|null} bytes

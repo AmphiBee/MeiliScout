@@ -55,6 +55,11 @@ final class IndexNames
      */
     public const BASES = ['posts', 'taxonomies'];
 
+    /**
+     * Appended to an index's name while a full indexation rebuilds it aside.
+     */
+    public const REBUILD_SUFFIX = '__rebuild';
+
     private const ACTIVE_OPTION = 'meiliscout/active_indexes';
 
     private const SCHEMA_OPTION = 'meiliscout/schema_version';
@@ -116,8 +121,20 @@ final class IndexNames
             return (string) $active[$base];
         }
 
-        // Indexed before 2.0: the legacy, unprefixed index
-        return self::wasIndexedBefore() ? $base : self::name($base);
+        // Indexed before 2.0: the legacy, unprefixed index. Another plugin's index
+        // has no legacy name: it is read where full indexations and swaps write it.
+        return self::wasIndexedBefore() && in_array($base, self::BASES, true) ? $base : self::name($base);
+    }
+
+    /**
+     * The base name of an index, from the name it is written to, read or rebuilt under.
+     */
+    public static function baseOf(string $indexName): string
+    {
+        $base = (string) preg_replace('/'.preg_quote(self::REBUILD_SUFFIX, '/').'$/', '', $indexName);
+        $prefix = self::prefix();
+
+        return $prefix !== '' && str_starts_with($base, $prefix) ? substr($base, strlen($prefix)) : $base;
     }
 
     /**

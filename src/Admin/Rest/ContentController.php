@@ -6,6 +6,8 @@ namespace Pollora\MeiliScout\Admin\Rest;
 
 use Pollora\MeiliScout\Config\SearchableAttributes;
 use Pollora\MeiliScout\Config\Settings;
+use Pollora\MeiliScout\Embedders\Embedders;
+use Pollora\MeiliScout\Embedders\EmbedderStatus;
 use Pollora\MeiliScout\Fields\FieldRegistry;
 use Pollora\MeiliScout\Fields\MetaField;
 use Pollora\MeiliScout\Search\SearchWeights;
@@ -17,6 +19,7 @@ use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
 use Pollora\MeiliScout\Services\MissedMetaKeys;
 use Pollora\MeiliScout\Services\Indexer;
 use Pollora\MeiliScout\Services\MetaKeyCatalog;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -50,6 +53,23 @@ final class ContentController extends Controller
         $this->route('/content', 'POST', [$this, 'update']);
         $this->route('/meta-keys', 'GET', [$this, 'metaKeys']);
         $this->route('/content/weights/preview', 'POST', [$this, 'previewWeights']);
+        $this->route('/content/embedders', 'GET', [$this, 'embedders']);
+    }
+
+    /**
+     * The embedders declared in code, by index, with their vectors and failed tasks.
+     */
+    public function embedders(): WP_REST_Response|WP_Error
+    {
+        if (Embedders::all() === []) {
+            return $this->respond([]);
+        }
+
+        if (is_wp_error($client = $this->client())) {
+            return $client;
+        }
+
+        return $this->respond((new EmbedderStatus($client))->indexes());
     }
 
     public function show(): WP_REST_Response

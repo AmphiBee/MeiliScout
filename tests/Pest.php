@@ -85,6 +85,9 @@ uses()->beforeEach(function () {
     $GLOBALS['filters'] = [];
     // Meilisearch's answers are kept for the request: each test is one
     \Pollora\MeiliScout\Query\SearchMemo::reset();
+    // So are the embedders that failed, and the embedders declared
+    \Pollora\MeiliScout\Query\HybridFallback::reset();
+    \Pollora\MeiliScout\Embedders\Embedders::reset();
 })->in('Unit');
 
 if (! class_exists('WP_Term', false)) {

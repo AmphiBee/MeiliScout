@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Commands;
 
+use Pollora\MeiliScout\Embedders\EmbedderStatus;
 use Pollora\MeiliScout\Indexables\TaxonomyIndexable;
+use Pollora\MeiliScout\Services\ClientFactory;
 use Pollora\MeiliScout\Services\IndexNames;
 use Pollora\MeiliScout\Services\Indexer;
 use WP_CLI;
@@ -180,7 +182,7 @@ class IndexCommand
     }
 
     /**
-     * Shows the indexes searches read and write, and whether a migration is pending.
+     * Shows the indexes searches read and write, whether a migration is pending, and the embedders' documents without a vector.
      *
      * ## EXAMPLES
      *
@@ -202,6 +204,34 @@ class IndexCommand
         }
 
         $this->reportLegacyIndexes();
+        $this->reportEmbedders();
+    }
+
+    /**
+     * The embedders of the indexes: documents still without a vector, failed tasks still to deal with.
+     */
+    private function reportEmbedders(): void
+    {
+        $client = ClientFactory::getClient();
+
+        if ($client === null) {
+            return;
+        }
+
+        $rows = (new EmbedderStatus($client))->rows();
+
+        if ($rows === []) {
+            return;
+        }
+
+        \WP_CLI\Utils\format_items('table', $rows, ['index', 'embedder', 'source', 'model', 'documents', 'without vector', 'failed tasks', 'last failure']);
+
+        // One row per embedder: one warning per index
+        $failedTasks = array_filter(array_column($rows, 'failed tasks', 'index'), static fn ($count) => is_int($count) && $count > 0);
+
+        foreach ($failedTasks as $index => $count) {
+            WP_CLI::warning(sprintf('%s has %d failed tasks since its last successful one: see GET /tasks?statuses=failed&indexUids=%s', $index, $count, $index));
+        }
     }
 
     /**

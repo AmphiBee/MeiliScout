@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Foundation;
 
+use Pollora\MeiliScout\Documents\DocumentsServiceProvider;
+use Pollora\MeiliScout\Embedders\EmbeddersServiceProvider;
 use Pollora\MeiliScout\Fields\FieldsServiceProvider;
 use Pollora\MeiliScout\Listings\ListingsServiceProvider;
 use Pollora\MeiliScout\Suggest\SuggestServiceProvider;
@@ -36,6 +38,8 @@ class Application
         ListingsServiceProvider::class,
         SuggestServiceProvider::class,
         FieldsServiceProvider::class,
+        EmbeddersServiceProvider::class,
+        DocumentsServiceProvider::class,
     ];
 
     /**

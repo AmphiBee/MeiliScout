@@ -7,6 +7,7 @@ namespace Pollora\MeiliScout\Query;
 use Pollora\MeiliScout\Contracts\QueryInterface;
 use Pollora\MeiliScout\Query\Builders\DateQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\FieldsBuilder;
+use Pollora\MeiliScout\Query\Builders\HybridSearchBuilder;
 use Pollora\MeiliScout\Query\Builders\MetaQueryBuilder;
 use Pollora\MeiliScout\Query\Builders\OrderBuilder;
 use Pollora\MeiliScout\Query\Builders\PaginationBuilder;
@@ -39,6 +40,7 @@ class MeiliQueryBuilder
         $this->builders = [
             new PaginationBuilder,
             new SearchQueryBuilder,
+            new HybridSearchBuilder,
             new TypeStatusBuilder,
             new PostFieldsBuilder,
             new TaxQueryBuilder,

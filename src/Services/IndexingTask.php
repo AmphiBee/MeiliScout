@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Pollora\MeiliScout\Services;
 
+use Pollora\MeiliScout\Documents\DocumentWriter;
+use Pollora\MeiliScout\Documents\ItemSync;
+
 /**
- * Runs one indexing task: index or remove a post or a term, or re-index the posts of a term.
+ * Runs one indexing task: index or remove a post or a term, re-index the posts of a term, or write another plugin's documents.
  *
  * A task is the array the queues keep: ['type', 'action', 'id', 'extra']. The
  * async queue runs them from WP-Cron, the deferred queue at the end of the request.
@@ -88,6 +91,7 @@ final class IndexingTask
                 'reindex' => $this->postIndexer->reindexPostsForTerm($id, $extra['taxonomy'] ?? ''),
                 default => null,
             },
+            ItemSync::TASK_TYPE => $this->documents()->run($action, $extra),
             default => null,
         };
     }
@@ -119,6 +123,16 @@ final class IndexingTask
         $term = get_term($termId);
 
         return $term instanceof \WP_Term ? $term->name : null;
+    }
+
+    /**
+     * @throws \RuntimeException When Meilisearch is not configured
+     */
+    private function documents(): ItemSync
+    {
+        $client = ClientFactory::getClient() ?? throw new \RuntimeException('Meilisearch is not configured: the documents cannot be written.');
+
+        return new ItemSync(new DocumentWriter($client), null);
     }
 
     private function since(float $start): float

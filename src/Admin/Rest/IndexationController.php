@@ -10,6 +10,7 @@ use Pollora\MeiliScout\Services\Indexer;
 use Pollora\MeiliScout\Services\IndexingLogger;
 use Pollora\MeiliScout\Services\IndexingTask;
 use Pollora\MeiliScout\Services\IndexNames;
+use Pollora\MeiliScout\Services\MeilisearchBacklog;
 use Pollora\MeiliScout\Services\PostSingleIndexer;
 use Pollora\MeiliScout\Services\TaxonomySingleIndexer;
 use WP_Error;
@@ -40,6 +41,7 @@ final class IndexationController extends Controller
     public function registerRoutes(): void
     {
         $this->route('/indexation', 'GET', [$this, 'show']);
+        $this->route('/indexation/backlog', 'GET', [$this, 'backlog']);
         $this->route('/indexation', 'POST', [$this, 'start'], [
             'mode' => ['type' => 'string', 'enum' => self::MODES, 'default' => 'update'],
         ]);
@@ -56,6 +58,22 @@ final class IndexationController extends Controller
             'totals' => ['posts' => $indexer->countPosts(), 'terms' => $indexer->countTerms()],
             'run' => self::currentRun(),
         ]);
+    }
+
+    /**
+     * What Meilisearch still has to do on the site's indexes: a finished run only sent its documents.
+     */
+    public function backlog(): WP_REST_Response|WP_Error
+    {
+        if (is_wp_error($client = $this->client())) {
+            return $client;
+        }
+
+        try {
+            return $this->respond((new MeilisearchBacklog($client))->read());
+        } catch (\Throwable $e) {
+            return new WP_Error('meiliscout_backlog_unknown', $e->getMessage(), ['status' => 502]);
+        }
     }
 
     /**

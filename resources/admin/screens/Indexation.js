@@ -16,6 +16,7 @@ import {
 	useToast,
 } from '../components';
 import { number } from '../format';
+import MeilisearchBacklog from './MeilisearchBacklog';
 
 const POLL_INTERVAL = 2000;
 
@@ -455,10 +456,12 @@ const Indexation = ( { refreshOverview } ) => {
 					}
 				/>
 			) }
-			{ run?.status === 'completed' && ! active && run.ended_at && (
-				<p className="ms-status ms-status--success" role="status">
-					{ __( 'The last indexation completed.', 'meiliscout' ) }
-				</p>
+			{ ! active && (
+				<MeilisearchBacklog
+					key={ run?.ended_at ?? 'none' }
+					completed={ run?.status === 'completed' && !! run.ended_at }
+					onDone={ refreshOverview }
+				/>
 			) }
 			<Log
 				refreshKey={ logKey }

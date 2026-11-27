@@ -113,7 +113,14 @@ class QueryIntegration
         $query->meiliscout['params'] = $params;
 
         try {
-            $results = $this->search($index, $params, $query);
+            $results = $this->searchOrKeywords($index, $params, $query);
+
+            // The embedder failed now or earlier in the request: the search ran by keywords
+            if (HybridFallback::failedBefore($params)) {
+                $params = HybridFallback::keywordsOnly($params);
+                $query->meiliscout['params'] = $params;
+            }
+
             $total = $this->total($results, $index, $params, $query);
         } catch (\Throwable $e) {
             // Let WordPress run the query on MySQL rather than break the page
@@ -123,6 +130,16 @@ class QueryIntegration
         }
 
         $hits = $results->getHits();
+
+        if (! empty($params['showRankingScore'])) {
+            $query->meiliscout['ranking_scores'] = $this->rankingScores($hits);
+        }
+
+        if (isset($params['hybrid'])) {
+            // 0 with hits: Meilisearch may have searched by keywords alone, its embedder failing (see docs/EMBEDDERS.md)
+            $query->meiliscout['semantic_hits'] = $results->getSemanticHitCount();
+        }
+
         $order = PhpOrder::of($adapter);
 
         if ($order !== null) {
@@ -204,6 +221,67 @@ class QueryIntegration
     }
 
     /**
+     * Meilisearch's answer; by keywords alone when the embedder of a hybrid search fails (HybridFallback).
+     *
+     * A fallback is noted in $query->meiliscout['hybrid_fallback'], and counted once per query.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    private function searchOrKeywords(string $index, array $params, WP_Query $query): SearchResult
+    {
+        if (HybridFallback::failedBefore($params)) {
+            return $this->searchByKeywords($index, $params, $query, 'failed_before');
+        }
+
+        try {
+            return $this->search($index, $params, $query);
+        } catch (\Throwable $e) {
+            if (! HybridFallback::applies($params, $e)) {
+                throw $e;
+            }
+
+            error_log('MeiliScout: the hybrid search failed, searching by keywords: '.$e->getMessage());
+            HybridFallback::remember($params);
+
+            return $this->searchByKeywords($index, $params, $query, HybridFallback::reason($e));
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $params  The hybrid search
+     */
+    private function searchByKeywords(string $index, array $params, WP_Query $query, string $reason): SearchResult
+    {
+        $results = $this->search($index, HybridFallback::keywordsOnly($params), $query);
+
+        if (! isset($query->meiliscout['hybrid_fallback'])) {
+            $query->meiliscout['hybrid_fallback'] = $reason;
+            SearchFallbacks::record(SearchFallbacks::HYBRID_FALLBACK);
+        }
+
+        return $results;
+    }
+
+    /**
+     * The ranking score of each post, by id.
+     *
+     * @param  list<array<string, mixed>>  $hits
+     * @return array<int, float>
+     */
+    private function rankingScores(array $hits): array
+    {
+        $scores = [];
+
+        foreach ($hits as $hit) {
+            if (isset($hit['ID'], $hit['_rankingScore'])) {
+                $scores[(int) $hit['ID']] = (float) $hit['_rankingScore'];
+            }
+        }
+
+        return $scores;
+    }
+
+    /**
      * Meilisearch's answer, or the one a query of the same request already had (SearchMemo).
      *
      * @param  array<string, mixed>  $params
@@ -242,8 +320,10 @@ class QueryIntegration
         }
 
         $count = array_diff_key($params, array_flip(['limit', 'offset', 'sort', 'attributesToRetrieve', 'facets']));
+        // With no hit asked for, Meilisearch skips the semantic search and counts by keywords only
+        $hitsPerPage = isset($count['hybrid']) ? 1 : 0;
 
-        return (int) $this->search($index, [...$count, 'hitsPerPage' => 0, 'page' => 1], $query)->getTotalHits();
+        return (int) $this->searchOrKeywords($index, [...$count, 'hitsPerPage' => $hitsPerPage, 'page' => 1], $query)->getTotalHits();
     }
 
     /**

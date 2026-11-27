@@ -28,6 +28,11 @@ final class SearchFallbacks
     public const UNREACHABLE = 'unreachable';
 
     /**
+     * A hybrid search searched by keywords alone, its embedder failing: Meilisearch, not MySQL, served it.
+     */
+    public const HYBRID_FALLBACK = 'hybrid_fallback';
+
+    /**
      * Prefix of the reasons for a meta key that is not indexed.
      */
     public const UNINDEXED_META = 'unindexed_meta';
@@ -114,8 +119,9 @@ final class SearchFallbacks
     /**
      * The fallbacks of the last 24 hours: in all, by reason (most frequent first),
      * those due to Meilisearch failing, and those due to meta keys not indexed.
+     * Hybrid searches run by keywords are apart (`hybrid`): Meilisearch served them.
      *
-     * @return array{total: int, error: int, meta: int, reasons: array<string, int>}
+     * @return array{total: int, error: int, meta: int, reasons: array<string, int>, hybrid: int}
      */
     public static function lastDay(): array
     {
@@ -128,6 +134,8 @@ final class SearchFallbacks
             }
         }
 
+        $hybrid = $reasons[self::HYBRID_FALLBACK] ?? 0;
+        unset($reasons[self::HYBRID_FALLBACK]);
         arsort($reasons);
 
         $sum = static fn (callable $matches) => array_sum(array_filter($reasons, $matches, ARRAY_FILTER_USE_KEY));
@@ -137,6 +145,7 @@ final class SearchFallbacks
             'error' => $sum(static fn (string $reason) => in_array($reason, [self::ERROR, self::UNREACHABLE, 'build_error'], true)),
             'meta' => $sum(static fn (string $reason) => str_starts_with($reason, self::UNINDEXED_META)),
             'reasons' => $reasons,
+            'hybrid' => $hybrid,
         ];
     }
 
